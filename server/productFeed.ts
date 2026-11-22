@@ -6,30 +6,39 @@ import type { Express, Request, Response } from 'express';
 
 // ==============================================================================
 // TEQQNOWORLD DYNAMIC PRODUCT FEED ENGINE (CSV + JSONL)
-// Compatible with ChatGPT / OpenAI Commerce Product Catalog imports
+// Aligned strictly with the Official OpenAI ChatGPT Product Feed Schema
 // ==============================================================================
 
-export type FeedAvailability = 'in_stock' | 'out_of_stock' | 'preorder';
+export type FeedAvailability =
+  | 'in_stock'
+  | 'out_of_stock'
+  | 'pre_order'
+  | 'backorder'
+  | 'unknown';
+
 export type FeedCondition = 'new' | 'refurbished' | 'used';
 
 export interface ProductFeedItem {
-  id: string;
+  // Core 11 Required OpenAI ChatGPT Product Feed Schema Fields
+  item_id: string;
   title: string;
   description: string;
-  link: string;
-  image_link: string;
-  additional_image_link: string[];
-  price: string;
-  currency: 'INR';
-  availability: FeedAvailability;
-  inventory_quantity: number;
+  url: string;
   brand: string;
-  category: string;
-  product_category: string;
-  condition: FeedCondition;
-  enable_search: boolean;
-  enable_checkout: boolean;
   seller_name: string;
+  image_url: string;
+  availability: FeedAvailability;
+  price: string;
+  target_countries: string[];
+  store_country: string;
+
+  // Official OpenAI Product Feed Optional / Control Fields
+  additional_image_urls: string[];
+  is_eligible_search: boolean;
+  is_eligible_checkout: boolean;
+  condition: FeedCondition;
+  product_category: string;
+  inventory_quantity: number;
   seller_url: string;
   seller_privacy_policy: string;
   seller_tos: string;
@@ -38,9 +47,8 @@ export interface ProductFeedItem {
   color?: string;
   size?: string;
   material?: string;
-  min_order_quantity?: number;
-  product_review_count?: number;
-  product_review_rating?: number;
+  review_count?: number;
+  star_rating?: string;
 }
 
 interface RawCatalogProduct {
@@ -83,6 +91,7 @@ interface SupabaseProductRow {
   image_url?: string | null;
   image_link?: string | null;
   additional_images?: string[] | string | null;
+  additional_image_urls?: string[] | string | null;
   available_colors?: Array<{ name?: string; imageFront?: string; imageBack?: string }> | string[] | null;
   available_sizes?: string[] | null;
   description?: string | null;
@@ -107,6 +116,9 @@ export interface ProductFeedOptions {
 
 const DEFAULT_PUBLIC_SITE_URL = 'https://teqqnoworld.com';
 const DEFAULT_BRAND = 'TeqqnoWorld';
+// TeqqnoWorld operates from Hyderabad, India and ships pan-India (ISO 3166-1 alpha-2: IN)
+const DEFAULT_STORE_COUNTRY = 'IN';
+const DEFAULT_TARGET_COUNTRIES: ReadonlyArray<string> = ['IN'];
 const DEFAULT_INVENTORY_QTY = 100;
 const SUPABASE_FETCH_TIMEOUT_MS = 2500;
 
@@ -125,7 +137,7 @@ const SHOWCASE_BANNER_BY_PRODUCT_ID: Record<string, string> = {
   'prod-cotton-flexi-caps': '/assets/aistudio/Cotton_Flexi_Caps_Product_Banner_7057e0bd.webp',
 };
 
-// Node-native fallback snapshot of active storefront products (used only if
+// Node-native fallback snapshot of the 11 active storefront products (used only if
 // runtime cannot directly import extensionless TS modules from src/data/mockData.ts)
 const FALLBACK_CATALOG_PRODUCTS: RawCatalogProduct[] = [
   {
@@ -161,7 +173,7 @@ const FALLBACK_CATALOG_PRODUCTS: RawCatalogProduct[] = [
     rating: 4.9,
     reviewCount: 42,
     description:
-      'Promotional Canopy Kiosk is a portable branding and promotional stall designed for exhibitions, trade shows, retail promotions, outdoor campaigns, and brand activation events. It features a premium navy blue polyester fabric canopy, sturdy metal frame, durable stitching, and stable base support. Available in 4 x 4 ft and 8 x 8 ft sizes.',
+      'Promotional Canopy Kiosk is a portable branding and promotional stall designed for exhibitions, trade shows, retail promotions, outdoor campaigns, and brand activation events. It features a premium navy blue polyester fabric canopy, sturdy metal frame, durable stitching, and stable base support. Available in 4 × 4 ft and 8 × 8 ft sizes, making it ideal for businesses looking for a professional promotional display solution.',
     sizes: ['4 × 4 ft', '8 × 8 ft'],
     colors: [
       {
@@ -182,7 +194,7 @@ const FALLBACK_CATALOG_PRODUCTS: RawCatalogProduct[] = [
     rating: 4.9,
     reviewCount: 56,
     description:
-      'Rollup Standee is a premium retractable roll-up banner stand engineered for retail stores, exhibitions, trade shows, events, corporate branding, and marketing campaigns. Made with high-quality flex printing and a sturdy aluminum metal stand with carry bag included.',
+      'Rollup Standee is a premium retractable roll-up banner stand engineered for retail stores, exhibitions, trade shows, events, corporate branding, and marketing campaigns. Made with high-quality flex printing and a sturdy aluminum metal stand, it offers easy tool-free installation in minutes, lightweight portability, and includes a durable carry bag for effortless transport.',
     sizes: ['3 ft × 6 ft (36 × 72 in)'],
     colors: [
       {
@@ -227,7 +239,7 @@ const FALLBACK_CATALOG_PRODUCTS: RawCatalogProduct[] = [
     rating: 4.9,
     reviewCount: 48,
     description:
-      'Premium Portable Promo Table designed for exhibitions, promotional campaigns, product demonstrations, retail promotions and trade shows. Features a lightweight yet sturdy structure, spacious counter storage and an overhead branding display panel.',
+      'Premium Portable Promo Table designed for exhibitions, promotional campaigns, product demonstrations, retail promotions and trade shows. Features a lightweight yet sturdy structure, spacious counter storage and an overhead branding display panel. Easy to assemble, portable and suitable for professional promotional activities.',
     colors: [
       {
         name: 'White',
@@ -250,7 +262,7 @@ const FALLBACK_CATALOG_PRODUCTS: RawCatalogProduct[] = [
     rating: 4.9,
     reviewCount: 36,
     description:
-      'Premium Custom Printed 5 Feet Promotional Umbrella designed for outdoor promotions, exhibitions, retail marketing, product demonstrations, brand activations and promotional events. Features a durable polyester canopy, sturdy tripod base, adjustable height pole and custom printing options.',
+      'Premium Custom Printed 5 Feet Promotional Umbrella designed for outdoor promotions, exhibitions, retail marketing, product demonstrations, brand activations and promotional events. Features a durable polyester canopy, sturdy tripod base, adjustable height pole and custom printing options to showcase your brand professionally.',
     colors: [
       { name: 'Red + White', imageFront: '/assets/umbrella/red-dimensions.webp' },
       { name: 'Blue + White', imageFront: '/assets/umbrella/blue-dimensions.webp' },
@@ -302,7 +314,7 @@ const FALLBACK_CATALOG_PRODUCTS: RawCatalogProduct[] = [
     rating: 4.9,
     reviewCount: 52,
     description:
-      'Engineered with cutting-edge 220 GSM MARS performance fabric, the Mars COOLMAX Polo T-Shirt offers superior moisture-wicking breathability, quick-drying comfort, and high color retention. Built for corporate teams, sports staff, and executive apparel with 15 vibrant colour options.',
+      'Engineered with cutting-edge 220 GSM MARS performance fabric, the Mars COOLMAX Polo T-Shirt offers superior moisture-wicking breathability, quick-drying comfort, and high color retention. Built for corporate teams, sports staff, and executive apparel with 15 vibrant colour options and precision custom logo branding.',
     sizes: ['S (36)', 'M (38)', 'L (40)', 'XL (42)', '2XL (44)', '3XL (46)'],
     colors: [{ name: '15 Corporate Colours' }],
     specs: { Fabric: '220 GSM MARS Performance Fabric' },
@@ -334,7 +346,7 @@ const FALLBACK_CATALOG_PRODUCTS: RawCatalogProduct[] = [
     rating: 4.9,
     reviewCount: 168,
     description:
-      'Premium Cotton Flexi Caps designed for everyday comfort and style. Available in 6 attractive colours, perfect for corporate branding, promotional events, team uniforms and custom logo embroidery. Features pure breathable cotton fabric, pre-curved visor, structured front crown, and adjustable strap.',
+      'Premium Cotton Flexi Caps designed for everyday comfort and style. Available in 6 attractive colours, perfect for corporate branding, promotional events, team uniforms and custom logo embroidery. Features pure breathable cotton fabric, pre-curved concertina stitched visor, structured front crown, and an adjustable strap.',
     colors: [
       { name: 'Black' },
       { name: 'Navy Blue' },
@@ -364,6 +376,22 @@ function getPublicSiteOrigin(): string {
   }
 }
 
+function getStoreCountry(): string {
+  const raw = (process.env.FEED_STORE_COUNTRY || DEFAULT_STORE_COUNTRY).trim().toUpperCase();
+  return /^[A-Z]{2}$/.test(raw) ? raw : DEFAULT_STORE_COUNTRY;
+}
+
+function getTargetCountries(): string[] {
+  const raw = (process.env.FEED_TARGET_COUNTRIES || '').trim();
+  if (!raw) return [...DEFAULT_TARGET_COUNTRIES];
+  const parsed = raw
+    .split(',')
+    .map((c) => c.trim().toUpperCase())
+    .filter((c) => /^[A-Z]{2}$/.test(c));
+  const unique = Array.from(new Set(parsed));
+  return unique.length > 0 ? unique : [...DEFAULT_TARGET_COUNTRIES];
+}
+
 function cleanPlainText(input: unknown, maxLength: number): string {
   if (input === null || input === undefined) return '';
   return String(input)
@@ -380,6 +408,14 @@ function slugify(value: string): string {
     .replace(/[^a-z0-9]+/g, '-')
     .replace(/^-+|-+$/g, '')
     .slice(0, 120);
+}
+
+function decodeURIComponentSafe(segment: string): string {
+  try {
+    return decodeURIComponent(segment);
+  } catch {
+    return segment;
+  }
 }
 
 function resolveVerifiedLocalAssetPath(rawPath: string, publicDir?: string): string | null {
@@ -401,7 +437,7 @@ function resolveVerifiedLocalAssetPath(rawPath: string, publicDir?: string): str
     return decodedPath;
   }
 
-  // If a legacy .png/.jpg/.jpeg path was compressed to .webp, upgrade automatically
+  // Upgrade legacy .png/.jpg/.jpeg references to compressed .webp counterparts if present
   if (/\.(png|jpe?g)$/i.test(decodedPath)) {
     const webpRelative = decodedPath.replace(/\.(png|jpe?g)$/i, '.webp');
     const webpCandidate = path.resolve(resolvedRoot, webpRelative.replace(/^\/+/, ''));
@@ -442,7 +478,8 @@ function resolveHttpsUrl(rawUrl: unknown, origin: string, publicDir?: string): s
   if (trimmed.startsWith('/')) {
     const verifiedPath = resolveVerifiedLocalAssetPath(trimmed, publicDir);
     if (!verifiedPath) return null;
-    return `${origin}${encodeUrlPath(verifiedPath)}`;
+    // Percent-encode commas in URLs per OpenAI additional_image_urls requirement
+    return `${origin}${encodeUrlPath(verifiedPath)}`.replace(/,/g, '%2C');
   }
 
   try {
@@ -460,43 +497,9 @@ function resolveHttpsUrl(rawUrl: unknown, origin: string, publicDir?: string): s
       parsed.pathname = encodeUrlPath(verifiedPath);
     }
 
-    return parsed.toString();
+    return parsed.toString().replace(/,/g, '%2C');
   } catch {
     return null;
-  }
-}
-
-function decodeURIComponentSafe(segment: string): string {
-  try {
-    return decodeURIComponent(segment);
-  } catch {
-    return segment;
-  }
-}
-
-function formatCategoryLabel(rawCategory: string, productType?: string): string {
-  const cat = rawCategory.trim().toLowerCase();
-  if (productType === 'cap') return 'Apparel & Headwear';
-  switch (cat) {
-    case 'apparel':
-      return 'Apparel';
-    case 'drinkware':
-      return 'Drinkware';
-    case 'signage':
-    case 'display':
-      return 'Signage & Displays';
-    case 'stationery':
-      return 'Stationery';
-    case 'gifting':
-      return 'Corporate Gifting';
-    case 'office':
-      return 'Office & Accessories';
-    case 'packaging':
-      return 'Packaging';
-    default:
-      return rawCategory
-        ? rawCategory.charAt(0).toUpperCase() + rawCategory.slice(1)
-        : 'Corporate Merchandise';
   }
 }
 
@@ -532,6 +535,10 @@ function mapProductTaxonomy(rawCategory: string, productType?: string): string {
   return 'Business & Industrial > Advertising & Marketing > Promotional Products';
 }
 
+/**
+ * Normalizes stock status strictly into the official OpenAI Product Feed availability enum:
+ *   in_stock | out_of_stock | pre_order | backorder | unknown
+ */
 function normalizeAvailability(
   rawAvailability?: unknown,
   inStock?: unknown,
@@ -552,16 +559,38 @@ function normalizeAvailability(
 
   if (typeof rawAvailability === 'string' && rawAvailability.trim()) {
     const normalized = rawAvailability.trim().toLowerCase().replace(/[\s-]+/g, '_');
-    if (normalized === 'out_of_stock' || normalized === 'outofstock' || normalized === 'unavailable') {
+    if (
+      normalized === 'out_of_stock' ||
+      normalized === 'outofstock' ||
+      normalized === 'unavailable'
+    ) {
       return { availability: 'out_of_stock', inventoryQuantity: 0 };
     }
-    if (normalized === 'preorder' || normalized === 'pre_order' || normalized === 'backorder') {
+    if (normalized === 'pre_order' || normalized === 'preorder') {
       return {
-        availability: 'preorder',
+        availability: 'pre_order',
         inventoryQuantity:
           typeof qtyNum === 'number' && Number.isFinite(qtyNum) && qtyNum > 0
             ? Math.floor(qtyNum)
             : DEFAULT_INVENTORY_QTY,
+      };
+    }
+    if (normalized === 'backorder' || normalized === 'back_order') {
+      return {
+        availability: 'backorder',
+        inventoryQuantity:
+          typeof qtyNum === 'number' && Number.isFinite(qtyNum) && qtyNum > 0
+            ? Math.floor(qtyNum)
+            : 0,
+      };
+    }
+    if (normalized === 'unknown') {
+      return {
+        availability: 'unknown',
+        inventoryQuantity:
+          typeof qtyNum === 'number' && Number.isFinite(qtyNum) && qtyNum >= 0
+            ? Math.floor(qtyNum)
+            : 0,
       };
     }
   }
@@ -599,7 +628,15 @@ function formatPriceInr(amount: number): string {
 
 function extractMaterial(product: RawCatalogProduct): string | undefined {
   if (!product.specs) return undefined;
-  const keys = ['Material', 'Fabric', 'Fabric Material', 'Paper Quality', 'Canopy Fabric', 'Stand Material', 'Finish'];
+  const keys = [
+    'Material',
+    'Fabric',
+    'Fabric Material',
+    'Paper Quality',
+    'Canopy Fabric',
+    'Stand Material',
+    'Finish',
+  ];
   for (const key of keys) {
     const val = product.specs[key];
     if (val && typeof val === 'string') {
@@ -664,7 +701,7 @@ function collectProductImages(
     }
   }
 
-  // 5. Safe fallback image that is verified to exist in public/assets
+  // 5. Safe fallback image verified to exist in public/assets
   if (ordered.length === 0) {
     pushIfValid('/assets/products/prod_tipping_polo.webp');
   }
@@ -704,8 +741,8 @@ async function loadBaseCatalogProducts(rootDir: string): Promise<RawCatalogProdu
 }
 
 /**
- * Queries live Supabase `products` table using configured server credentials.
- * Returns null if Supabase is unreachable or table is empty, ensuring zero downtime.
+ * Queries live Supabase `products` table using configured read-only public credentials.
+ * Returns null if Supabase is unreachable or empty, ensuring zero downtime.
  */
 async function fetchLiveSupabaseProducts(
   getSupabaseConfig: () => { url: string; apiKey: string }
@@ -745,14 +782,17 @@ async function fetchLiveSupabaseProducts(
 }
 
 /**
- * Builds the live, normalized list of active product feed items by combining
- * the storefront catalog with any live updates/additions/deactivations from Supabase.
+ * Builds the live, normalized list of active product feed items strictly adhering
+ * to the Official OpenAI ChatGPT Product Feed Schema.
  */
 export async function buildDynamicProductFeed(
   options: ProductFeedOptions
 ): Promise<ProductFeedItem[]> {
   const origin = getPublicSiteOrigin();
+  const storeCountry = getStoreCountry();
+  const targetCountries = getTargetCountries();
   const publicDir = path.join(options.rootDir, 'public');
+
   const [baseProducts, supabaseRows] = await Promise.all([
     loadBaseCatalogProducts(options.rootDir),
     fetchLiveSupabaseProducts(options.getSupabaseConfig),
@@ -760,6 +800,7 @@ export async function buildDynamicProductFeed(
 
   const supabaseByKey = new Map<string, SupabaseProductRow>();
   const matchedSupabaseIds = new Set<string>();
+  const seenItemIds = new Set<string>();
 
   if (Array.isArray(supabaseRows)) {
     for (const row of supabaseRows) {
@@ -774,8 +815,11 @@ export async function buildDynamicProductFeed(
   for (const product of baseProducts) {
     if (product.isActive === false) continue;
 
+    const itemId = cleanPlainText(product.id, 100);
+    if (!itemId || seenItemIds.has(itemId.toLowerCase())) continue;
+
     const liveOverride =
-      supabaseByKey.get(product.id.toLowerCase()) ||
+      supabaseByKey.get(itemId.toLowerCase()) ||
       supabaseByKey.get(product.slug.toLowerCase());
 
     if (liveOverride) {
@@ -794,14 +838,21 @@ export async function buildDynamicProductFeed(
         : Number(product.basePrice);
 
     const effectivePrice = Number.isFinite(rawPrice) && rawPrice > 0 ? rawPrice : product.basePrice;
-    const effectiveSlug = cleanPlainText(liveOverride?.slug || product.slug || slugify(product.name), 120);
-    const effectiveTitle = cleanPlainText(liveOverride?.title || liveOverride?.name || product.name, 150);
+    const effectiveSlug = cleanPlainText(
+      liveOverride?.slug || product.slug || slugify(product.name),
+      120
+    );
+    const effectiveTitle = cleanPlainText(
+      liveOverride?.title || liveOverride?.name || product.name,
+      150
+    );
     const effectiveDesc = cleanPlainText(
       liveOverride?.description || product.description || product.shortDesc || effectiveTitle,
       5000
     );
     const effectiveCategoryRaw = String(liveOverride?.category || product.category || 'promotional');
-    const effectiveBrand = cleanPlainText(liveOverride?.brand || product.brand || DEFAULT_BRAND, 70);
+    const effectiveBrand =
+      cleanPlainText(liveOverride?.brand || product.brand || DEFAULT_BRAND, 70) || DEFAULT_BRAND;
     const effectiveCondition = normalizeCondition(liveOverride?.condition || product.condition);
 
     const { availability, inventoryQuantity } = normalizeAvailability(
@@ -810,17 +861,18 @@ export async function buildDynamicProductFeed(
       liveOverride?.inventory_quantity ?? liveOverride?.stock_quantity ?? product.stockQuantity
     );
 
-    const overrideExtraImages = Array.isArray(liveOverride?.additional_images)
-      ? liveOverride.additional_images
-      : typeof liveOverride?.additional_images === 'string'
-      ? liveOverride.additional_images.split(',').map((s) => s.trim())
+    const rawExtraImages = liveOverride?.additional_image_urls ?? liveOverride?.additional_images;
+    const overrideExtraImages = Array.isArray(rawExtraImages)
+      ? rawExtraImages
+      : typeof rawExtraImages === 'string'
+      ? rawExtraImages.split(',').map((s) => s.trim())
       : undefined;
 
     const images = collectProductImages(
       product,
       origin,
       publicDir,
-      liveOverride?.image_link || liveOverride?.image_url || undefined,
+      liveOverride?.image_url || liveOverride?.image_link || undefined,
       overrideExtraImages
     );
 
@@ -829,28 +881,31 @@ export async function buildDynamicProductFeed(
         ? liveOverride.available_sizes
         : product.sizes;
 
-    const moqVal = Number(liveOverride?.moq ?? product.moq);
     const reviewCountVal = Number(liveOverride?.review_count ?? product.reviewCount);
     const ratingVal = Number(liveOverride?.rating ?? product.rating);
+    const hasReviews = Number.isFinite(reviewCountVal) && reviewCountVal > 0;
+    const hasValidRating = Number.isFinite(ratingVal) && ratingVal > 0 && ratingVal <= 5;
 
-    const item: ProductFeedItem = {
-      id: cleanPlainText(product.id, 100),
+    seenItemIds.add(itemId.toLowerCase());
+
+    feedItems.push({
+      item_id: itemId,
       title: effectiveTitle,
       description: effectiveDesc,
-      link: `${origin}/product/${encodeURIComponent(effectiveSlug)}`,
-      image_link: images.primary,
-      additional_image_link: images.additional,
-      price: formatPriceInr(effectivePrice),
-      currency: 'INR',
-      availability,
-      inventory_quantity: inventoryQuantity,
-      brand: effectiveBrand || DEFAULT_BRAND,
-      category: formatCategoryLabel(effectiveCategoryRaw, product.productType),
-      product_category: mapProductTaxonomy(effectiveCategoryRaw, product.productType),
-      condition: effectiveCondition,
-      enable_search: true,
-      enable_checkout: false,
+      url: `${origin}/product/${encodeURIComponent(effectiveSlug)}`,
+      brand: effectiveBrand,
       seller_name: DEFAULT_BRAND,
+      image_url: images.primary,
+      availability,
+      price: formatPriceInr(effectivePrice),
+      target_countries: [...targetCountries],
+      store_country: storeCountry,
+      additional_image_urls: images.additional,
+      is_eligible_search: true,
+      is_eligible_checkout: false,
+      condition: effectiveCondition,
+      product_category: mapProductTaxonomy(effectiveCategoryRaw, product.productType),
+      inventory_quantity: inventoryQuantity,
       seller_url: origin,
       seller_privacy_policy: `${origin}/privacy-policy`,
       seller_tos: `${origin}/terms-and-conditions`,
@@ -861,17 +916,11 @@ export async function buildDynamicProductFeed(
         Array.isArray(sizesList) && sizesList.length > 0
           ? cleanPlainText(sizesList.join(', '), 80)
           : undefined,
-      material: cleanPlainText(liveOverride?.material || extractMaterial(product) || '', 100) || undefined,
-      min_order_quantity: Number.isFinite(moqVal) && moqVal > 0 ? Math.floor(moqVal) : undefined,
-      product_review_count:
-        Number.isFinite(reviewCountVal) && reviewCountVal > 0 ? Math.floor(reviewCountVal) : undefined,
-      product_review_rating:
-        Number.isFinite(ratingVal) && ratingVal > 0 && ratingVal <= 5
-          ? Number(ratingVal.toFixed(1))
-          : undefined,
-    };
-
-    feedItems.push(item);
+      material:
+        cleanPlainText(liveOverride?.material || extractMaterial(product) || '', 100) || undefined,
+      review_count: hasReviews ? Math.floor(reviewCountVal) : undefined,
+      star_rating: hasReviews && hasValidRating ? ratingVal.toFixed(2) : undefined,
+    });
   }
 
   // 2. Include any brand-new active products added directly in Supabase
@@ -881,7 +930,9 @@ export async function buildDynamicProductFeed(
       const rowId = cleanPlainText(row.id, 100);
       const rowName = cleanPlainText(row.title || row.name, 150);
       if (!rowId || !rowName) continue;
-      if (matchedSupabaseIds.has(rowId.toLowerCase())) continue;
+      if (matchedSupabaseIds.has(rowId.toLowerCase()) || seenItemIds.has(rowId.toLowerCase())) {
+        continue;
+      }
 
       const rowSlug = cleanPlainText(row.slug || slugify(rowName) || rowId, 120);
       if (matchedSupabaseIds.has(rowSlug.toLowerCase())) continue;
@@ -896,42 +947,49 @@ export async function buildDynamicProductFeed(
       );
 
       const primaryImage =
-        resolveHttpsUrl(row.image_link || row.image_url, origin, publicDir) ||
+        resolveHttpsUrl(row.image_url || row.image_link, origin, publicDir) ||
         `${origin}/assets/products/prod_tipping_polo.webp`;
 
       const additionalImages: string[] = [];
-      if (Array.isArray(row.additional_images)) {
-        for (const u of row.additional_images) {
-          const resolved = resolveHttpsUrl(u, origin, publicDir);
-          if (resolved && resolved !== primaryImage && !additionalImages.includes(resolved)) {
-            additionalImages.push(resolved);
-          }
+      const rawExtra = row.additional_image_urls ?? row.additional_images;
+      const extraArr = Array.isArray(rawExtra)
+        ? rawExtra
+        : typeof rawExtra === 'string'
+        ? rawExtra.split(',').map((s) => s.trim())
+        : [];
+      for (const u of extraArr) {
+        const resolved = resolveHttpsUrl(u, origin, publicDir);
+        if (resolved && resolved !== primaryImage && !additionalImages.includes(resolved)) {
+          additionalImages.push(resolved);
         }
       }
 
       const categoryRaw = String(row.category || 'promotional');
-      const moqVal = Number(row.moq);
       const reviewCountVal = Number(row.review_count);
       const ratingVal = Number(row.rating);
+      const hasReviews = Number.isFinite(reviewCountVal) && reviewCountVal > 0;
+      const hasValidRating = Number.isFinite(ratingVal) && ratingVal > 0 && ratingVal <= 5;
+
+      seenItemIds.add(rowId.toLowerCase());
 
       feedItems.push({
-        id: rowId,
+        item_id: rowId,
         title: rowName,
         description: cleanPlainText(row.description || rowName, 5000),
-        link: `${origin}/product/${encodeURIComponent(rowSlug)}`,
-        image_link: primaryImage,
-        additional_image_link: additionalImages.slice(0, 9),
-        price: formatPriceInr(rawPrice),
-        currency: 'INR',
-        availability,
-        inventory_quantity: inventoryQuantity,
+        url: `${origin}/product/${encodeURIComponent(rowSlug)}`,
         brand: cleanPlainText(row.brand || DEFAULT_BRAND, 70) || DEFAULT_BRAND,
-        category: formatCategoryLabel(categoryRaw),
-        product_category: mapProductTaxonomy(categoryRaw),
-        condition: normalizeCondition(row.condition),
-        enable_search: true,
-        enable_checkout: false,
         seller_name: DEFAULT_BRAND,
+        image_url: primaryImage,
+        availability,
+        price: formatPriceInr(rawPrice),
+        target_countries: [...targetCountries],
+        store_country: storeCountry,
+        additional_image_urls: additionalImages.slice(0, 9),
+        is_eligible_search: true,
+        is_eligible_checkout: false,
+        condition: normalizeCondition(row.condition),
+        product_category: mapProductTaxonomy(categoryRaw),
+        inventory_quantity: inventoryQuantity,
         seller_url: origin,
         seller_privacy_policy: `${origin}/privacy-policy`,
         seller_tos: `${origin}/terms-and-conditions`,
@@ -942,13 +1000,8 @@ export async function buildDynamicProductFeed(
             ? cleanPlainText(row.available_sizes.join(', '), 80)
             : undefined,
         material: cleanPlainText(row.material, 100) || undefined,
-        min_order_quantity: Number.isFinite(moqVal) && moqVal > 0 ? Math.floor(moqVal) : undefined,
-        product_review_count:
-          Number.isFinite(reviewCountVal) && reviewCountVal > 0 ? Math.floor(reviewCountVal) : undefined,
-        product_review_rating:
-          Number.isFinite(ratingVal) && ratingVal > 0 && ratingVal <= 5
-            ? Number(ratingVal.toFixed(1))
-            : undefined,
+        review_count: hasReviews ? Math.floor(reviewCountVal) : undefined,
+        star_rating: hasReviews && hasValidRating ? ratingVal.toFixed(2) : undefined,
       });
     }
   }
@@ -957,27 +1010,29 @@ export async function buildDynamicProductFeed(
 }
 
 // ==============================================================================
-// CSV & JSONL SERIALIZERS (RFC 4180 + ChatGPT Product Catalog Spec)
+// CSV & JSONL SERIALIZERS (Official OpenAI ChatGPT Product Feed Schema)
 // ==============================================================================
 
 const CSV_COLUMNS: ReadonlyArray<string> = [
-  'id',
+  // 11 Required OpenAI ChatGPT Product Feed Schema columns
+  'item_id',
   'title',
   'description',
-  'link',
-  'image_link',
-  'additional_image_link',
-  'price',
-  'currency',
-  'availability',
-  'inventory_quantity',
+  'url',
   'brand',
-  'category',
-  'product_category',
-  'condition',
-  'enable_search',
-  'enable_checkout',
   'seller_name',
+  'image_url',
+  'availability',
+  'price',
+  'target_countries',
+  'store_country',
+  // Official OpenAI Product Feed optional / control columns
+  'additional_image_urls',
+  'is_eligible_search',
+  'is_eligible_checkout',
+  'condition',
+  'product_category',
+  'inventory_quantity',
   'seller_url',
   'seller_privacy_policy',
   'seller_tos',
@@ -986,9 +1041,8 @@ const CSV_COLUMNS: ReadonlyArray<string> = [
   'color',
   'size',
   'material',
-  'min_order_quantity',
-  'product_review_count',
-  'product_review_rating',
+  'review_count',
+  'star_rating',
 ];
 
 /**
@@ -1012,23 +1066,23 @@ export function formatProductsCsv(items: ProductFeedItem[]): string {
 
   for (const item of items) {
     const row = [
-      item.id,
+      item.item_id,
       item.title,
       item.description,
-      item.link,
-      item.image_link,
-      item.additional_image_link.join(','),
-      item.price,
-      item.currency,
-      item.availability,
-      item.inventory_quantity,
+      item.url,
       item.brand,
-      item.category,
-      item.product_category,
-      item.condition,
-      item.enable_search ? 'true' : 'false',
-      item.enable_checkout ? 'true' : 'false',
       item.seller_name,
+      item.image_url,
+      item.availability,
+      item.price,
+      item.target_countries.join(','),
+      item.store_country,
+      item.additional_image_urls.join(','),
+      item.is_eligible_search ? 'true' : 'false',
+      item.is_eligible_checkout ? 'true' : 'false',
+      item.condition,
+      item.product_category,
+      item.inventory_quantity,
       item.seller_url,
       item.seller_privacy_policy,
       item.seller_tos,
@@ -1037,9 +1091,8 @@ export function formatProductsCsv(items: ProductFeedItem[]): string {
       item.color ?? '',
       item.size ?? '',
       item.material ?? '',
-      item.min_order_quantity ?? '',
-      item.product_review_count ?? '',
-      item.product_review_rating ?? '',
+      item.review_count ?? '',
+      item.star_rating ?? '',
     ];
     lines.push(row.map(escapeCsvCell).join(','));
   }
@@ -1052,22 +1105,22 @@ export function formatProductsJsonl(items: ProductFeedItem[]): string {
     items
       .map((item) => {
         const record: Record<string, unknown> = {
-          id: item.id,
+          item_id: item.item_id,
           title: item.title,
           description: item.description,
-          link: item.link,
-          image_link: item.image_link,
-          price: item.price,
-          currency: item.currency,
-          availability: item.availability,
-          inventory_quantity: item.inventory_quantity,
+          url: item.url,
           brand: item.brand,
-          category: item.category,
-          product_category: item.product_category,
-          condition: item.condition,
-          enable_search: item.enable_search,
-          enable_checkout: item.enable_checkout,
           seller_name: item.seller_name,
+          image_url: item.image_url,
+          availability: item.availability,
+          price: item.price,
+          target_countries: item.target_countries,
+          store_country: item.store_country,
+          is_eligible_search: item.is_eligible_search,
+          is_eligible_checkout: item.is_eligible_checkout,
+          condition: item.condition,
+          product_category: item.product_category,
+          inventory_quantity: item.inventory_quantity,
           seller_url: item.seller_url,
           seller_privacy_policy: item.seller_privacy_policy,
           seller_tos: item.seller_tos,
@@ -1075,20 +1128,17 @@ export function formatProductsJsonl(items: ProductFeedItem[]): string {
           return_window: item.return_window,
         };
 
-        if (item.additional_image_link.length > 0) {
-          record.additional_image_link = item.additional_image_link;
+        if (item.additional_image_urls.length > 0) {
+          record.additional_image_urls = item.additional_image_urls;
         }
         if (item.color) record.color = item.color;
         if (item.size) record.size = item.size;
         if (item.material) record.material = item.material;
-        if (item.min_order_quantity !== undefined) {
-          record.min_order_quantity = item.min_order_quantity;
+        if (item.review_count !== undefined) {
+          record.review_count = item.review_count;
         }
-        if (item.product_review_count !== undefined) {
-          record.product_review_count = item.product_review_count;
-        }
-        if (item.product_review_rating !== undefined) {
-          record.product_review_rating = item.product_review_rating;
+        if (item.star_rating !== undefined) {
+          record.star_rating = item.star_rating;
         }
 
         return JSON.stringify(record);
