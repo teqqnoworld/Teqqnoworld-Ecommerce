@@ -45,19 +45,19 @@ export const WishlistDrawer: React.FC<WishlistDrawerProps> = ({
         onClick={onClose}
       />
 
-      <div className="fixed inset-y-0 right-0 max-w-full flex pl-0 sm:pl-10">
-        <div className="w-screen max-w-md bg-white shadow-2xl flex flex-col justify-between">
+      <div className="fixed inset-y-0 right-0 max-w-full flex pl-0 sm:pl-10 h-[100dvh]">
+        <div className="w-screen max-w-md h-full bg-white shadow-2xl flex flex-col justify-between">
           {/* Header */}
-          <div className="p-5 border-b border-[#E5E5EA] flex items-center justify-between bg-[#FAF9FD]">
-            <div className="flex items-center gap-2.5">
-              <div className="w-9 h-9 rounded-xl bg-rose-50 border border-rose-200/80 flex items-center justify-center text-rose-500">
+          <div className="p-4 sm:p-5 border-b border-[#E5E5EA] flex items-center justify-between bg-[#FAF9FD]">
+            <div className="flex items-center gap-2.5 min-w-0">
+              <div className="w-9 h-9 rounded-xl bg-rose-50 border border-rose-200/80 flex items-center justify-center text-rose-500 shrink-0">
                 <Heart className="w-4.5 h-4.5 fill-rose-500 text-rose-500" />
               </div>
-              <div>
-                <h2 className="font-display font-bold text-base sm:text-lg text-[#0B0B0D] leading-tight">
+              <div className="min-w-0">
+                <h2 className="font-display font-bold text-base sm:text-lg text-[#0B0B0D] leading-tight truncate">
                   Your Wishlist ({items.length})
                 </h2>
-                <p className="text-[11px] text-zinc-500">
+                <p className="text-[11px] text-zinc-500 truncate">
                   Saved merchandise for quick bulk quotes & orders
                 </p>
               </div>
@@ -67,7 +67,7 @@ export const WishlistDrawer: React.FC<WishlistDrawerProps> = ({
               type="button"
               onClick={onClose}
               aria-label="Close wishlist"
-              className="p-1.5 rounded-lg text-zinc-400 hover:text-zinc-700 hover:bg-zinc-200/60 transition-colors group cursor-pointer"
+              className="w-10 h-10 flex items-center justify-center rounded-xl text-zinc-500 hover:text-zinc-800 hover:bg-zinc-200/60 transition-colors group cursor-pointer shrink-0"
             >
               <X className="w-5 h-5 group-hover:rotate-90 transition-transform duration-200" />
             </button>

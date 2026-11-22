@@ -88,8 +88,8 @@ export const FeaturedProducts: React.FC<FeaturedProductsProps> = ({
           </div>
         </div>
 
-        {/* 6 Products arranged in 2 rows of 3 on desktop */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 sm:gap-6">
+        {/* 6 Products arranged in 2 rows of 3 on desktop, 2 cols on sm/tablet */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-5 lg:gap-6">
           {displayedProducts.map((p) => {
             const fullProd = resolveFullProduct(p);
             const isWishlisted = wishlistIds.includes(fullProd.id);
@@ -155,7 +155,7 @@ export const FeaturedProducts: React.FC<FeaturedProductsProps> = ({
               </div>
 
               {/* Card Details */}
-              <div className="p-5 flex-1 flex flex-col justify-between space-y-3">
+              <div className="p-4 sm:p-5 flex-1 flex flex-col justify-between space-y-3">
                 <div>
                   {/* Rating */}
                   <div className="flex items-center gap-1.5 text-xs text-zinc-500 mb-1">
@@ -211,13 +211,13 @@ export const FeaturedProducts: React.FC<FeaturedProductsProps> = ({
                 </div>
 
                 {/* Price and Action Button Row */}
-                <div className="pt-3 border-t border-zinc-100 flex items-center justify-between gap-4">
-                  <div>
+                <div className="pt-3 border-t border-zinc-100 flex items-center justify-between gap-2 sm:gap-4">
+                  <div className="min-w-0">
                     <div className="flex items-baseline gap-1">
-                      <span className="font-display font-bold text-xl text-[#0B0B0D] tabular-nums">
+                      <span className="font-display font-bold text-lg sm:text-xl text-[#0B0B0D] tabular-nums">
                         ₹{p.price}
                       </span>
-                      <span className="text-xs text-zinc-500 font-mono">
+                      <span className="text-[11px] sm:text-xs text-zinc-500 font-mono truncate">
                         {p.priceUnit}
                       </span>
                     </div>
@@ -225,7 +225,7 @@ export const FeaturedProducts: React.FC<FeaturedProductsProps> = ({
 
                   <button
                     onClick={() => handleCtaClick(p)}
-                    className={`text-xs font-display font-bold px-4 py-2.5 rounded-xl shadow-xs transition-all hover:scale-102 flex items-center gap-1.5 cursor-pointer group/cta ${
+                    className={`text-xs font-display font-bold px-3.5 sm:px-4 py-2.5 min-h-[42px] rounded-xl shadow-xs transition-all hover:scale-102 flex items-center gap-1.5 cursor-pointer group/cta shrink-0 ${
                       p.ctaType === 'orange'
                         ? 'bg-[#FF7A00] hover:bg-[#e06c00] text-white shadow-[#FF7A00]/25'
                         : 'bg-[#18191E] hover:bg-black text-white'

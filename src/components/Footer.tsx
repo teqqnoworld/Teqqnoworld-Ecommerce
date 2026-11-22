@@ -55,8 +55,8 @@ export const Footer: React.FC<FooterProps> = ({ onNavigate, onOpenSupabaseDev })
       </div>
 
       {/* 2. Main Multi-Column Footer Grid */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-14 pb-28 md:pb-12">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-12 gap-10 pb-12 border-b border-[#2A2A30]">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-10 sm:pt-14 pb-24 md:pb-10">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-12 gap-8 sm:gap-10 pb-10 sm:pb-12 border-b border-[#2A2A30]">
           
           {/* Col 1 (4 cols): Brand Info & Verified Coordinates */}
           <div className="lg:col-span-4 space-y-4">
@@ -166,7 +166,7 @@ export const Footer: React.FC<FooterProps> = ({ onNavigate, onOpenSupabaseDev })
         </div>
 
         {/* Bottom Copyright & Quick Legal Strip */}
-        <div className="pt-8 pb-20 md:pb-6 flex flex-col sm:flex-row items-center justify-between gap-4 text-[11px] text-zinc-500">
+        <div className="pt-6 sm:pt-8 pb-2 md:pb-4 flex flex-col sm:flex-row items-center justify-between gap-4 text-[11px] text-zinc-500">
           <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2">
             <span className="inline-flex items-center gap-1.5">
               <ShieldCheck className="w-3.5 h-3.5 text-[#FF7A00] animate-icon-pulse-glow shrink-0" />

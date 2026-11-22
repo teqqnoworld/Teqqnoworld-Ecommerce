@@ -20,12 +20,12 @@ export const Hero: React.FC<HeroProps> = ({
   return (
     <div className="bg-[#16171B] text-white">
       {/* 1. Main Hero Content */}
-      <section className="relative min-h-[calc(100vh-140px)] flex items-center justify-center py-12 lg:py-16 border-b border-[#2A2A30] overflow-hidden">
+      <section className="relative lg:min-h-[calc(100vh-140px)] flex items-center justify-center py-8 sm:py-10 lg:py-16 border-b border-[#2A2A30] overflow-hidden">
         {/* Subtle orange radial ambient glow */}
-        <div className="absolute top-1/3 right-1/4 w-[500px] h-[500px] bg-[#FF7A00]/12 rounded-full blur-[130px] pointer-events-none" />
+        <div className="absolute top-1/3 right-1/4 w-[320px] sm:w-[500px] h-[320px] sm:h-[500px] bg-[#FF7A00]/12 rounded-full blur-[110px] sm:blur-[130px] pointer-events-none" />
 
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10 w-full my-auto">
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-10 items-center my-auto">
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 sm:gap-8 lg:gap-10 items-center my-auto">
             
             {/* Left Column (6 cols on lg / desktop): Headlines & Copy */}
             <div className="lg:col-span-6 space-y-4 sm:space-y-5 lg:space-y-6 text-left">
@@ -81,26 +81,26 @@ export const Hero: React.FC<HeroProps> = ({
 
               {/* 3-Column Metrics Strip */}
               <div className="pt-4 sm:pt-6 grid grid-cols-3 gap-2 sm:gap-4 border-t border-[#2A2A30]">
-                <div className="group cursor-default">
-                  <div className="flex items-center gap-1.5 text-[11px] sm:text-xs font-bold font-display text-white">
+                <div className="group cursor-default min-w-0">
+                  <div className="flex items-center gap-1 sm:gap-1.5 text-[11px] sm:text-xs font-bold font-display text-white">
                     <Star className="w-3.5 h-3.5 fill-[#FF7A00] text-[#FF7A00] group-hover:scale-125 group-hover:rotate-12 transition-all duration-300 shrink-0" />
-                    <span>4.9 / 5.0</span>
+                    <span className="truncate">4.9 / 5.0</span>
                   </div>
                   <div className="text-[10px] sm:text-[11px] text-zinc-400 mt-0.5 truncate">1,200+ Clients</div>
                 </div>
 
-                <div className="group cursor-default">
-                  <div className="flex items-center gap-1.5 text-[11px] sm:text-xs font-bold font-display text-white">
+                <div className="group cursor-default min-w-0">
+                  <div className="flex items-center gap-1 sm:gap-1.5 text-[11px] sm:text-xs font-bold font-display text-white">
                     <Truck className="w-3.5 h-3.5 text-[#FF7A00] group-hover:translate-x-1 group-hover:scale-115 transition-all duration-300 shrink-0 animate-icon-drive" />
-                    <span>18,000+ Units</span>
+                    <span className="truncate">18k+ Units</span>
                   </div>
                   <div className="text-[10px] sm:text-[11px] text-zinc-400 mt-0.5 truncate">Pan-India Dispatch</div>
                 </div>
 
-                <div className="group cursor-default">
-                  <div className="flex items-center gap-1.5 text-[11px] sm:text-xs font-bold font-display text-white">
+                <div className="group cursor-default min-w-0">
+                  <div className="flex items-center gap-1 sm:gap-1.5 text-[11px] sm:text-xs font-bold font-display text-white">
                     <ShieldCheck className="w-3.5 h-3.5 text-[#FF7A00] group-hover:scale-125 transition-all duration-300 shrink-0 animate-icon-pulse-glow" />
-                    <span>Direct Factory</span>
+                    <span className="truncate">Direct Factory</span>
                   </div>
                   <div className="text-[10px] sm:text-[11px] text-zinc-400 mt-0.5 truncate">0% Middleman</div>
                 </div>

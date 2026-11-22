@@ -1,5 +1,9 @@
 @import "tailwindcss";
 
+@theme {
+  --breakpoint-xs: 24rem;
+}
+
 @layer base {
   :root {
     --font-display: 'Poppins', system-ui, -apple-system, sans-serif;
@@ -11,6 +15,8 @@
     font-family: 'Poppins', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
     -webkit-tap-highlight-color: transparent;
     touch-action: manipulation;
+    overflow-x: clip;
+    max-width: 100%;
   }
   
   body {
@@ -18,6 +24,17 @@
     color: #1A1B22;
     font-family: 'Poppins', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
     overscroll-behavior-y: none;
+    overflow-x: clip;
+    max-width: 100%;
+  }
+
+  /* Prevent iOS Safari unexpected viewport zoom when focusing inputs on mobile */
+  @media (max-width: 767px) {
+    input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]):not([type="file"]),
+    select,
+    textarea {
+      font-size: 16px;
+    }
   }
 }
 
@@ -245,93 +262,103 @@ svg[data-icon],
 }
 
 /* ==========================================================================
-   INTERACTIVE HOVER MICRO-ANIMATIONS (BUTTONS, CARDS, LINKS)
+   INTERACTIVE HOVER MICRO-ANIMATIONS (MOUSE / FINE-POINTER DEVICES ONLY)
    ========================================================================== */
 
-/* Button hover: icon springs up / forward */
-button:hover svg.lucide,
-a:hover svg.lucide,
-.group:hover .group-hover-icon {
-  transform: translateY(-1.5px) scale(1.08);
+@media (hover: hover) and (pointer: fine) {
+  /* Button hover: icon springs up / forward */
+  button:hover svg.lucide,
+  a:hover svg.lucide,
+  .group:hover .group-hover-icon {
+    transform: translateY(-1.5px) scale(1.08);
+  }
+
+  /* Specific icon behaviors on hover */
+  button:hover svg.lucide-arrow-right,
+  a:hover svg.lucide-arrow-right,
+  .group:hover svg.lucide-arrow-right,
+  button:hover svg.lucide-chevron-right,
+  a:hover svg.lucide-chevron-right,
+  .group:hover svg.lucide-chevron-right {
+    transform: translateX(4px);
+  }
+
+  button:hover svg.lucide-arrow-left,
+  a:hover svg.lucide-arrow-left,
+  .group:hover svg.lucide-arrow-left,
+  button:hover svg.lucide-chevron-left,
+  a:hover svg.lucide-chevron-left,
+  .group:hover svg.lucide-chevron-left {
+    transform: translateX(-4px);
+  }
+
+  button:hover svg.lucide-shopping-bag,
+  button:hover svg.lucide-shopping-cart,
+  .group:hover svg.lucide-shopping-bag,
+  .group:hover svg.lucide-shopping-cart {
+    transform: rotate(-10deg) scale(1.15);
+  }
+
+  button:hover svg.lucide-trash-2,
+  button:hover svg.lucide-trash {
+    transform: rotate(8deg) scale(1.1);
+    color: #EF4444;
+  }
+
+  button:hover svg.lucide-sparkles,
+  .group:hover svg.lucide-sparkles {
+    transform: rotate(20deg) scale(1.2);
+    filter: drop-shadow(0 0 6px #FF7A00);
+  }
+
+  button:hover svg.lucide-search,
+  .group:hover svg.lucide-search {
+    transform: rotate(12deg) scale(1.15);
+  }
+
+  button:hover svg.lucide-phone,
+  a:hover svg.lucide-phone,
+  button:hover svg.lucide-message-circle,
+  a:hover svg.lucide-message-circle {
+    animation: icon-ring-shake 0.8s ease-in-out;
+  }
+
+  button:hover svg.lucide-rotate-ccw,
+  button:hover svg.lucide-refresh-cw {
+    transform: rotate(180deg);
+  }
+
+  button:hover svg.lucide-upload,
+  .group:hover svg.lucide-upload {
+    transform: translateY(-3px) scale(1.1);
+  }
+
+  button:hover svg.lucide-download,
+  .group:hover svg.lucide-download {
+    transform: translateY(3px) scale(1.1);
+  }
+
+  button:hover svg.lucide-star,
+  .group:hover svg.lucide-star {
+    transform: scale(1.25) rotate(10deg);
+    filter: drop-shadow(0 0 5px rgba(255, 122, 0, 0.6));
+  }
+
+  button:hover svg.lucide-heart,
+  .group:hover svg.lucide-heart {
+    transform: scale(1.22);
+  }
+
+  .icon-box-hover:hover {
+    transform: translateY(-2px) scale(1.05);
+  }
+
+  .icon-box-hover:hover svg {
+    transform: scale(1.15);
+  }
 }
 
-/* Specific icon behaviors on hover */
-button:hover svg.lucide-arrow-right,
-a:hover svg.lucide-arrow-right,
-.group:hover svg.lucide-arrow-right,
-button:hover svg.lucide-chevron-right,
-a:hover svg.lucide-chevron-right,
-.group:hover svg.lucide-chevron-right {
-  transform: translateX(4px);
-}
-
-button:hover svg.lucide-arrow-left,
-a:hover svg.lucide-arrow-left,
-.group:hover svg.lucide-arrow-left,
-button:hover svg.lucide-chevron-left,
-a:hover svg.lucide-chevron-left,
-.group:hover svg.lucide-chevron-left {
-  transform: translateX(-4px);
-}
-
-button:hover svg.lucide-shopping-bag,
-button:hover svg.lucide-shopping-cart,
-.group:hover svg.lucide-shopping-bag,
-.group:hover svg.lucide-shopping-cart {
-  transform: rotate(-10deg) scale(1.15);
-}
-
-button:hover svg.lucide-trash-2,
-button:hover svg.lucide-trash {
-  transform: rotate(8deg) scale(1.1);
-  color: #EF4444;
-}
-
-button:hover svg.lucide-sparkles,
-.group:hover svg.lucide-sparkles {
-  transform: rotate(20deg) scale(1.2);
-  filter: drop-shadow(0 0 6px #FF7A00);
-}
-
-button:hover svg.lucide-search,
-.group:hover svg.lucide-search {
-  transform: rotate(12deg) scale(1.15);
-}
-
-button:hover svg.lucide-phone,
-a:hover svg.lucide-phone,
-button:hover svg.lucide-message-circle,
-a:hover svg.lucide-message-circle {
-  animation: icon-ring-shake 0.8s ease-in-out;
-}
-
-button:hover svg.lucide-rotate-ccw,
-button:hover svg.lucide-refresh-cw {
-  transform: rotate(180deg);
-}
-
-button:hover svg.lucide-upload,
-.group:hover svg.lucide-upload {
-  transform: translateY(-3px) scale(1.1);
-}
-
-button:hover svg.lucide-download,
-.group:hover svg.lucide-download {
-  transform: translateY(3px) scale(1.1);
-}
-
-button:hover svg.lucide-star,
-.group:hover svg.lucide-star {
-  transform: scale(1.25) rotate(10deg);
-  filter: drop-shadow(0 0 5px rgba(255, 122, 0, 0.6));
-}
-
-button:hover svg.lucide-heart,
-.group:hover svg.lucide-heart {
-  transform: scale(1.22);
-}
-
-/* Active depression feedback on click */
+/* Active depression feedback on click / tap */
 button:active svg.lucide {
   transform: scale(0.92);
 }
@@ -339,14 +366,6 @@ button:active svg.lucide {
 /* Custom interactive icon wrapper classes */
 .icon-box-hover {
   transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
-}
-
-.icon-box-hover:hover {
-  transform: translateY(-2px) scale(1.05);
-}
-
-.icon-box-hover:hover svg {
-  transform: scale(1.15);
 }
 
 /* FAQ Section Micro-Animations */

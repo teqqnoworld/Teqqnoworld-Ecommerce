@@ -163,20 +163,21 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
         onClick={onClose}
       />
 
-      <div className="fixed inset-y-0 right-0 max-w-full flex pl-0 sm:pl-10">
-        <div className="w-screen max-w-md bg-white shadow-2xl flex flex-col justify-between">
+      <div className="fixed inset-y-0 right-0 max-w-full flex pl-0 sm:pl-10 h-[100dvh]">
+        <div className="w-screen max-w-md h-full bg-white shadow-2xl flex flex-col justify-between">
           
           {/* Header */}
-          <div className="p-5 border-b border-[#E5E5EA] flex items-center justify-between bg-[#FAF9FD]">
-            <div className="flex items-center gap-2 group cursor-default">
-              <ShoppingBag className="w-5 h-5 text-[#FF7A00] animate-icon-wiggle" />
-              <h2 className="font-display font-bold text-lg text-[#0B0B0D]">
+          <div className="p-4 sm:p-5 border-b border-[#E5E5EA] flex items-center justify-between bg-[#FAF9FD]">
+            <div className="flex items-center gap-2 group cursor-default min-w-0">
+              <ShoppingBag className="w-5 h-5 text-[#FF7A00] animate-icon-wiggle shrink-0" />
+              <h2 className="font-display font-bold text-base sm:text-lg text-[#0B0B0D] truncate">
                 Your Merchandise Cart ({items.length})
               </h2>
             </div>
             <button
               onClick={onClose}
-              className="p-1.5 rounded-lg text-zinc-400 hover:text-zinc-700 hover:bg-zinc-200/60 transition-colors group cursor-pointer"
+              aria-label="Close cart"
+              className="w-10 h-10 flex items-center justify-center rounded-xl text-zinc-500 hover:text-zinc-800 hover:bg-zinc-200/60 transition-colors group cursor-pointer shrink-0"
             >
               <X className="w-5 h-5 group-hover:rotate-90 transition-transform duration-300" />
             </button>
@@ -323,7 +324,8 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
 
                     <button
                       onClick={() => onRemoveItem(item.id)}
-                      className="text-zinc-400 hover:text-red-600 transition-colors p-1"
+                      aria-label="Remove item"
+                      className="text-zinc-400 hover:text-red-600 transition-colors w-9 h-9 flex items-center justify-center rounded-lg hover:bg-red-50 -mr-1.5 -mt-1.5 shrink-0 cursor-pointer"
                       title="Remove item"
                     >
                       <Trash2 className="w-4 h-4" />
@@ -332,19 +334,21 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
 
                   {/* Quantity and Price */}
                   <div className="pt-2 border-t border-zinc-100 flex items-center justify-between text-xs">
-                    <div className="flex items-center gap-2 border border-zinc-200 rounded-lg p-0.5 bg-zinc-50">
+                    <div className="flex items-center gap-1.5 border border-zinc-200 rounded-xl p-0.5 bg-zinc-50">
                       <button
                         onClick={() => onUpdateQuantity(item.id, (item.product.productType === 'visiting-card' || item.product.id === 'prod-visiting-card-300gsm') ? -100 : -1)}
-                        className="w-6 h-6 flex items-center justify-center hover:bg-zinc-200 rounded text-zinc-700 cursor-pointer"
+                        aria-label="Decrease quantity"
+                        className="w-8 h-8 sm:w-7 sm:h-7 flex items-center justify-center hover:bg-zinc-200 rounded-lg text-zinc-700 cursor-pointer"
                       >
-                        <Minus className="w-3 h-3" />
+                        <Minus className="w-3.5 h-3.5" />
                       </button>
-                      <span className="font-mono font-bold px-1.5 text-zinc-900">{item.quantity}</span>
+                      <span className="font-mono font-bold px-2 text-zinc-900">{item.quantity}</span>
                       <button
                         onClick={() => onUpdateQuantity(item.id, (item.product.productType === 'visiting-card' || item.product.id === 'prod-visiting-card-300gsm') ? 100 : 1)}
-                        className="w-6 h-6 flex items-center justify-center hover:bg-zinc-200 rounded text-zinc-700 cursor-pointer"
+                        aria-label="Increase quantity"
+                        className="w-8 h-8 sm:w-7 sm:h-7 flex items-center justify-center hover:bg-zinc-200 rounded-lg text-zinc-700 cursor-pointer"
                       >
-                        <Plus className="w-3 h-3" />
+                        <Plus className="w-3.5 h-3.5" />
                       </button>
                     </div>
 

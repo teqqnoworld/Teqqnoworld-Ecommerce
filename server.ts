@@ -8,6 +8,7 @@ import crypto from 'crypto';
 import QRCode from 'qrcode';
 import { fileURLToPath } from 'url';
 import dotenv from 'dotenv';
+import { registerProductFeedRoutes } from './server/productFeed.ts';
 
 dotenv.config();
 
@@ -5806,6 +5807,21 @@ app.post('/api/aisensy/test', async (req: Request, res: Response) => {
       message: err?.message || 'AiSensy test request failed.',
     });
   }
+});
+
+// ==============================================================================
+// 3Z. DYNAMIC PUBLIC PRODUCT FEEDS (CSV & JSONL FOR CHATGPT CATALOG IMPORTS)
+// ==============================================================================
+
+registerProductFeedRoutes(app, {
+  rootDir: __dirname,
+  getSupabaseConfig: () => {
+    const pub = getSupabasePublicConfig();
+    return {
+      url: pub.url,
+      apiKey: pub.anonKey,
+    };
+  },
 });
 
 // ==============================================================================

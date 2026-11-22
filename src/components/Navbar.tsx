@@ -83,19 +83,19 @@ export const Navbar: React.FC<NavbarProps> = ({
   return (
     <header className="sticky top-0 z-40 bg-white border-b border-zinc-200 shadow-xs">
       {/* 1. Main Navbar Row */}
-      <div className="max-w-7xl mx-auto px-3 sm:px-5 lg:px-6">
-        <div className="flex items-center justify-between h-14 sm:h-18 lg:h-20 gap-1.5 sm:gap-3 lg:gap-4">
+      <div className="max-w-7xl mx-auto px-2.5 xs:px-3 sm:px-5 lg:px-6">
+        <div className="flex items-center justify-between h-14 sm:h-16 lg:h-20 gap-1 xs:gap-1.5 sm:gap-3 lg:gap-4">
           
           {/* Logo & Branding */}
           <button
             onClick={() => onNavigate('home')}
-            className="flex items-center gap-1.5 sm:gap-2.5 text-left shrink-0 group focus:outline-none min-h-[44px] py-1"
+            className="flex items-center gap-1.5 sm:gap-2.5 text-left shrink-0 group focus:outline-none min-h-[44px] py-1 cursor-pointer"
           >
             <div className="w-7 h-7 sm:w-8 sm:h-8 xl:w-9 xl:h-9 rounded-lg bg-[#FF7A00] flex items-center justify-center font-display font-bold text-white text-sm sm:text-base xl:text-lg shadow-md shadow-[#FF7A00]/25 group-hover:scale-105 transition-transform shrink-0">
               T
             </div>
             <div>
-              <div className="font-display font-bold text-lg sm:text-xl xl:text-2xl tracking-tight text-[#0B0B0D] leading-none">
+              <div className="font-display font-bold text-base xs:text-lg sm:text-xl xl:text-2xl tracking-tight text-[#0B0B0D] leading-none">
                 Teqqno<span className="text-[#FF7A00]">World</span>
               </div>
               <div className="hidden sm:block text-[8px] xl:text-[9px] font-mono tracking-widest text-zinc-400 uppercase mt-0.5">
@@ -139,20 +139,20 @@ export const Navbar: React.FC<NavbarProps> = ({
           </div>
 
           {/* Right Action Icons & Buttons */}
-          <div className="flex items-center gap-1 sm:gap-2 xl:gap-2.5 shrink-0">
-            {/* Mobile search trigger */}
+          <div className="flex items-center gap-0.5 xs:gap-1 sm:gap-2 xl:gap-2.5 shrink-0">
+            {/* Mobile & Tablet search trigger */}
             <button
               onClick={onOpenSearch}
-              className="lg:hidden w-10 h-10 flex items-center justify-center p-2 text-zinc-700 hover:text-[#0B0B0D] hover:bg-zinc-100 rounded-xl transition-colors group cursor-pointer"
+              className="lg:hidden w-9 h-9 xs:w-10 xs:h-10 flex items-center justify-center p-1.5 text-zinc-700 hover:text-[#0B0B0D] hover:bg-zinc-100 rounded-xl transition-colors group cursor-pointer"
               aria-label="Search"
             >
               <Search className="w-5 h-5 group-hover:rotate-12 group-hover:scale-115 transition-transform duration-300" />
             </button>
 
-            {/* 5 Official Social Media Icons Pill beside WhatsApp */}
+            {/* 5 Official Social Media Icons Pill beside WhatsApp (XL desktop only to avoid tablet crowding) */}
             <nav
               aria-label="Social Media Channels"
-              className="hidden md:flex items-center gap-1 bg-zinc-50/90 border border-zinc-200/85 rounded-full px-1.5 py-1 shadow-[inset_0_1px_0_rgba(255,255,255,0.9)] shrink-0"
+              className="hidden xl:flex items-center gap-1 bg-zinc-50/90 border border-zinc-200/85 rounded-full px-1.5 py-1 shadow-[inset_0_1px_0_rgba(255,255,255,0.9)] shrink-0"
             >
               {SOCIAL_CHANNELS.map(({ id, label, href, Icon, restColorClass, hoverClass }) => (
                 <a
@@ -176,8 +176,9 @@ export const Navbar: React.FC<NavbarProps> = ({
               rel="noopener noreferrer"
               className="hidden sm:inline-flex items-center gap-1.5 bg-[#1EBE5D] hover:bg-[#19a851] text-white text-xs font-semibold px-3 xl:px-4 py-2 rounded-full shadow-xs transition-all hover:scale-102 min-h-[38px] xl:min-h-[40px] whitespace-nowrap shrink-0 group"
             >
-              <WhatsAppIcon className="w-4 h-4 text-white group-hover:animate-icon-ring transition-transform" />
-              <span>WhatsApp Quote</span>
+              <WhatsAppIcon className="w-4 h-4 text-white group-hover:animate-icon-ring transition-transform shrink-0" />
+              <span className="hidden lg:inline">WhatsApp Quote</span>
+              <span className="lg:hidden">WhatsApp</span>
             </a>
 
             {/* Wishlist Trigger */}
@@ -185,20 +186,20 @@ export const Navbar: React.FC<NavbarProps> = ({
               <button
                 type="button"
                 onClick={onOpenWishlist}
-                className="relative flex items-center justify-center w-10 h-10 sm:w-11 sm:h-11 rounded-xl hover:bg-zinc-100 transition-colors text-zinc-800 group cursor-pointer shrink-0"
+                className="relative flex items-center justify-center w-9 h-9 xs:w-10 xs:h-10 sm:w-11 sm:h-11 rounded-xl hover:bg-zinc-100 transition-colors text-zinc-800 group cursor-pointer shrink-0"
                 aria-label={`Wishlist (${wishlistCount} saved)`}
                 title="Wishlist"
               >
                 <div className="relative flex items-center justify-center">
                   <Heart
-                    className={`w-[22px] h-[22px] stroke-[1.9] transition-all duration-200 ${
+                    className={`w-[20px] h-[20px] sm:w-[22px] sm:h-[22px] stroke-[1.9] transition-all duration-200 ${
                       wishlistCount > 0
                         ? 'text-[#0B0B0D] group-hover:text-rose-500 group-hover:scale-110'
                         : 'text-zinc-800 group-hover:text-[#FF7A00] group-hover:scale-110'
                     }`}
                   />
                   <span
-                    className="absolute -top-2 -right-2.5 bg-[#0B0B0D] text-white text-[10px] font-bold font-mono tabular-nums rounded-full min-w-[18px] h-[18px] px-1 flex items-center justify-center shadow-xs leading-none"
+                    className="absolute -top-2 -right-2 bg-[#0B0B0D] text-white text-[9px] sm:text-[10px] font-bold font-mono tabular-nums rounded-full min-w-[16px] sm:min-w-[18px] h-[16px] sm:h-[18px] px-1 flex items-center justify-center shadow-xs leading-none"
                   >
                     {wishlistCount}
                   </span>
@@ -209,7 +210,7 @@ export const Navbar: React.FC<NavbarProps> = ({
             {/* Cart Trigger */}
             <button
               onClick={onOpenCart}
-              className="flex items-center gap-1.5 sm:gap-2 p-1.5 sm:p-2 rounded-xl hover:bg-zinc-100 transition-colors text-zinc-800 min-h-[40px] sm:min-h-[44px] justify-center group cursor-pointer"
+              className="flex items-center gap-1.5 sm:gap-2 w-9 h-9 xs:w-10 xs:h-10 lg:w-auto lg:h-auto lg:p-2 rounded-xl hover:bg-zinc-100 transition-colors text-zinc-800 sm:min-h-[44px] justify-center group cursor-pointer shrink-0"
               aria-label="Shopping Cart"
             >
               <div className="relative">
@@ -220,7 +221,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                   </span>
                 )}
               </div>
-              <div className="hidden md:flex flex-col text-left leading-none">
+              <div className="hidden lg:flex flex-col text-left leading-none">
                 <span className="text-[10px] text-zinc-400 font-medium">Cart</span>
                 <span className="text-xs font-bold font-mono text-[#0B0B0D] group-hover:text-[#FF7A00] transition-colors">
                   ₹{cartTotal.toLocaleString('en-IN')}.00
@@ -234,25 +235,30 @@ export const Navbar: React.FC<NavbarProps> = ({
                 <div>
                   <button
                     onClick={() => setUserDropdownOpen(!userDropdownOpen)}
-                    className="flex items-center gap-1.5 p-1 sm:p-1.5 rounded-xl hover:bg-zinc-100 transition-colors border border-zinc-200/90 text-left min-h-[40px] sm:min-h-[44px] cursor-pointer"
+                    className="flex items-center gap-1.5 p-1 sm:p-1.5 rounded-xl hover:bg-zinc-100 transition-colors border border-zinc-200/90 text-left min-h-[38px] sm:min-h-[44px] cursor-pointer"
                     title="Account Menu"
                   >
-                    <div className="w-8 h-8 rounded-lg bg-[#FF7A00] text-white flex items-center justify-center font-bold text-xs shadow-xs">
+                    <div className="w-7 h-7 xs:w-8 xs:h-8 rounded-lg bg-[#FF7A00] text-white flex items-center justify-center font-bold text-xs shadow-xs">
                       {user.name.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase()}
                     </div>
-                    <div className="hidden sm:flex flex-col leading-none pr-1">
-                      <span className="text-[11px] font-bold text-zinc-900 truncate max-w-[100px]">
+                    <div className="hidden md:flex flex-col leading-none pr-1">
+                      <span className="text-[11px] font-bold text-zinc-900 truncate max-w-[80px] lg:max-w-[100px]">
                         {user.name.split(' ')[0]}
                       </span>
                       <span className="text-[9px] text-[#FF7A00] font-mono font-medium">B2B Portal</span>
                     </div>
-                    <ChevronDown className="w-3.5 h-3.5 text-zinc-400 hidden sm:block" />
+                    <ChevronDown className="w-3.5 h-3.5 text-zinc-400 hidden md:block" />
                   </button>
 
                   {/* Account Dropdown Menu */}
                   {userDropdownOpen && (
+                    <>
+                    <div
+                      className="fixed inset-0 z-40"
+                      onClick={() => setUserDropdownOpen(false)}
+                    />
                     <div 
-                      className="absolute right-0 mt-2 w-64 bg-white rounded-2xl border border-zinc-200 shadow-xl py-2 z-50 text-xs animate-in fade-in zoom-in-95 duration-150"
+                      className="absolute right-0 mt-2 w-[min(16rem,calc(100vw-1.5rem))] bg-white rounded-2xl border border-zinc-200 shadow-xl py-2 z-50 text-xs animate-in fade-in zoom-in-95 duration-150"
                       onClick={() => setUserDropdownOpen(false)}
                     >
                       <div className="px-4 py-2.5 border-b border-zinc-100 bg-zinc-50/70">
@@ -307,24 +313,25 @@ export const Navbar: React.FC<NavbarProps> = ({
                         </button>
                       </div>
                     </div>
+                    </>
                   )}
                 </div>
               ) : (
                 <button
                   onClick={onOpenAccount}
-                  className="flex items-center gap-2 px-3 py-2 rounded-xl bg-zinc-100 hover:bg-zinc-200 border border-zinc-200 text-zinc-800 text-xs font-semibold transition-colors min-h-[44px]"
+                  className="flex items-center gap-1.5 px-2.5 sm:px-3 py-2 rounded-xl bg-zinc-100 hover:bg-zinc-200 border border-zinc-200 text-zinc-800 text-xs font-semibold transition-colors min-h-[38px] sm:min-h-[44px] cursor-pointer"
                   title="Login / Register"
                 >
                   <User className="w-4 h-4 text-[#FF7A00]" />
-                  <span className="hidden sm:inline">Sign In</span>
+                  <span className="hidden md:inline">Sign In</span>
                 </button>
               )}
             </div>
 
-            {/* Mobile Hamburger */}
+            {/* Mobile & Tablet Hamburger */}
             <button
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-              className="lg:hidden min-w-[44px] min-h-[44px] flex items-center justify-center p-2 text-zinc-700 hover:text-zinc-900 rounded-xl hover:bg-zinc-100 transition-colors"
+              className="lg:hidden min-w-[40px] min-h-[40px] sm:min-w-[44px] sm:min-h-[44px] flex items-center justify-center p-1.5 sm:p-2 text-zinc-700 hover:text-zinc-900 rounded-xl hover:bg-zinc-100 transition-colors cursor-pointer"
               aria-label={mobileMenuOpen ? 'Close Navigation Menu' : 'Open Navigation Menu'}
             >
               {mobileMenuOpen ? <X className="w-6 h-6 text-[#FF7A00]" /> : <Menu className="w-6 h-6" />}
@@ -539,6 +546,51 @@ export const Navbar: React.FC<NavbarProps> = ({
                 <span className="text-zinc-400 text-xs">›</span>
               </button>
 
+              {onOpenQuoteCalculator && (
+                <button
+                  onClick={() => {
+                    setMobileMenuOpen(false);
+                    onOpenQuoteCalculator();
+                  }}
+                  className="text-left px-3.5 py-3 rounded-xl text-zinc-800 hover:bg-zinc-100 transition-colors flex items-center justify-between min-h-[44px]"
+                >
+                  <div className="flex items-center gap-2">
+                    <span>B2B Quote Calculator</span>
+                    <span className="text-[9px] bg-[#FF7A00] text-white font-bold px-1.5 py-0.5 rounded-full">CALC</span>
+                  </div>
+                  <span className="text-zinc-400 text-xs">›</span>
+                </button>
+              )}
+
+              {onOpenBundleBuilder && (
+                <button
+                  onClick={() => {
+                    setMobileMenuOpen(false);
+                    onOpenBundleBuilder();
+                  }}
+                  className="text-left px-3.5 py-3 rounded-xl text-zinc-800 hover:bg-zinc-100 transition-colors flex items-center justify-between min-h-[44px]"
+                >
+                  <div className="flex items-center gap-2">
+                    <span>Corporate Gift Bundles</span>
+                    <span className="text-[9px] bg-emerald-600 text-white font-bold px-1.5 py-0.5 rounded-full">NEW</span>
+                  </div>
+                  <span className="text-zinc-400 text-xs">›</span>
+                </button>
+              )}
+
+              {onOpenDownloadCatalog && (
+                <button
+                  onClick={() => {
+                    setMobileMenuOpen(false);
+                    onOpenDownloadCatalog();
+                  }}
+                  className="text-left px-3.5 py-3 rounded-xl text-zinc-800 hover:bg-zinc-100 transition-colors flex items-center justify-between min-h-[44px]"
+                >
+                  <span>Download Catalogues PDF</span>
+                  <span className="text-zinc-400 text-xs">›</span>
+                </button>
+              )}
+
               {onOpenAppointment && (
                 <button
                   onClick={() => {
@@ -549,7 +601,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                 >
                   <div className="flex items-center gap-2">
                     <span>📅 Book 1-on-1 Appointment</span>
-                    <span className="text-[9px] bg-[#FF7A00] text-white font-bold px-1.5 py-0.5 rounded-full">SUPABASE</span>
+                    <span className="text-[9px] bg-[#FF7A00] text-white font-bold px-1.5 py-0.5 rounded-full">FREE</span>
                   </div>
                   <span className="text-[#FF7A00] text-xs">›</span>
                 </button>

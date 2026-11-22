@@ -277,7 +277,7 @@ export const ProductCatalogView: React.FC<ProductCatalogViewProps> = ({
           initial={{ opacity: 0, y: 14 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.45, ease: 'easeOut' }}
-          className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-[#0B1530] via-[#071B35] to-[#0E274E] text-white p-6 sm:p-8 lg:p-10 shadow-[0_24px_60px_-18px_rgba(7,27,53,0.45)] border border-white/10"
+          className="relative overflow-hidden rounded-2xl sm:rounded-3xl bg-gradient-to-br from-[#0B1530] via-[#071B35] to-[#0E274E] text-white p-5 sm:p-8 lg:p-10 shadow-[0_24px_60px_-18px_rgba(7,27,53,0.45)] border border-white/10"
         >
           {/* Ambient Animated Orange & Navy Lighting */}
           <div
@@ -668,7 +668,7 @@ export const ProductCatalogView: React.FC<ProductCatalogViewProps> = ({
         </div>
 
         {/* Results Counter */}
-        <div className="flex items-center justify-between text-xs text-zinc-500 font-mono">
+        <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-zinc-500 font-mono">
           <span>Displaying {filteredProducts.length} verified products {activeFiltersCount > 0 ? '(Filtered)' : ''}</span>
           <span>Pan-India 24–48h Dispatch Eligible</span>
         </div>

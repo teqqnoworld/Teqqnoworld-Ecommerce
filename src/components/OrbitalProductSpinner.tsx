@@ -392,8 +392,12 @@ export const OrbitalProductSpinner: React.FC<OrbitalProductSpinnerProps> = ({
   const [isHoveredPod, setIsHoveredPod] = useState<boolean>(false);
   const [isDragging, setIsDragging] = useState<boolean>(false);
 
-  // Dynamic breakpoint screen tier
+  // Dynamic breakpoint screen tier + measured wrapper width for zero-clipping mobile/tablet fit
   const [screenTier, setScreenTier] = useState<ScreenTier>(getScreenTier);
+  const wrapperRef = useRef<HTMLDivElement>(null);
+  const [measuredWidth, setMeasuredWidth] = useState<number>(() =>
+    typeof window !== 'undefined' ? Math.min(window.innerWidth - 32, 530) : 340
+  );
 
   useEffect(() => {
     const handleResize = () => {
@@ -403,24 +407,41 @@ export const OrbitalProductSpinner: React.FC<OrbitalProductSpinnerProps> = ({
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
-  // Breakpoint responsive parameters
-  // Mobile (< 640px): Orbit Radius = 128px, Center Hub = w-32 h-32, Pods = w-14 h-14, SVG = w-7 h-7
-  // Tablet (640-1024px): Orbit Radius = 175px, Center Hub = w-36 h-36, Pods = w-18 h-18, SVG = w-9 h-9
-  // Desktop (> 1024px): Orbit Radius = 215px, Center Hub = w-44 h-44, Pods = w-24 h-24, SVG = w-11 h-11
+  useEffect(() => {
+    const el = wrapperRef.current;
+    if (!el || typeof ResizeObserver === 'undefined') return;
+    const ro = new ResizeObserver((entries) => {
+      const width = entries[0]?.contentRect?.width;
+      if (width && width > 0) {
+        setMeasuredWidth(width);
+      }
+    });
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+
+  // Breakpoint responsive parameters with dynamic clamping to container width
+  const isCompactMobile = screenTier === 'mobile' && measuredWidth < 340;
+  const mobileStageDim = Math.max(264, Math.min(Math.floor(measuredWidth), 350));
+  const mobileOrbitRadius = Math.round(mobileStageDim * 0.35);
+
+  const tabletStageDim = Math.max(360, Math.min(Math.floor(measuredWidth), 430));
+  const tabletOrbitRadius = Math.round(tabletStageDim * 0.39);
+
   const config = {
     mobile: {
-      orbitRadius: 128,
-      hubSizeClass: 'w-32 h-32',
-      podSizeClass: 'w-14 h-14',
-      iconSizeClass: 'w-7 h-7',
-      stageDim: 330,
+      orbitRadius: mobileOrbitRadius,
+      hubSizeClass: isCompactMobile ? 'w-26 h-26' : 'w-30 h-30',
+      podSizeClass: isCompactMobile ? 'w-12 h-12' : 'w-14 h-14',
+      iconSizeClass: isCompactMobile ? 'w-6 h-6' : 'w-7 h-7',
+      stageDim: mobileStageDim,
     },
     tablet: {
-      orbitRadius: 175,
+      orbitRadius: tabletOrbitRadius,
       hubSizeClass: 'w-36 h-36',
       podSizeClass: 'w-18 h-18',
       iconSizeClass: 'w-9 h-9',
-      stageDim: 430,
+      stageDim: tabletStageDim,
     },
     desktop: {
       orbitRadius: 215,
@@ -443,6 +464,11 @@ export const OrbitalProductSpinner: React.FC<OrbitalProductSpinnerProps> = ({
   const dragCenterRef = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
   const lastDragAngleRef = useRef<number>(0);
   const lastDragTimeRef = useRef<number>(0);
+  const touchGestureRef = useRef<{ startX: number; startY: number; mode: 'undecided' | 'spin' | 'scroll' }>({
+    startX: 0,
+    startY: 0,
+    mode: 'undecided',
+  });
   const containerRef = useRef<HTMLDivElement>(null);
   const animFrameRef = useRef<number>(0);
 
@@ -566,21 +592,46 @@ export const OrbitalProductSpinner: React.FC<OrbitalProductSpinnerProps> = ({
     handlePointerUp();
   };
 
-  // Touch events with preventDefault on move to eliminate vertical scroll conflict
+  // Touch events: yield vertical swipes to natural page scrolling, engage spin on horizontal flicks
   const onTouchStart = (e: React.TouchEvent) => {
     if ((e.target as HTMLElement).closest('button, input, label')) return;
     if (e.touches.length === 1) {
-      handlePointerDown(e.touches[0].clientX, e.touches[0].clientY);
+      touchGestureRef.current = {
+        startX: e.touches[0].clientX,
+        startY: e.touches[0].clientY,
+        mode: 'undecided',
+      };
     }
   };
 
   const onTouchMove = (e: React.TouchEvent) => {
-    if (isDraggingRef.current && e.touches.length === 1) {
-      handlePointerMove(e.touches[0].clientX, e.touches[0].clientY);
+    if (e.touches.length !== 1) return;
+    const touch = e.touches[0];
+    const gesture = touchGestureRef.current;
+
+    if (gesture.mode === 'scroll') return;
+
+    if (gesture.mode === 'undecided') {
+      const dx = Math.abs(touch.clientX - gesture.startX);
+      const dy = Math.abs(touch.clientY - gesture.startY);
+      if (dy > 8 && dy > dx * 1.1) {
+        gesture.mode = 'scroll';
+        return;
+      }
+      if (dx > 8 && dx >= dy) {
+        gesture.mode = 'spin';
+        handlePointerDown(touch.clientX, touch.clientY);
+      }
+      return;
+    }
+
+    if (gesture.mode === 'spin' && isDraggingRef.current) {
+      handlePointerMove(touch.clientX, touch.clientY);
     }
   };
 
   const onTouchEnd = () => {
+    touchGestureRef.current.mode = 'undecided';
     handlePointerUp();
   };
 
@@ -604,7 +655,8 @@ export const OrbitalProductSpinner: React.FC<OrbitalProductSpinnerProps> = ({
 
   return (
     <div 
-      className="w-full max-w-[360px] sm:max-w-[460px] lg:max-w-[600px] aspect-square mx-auto flex items-center justify-center relative overflow-visible my-4 select-none touch-none"
+      ref={wrapperRef}
+      className="w-full max-w-[350px] sm:max-w-[440px] lg:max-w-[580px] aspect-square mx-auto flex items-center justify-center relative overflow-visible my-2 sm:my-4 select-none touch-pan-y"
       onMouseDown={onMouseDown}
       onMouseMove={onMouseMove}
       onMouseUp={onMouseUp}
@@ -612,11 +664,11 @@ export const OrbitalProductSpinner: React.FC<OrbitalProductSpinnerProps> = ({
       onTouchStart={onTouchStart}
       onTouchMove={onTouchMove}
       onTouchEnd={onTouchEnd}
-      style={{ touchAction: 'none' }}
+      style={{ touchAction: 'pan-y' }}
     >
       {/* Soft Ambient Radial Orange Glow behind Center Hub */}
       <div 
-        className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[340px] sm:w-[420px] lg:w-[480px] h-[340px] sm:h-[420px] lg:h-[480px] pointer-events-none rounded-full"
+        className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[260px] sm:w-[400px] lg:w-[480px] h-[260px] sm:h-[400px] lg:h-[480px] pointer-events-none rounded-full"
         style={{
           background: 'radial-gradient(circle, rgba(255,122,0,0.18) 0%, rgba(255,122,0,0.05) 50%, transparent 75%)',
         }}
@@ -765,12 +817,12 @@ export const OrbitalProductSpinner: React.FC<OrbitalProductSpinnerProps> = ({
                     </div>
 
                     {/* Floating Pill Badge at bottom edge of circle (Compact on mobile) */}
-                    <div className="relative z-20 -mt-2 sm:-mt-2.5 bg-[#111217]/95 backdrop-blur-md px-2 sm:px-2.5 py-0.5 rounded-full border border-white/15 shadow-lg text-center flex items-center gap-1 sm:gap-1.5 whitespace-nowrap pointer-events-none group-hover:border-[#FF7A00]/60 transition-colors">
-                      <span className="text-[9px] sm:text-[11px] font-semibold text-white tracking-tight">
+                    <div className="relative z-20 -mt-1.5 sm:-mt-2.5 bg-[#111217]/95 backdrop-blur-md px-1.5 sm:px-2.5 py-0.5 rounded-full border border-white/15 shadow-lg text-center flex items-center gap-1 sm:gap-1.5 whitespace-nowrap pointer-events-none group-hover:border-[#FF7A00]/60 transition-colors">
+                      <span className="text-[8px] xs:text-[9px] sm:text-[11px] font-semibold text-white tracking-tight">
                         {product.shortName}
                       </span>
-                      <span className="text-[7px] sm:text-[9px] text-zinc-500">•</span>
-                      <span className="text-[9px] sm:text-[10px] font-mono font-bold text-[#FF7A00]">
+                      <span className="hidden xs:inline text-[7px] sm:text-[9px] text-zinc-500">•</span>
+                      <span className="hidden xs:inline text-[8px] sm:text-[10px] font-mono font-bold text-[#FF7A00]">
                         {product.price}
                       </span>
                     </div>

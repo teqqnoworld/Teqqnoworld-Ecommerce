@@ -50,11 +50,11 @@ export const FaqSection: React.FC = () => {
         </div>
 
         {/* 2-Column Responsive Layout: Left Illustration & Right Accordions */}
-        <div className="grid grid-cols-1 md:grid-cols-12 gap-8 lg:gap-12 items-start">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-start">
           
-          {/* LEFT COLUMN: 3D Illustration with layered interactive animations (5 cols on tablet/desktop) */}
-          <div className="md:col-span-5 lg:col-span-5 flex flex-col items-center justify-center md:sticky md:top-24 lg:top-28">
-            <div className="relative w-full max-w-md sm:max-w-lg lg:max-w-none">
+          {/* LEFT COLUMN: 3D Illustration with layered interactive animations (5 cols on desktop) */}
+          <div className="lg:col-span-5 flex flex-col items-center justify-center lg:sticky lg:top-28">
+            <div className="relative w-full max-w-sm sm:max-w-md lg:max-w-none px-2 sm:px-0">
               
               {/* Backing Ambient Aura */}
               <div 
@@ -77,10 +77,10 @@ export const FaqSection: React.FC = () => {
 
               {/* Layered Micro-Animation: Floating Question Badge (Top Left) */}
               <div 
-                className="absolute -top-3 -left-2 sm:top-2 sm:left-4 z-20 animate-faq-float motion-reduce:animate-none pointer-events-none"
+                className="absolute -top-2 left-2 sm:top-2 sm:left-4 z-20 animate-faq-float motion-reduce:animate-none pointer-events-none"
                 aria-hidden="true"
               >
-                <div className="bg-white/95 backdrop-blur-md px-3 py-1.5 rounded-2xl shadow-lg border border-orange-200/80 flex items-center gap-1.5 text-xs font-bold text-[#FF7A00]">
+                <div className="bg-white/95 backdrop-blur-md px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-2xl shadow-lg border border-orange-200/80 flex items-center gap-1.5 text-[11px] sm:text-xs font-bold text-[#FF7A00]">
                   <HelpCircle className="w-3.5 h-3.5 text-[#FF7A00]" />
                   <span>Ask Pre-press</span>
                 </div>
@@ -91,7 +91,7 @@ export const FaqSection: React.FC = () => {
                 className="absolute -top-2 right-2 sm:top-4 sm:right-6 z-20 animate-faq-float-reverse motion-reduce:animate-none pointer-events-none"
                 aria-hidden="true"
               >
-                <div className="bg-[#FF7A00] text-white px-3 py-1.5 rounded-2xl shadow-lg flex items-center gap-1.5 text-xs font-bold">
+                <div className="bg-[#FF7A00] text-white px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-2xl shadow-lg flex items-center gap-1.5 text-[11px] sm:text-xs font-bold">
                   <MessageSquare className="w-3.5 h-3.5" />
                   <span>Quick Proof ⚡</span>
                 </div>
@@ -99,13 +99,13 @@ export const FaqSection: React.FC = () => {
 
               {/* Floating Sparkle Accents */}
               <div 
-                className="absolute bottom-16 -left-3 z-20 animate-faq-sparkle motion-reduce:animate-none text-[#FF7A00] pointer-events-none"
+                className="absolute bottom-14 left-1 sm:-left-2 z-20 animate-faq-sparkle motion-reduce:animate-none text-[#FF7A00] pointer-events-none"
                 aria-hidden="true"
               >
                 <Sparkles className="w-5 h-5 drop-shadow-sm" />
               </div>
               <div 
-                className="absolute top-24 -right-2 z-20 animate-faq-sparkle motion-reduce:animate-none text-amber-500 pointer-events-none"
+                className="absolute top-24 right-1 sm:-right-2 z-20 animate-faq-sparkle motion-reduce:animate-none text-amber-500 pointer-events-none"
                 style={{ animationDelay: '1.2s' }}
                 aria-hidden="true"
               >
@@ -130,8 +130,8 @@ export const FaqSection: React.FC = () => {
             </div>
           </div>
 
-          {/* RIGHT COLUMN: Interactive Accordion with all 8 questions (7 cols on tablet/desktop) */}
-          <div className="md:col-span-7 lg:col-span-7 space-y-3 sm:space-y-3.5">
+          {/* RIGHT COLUMN: Interactive Accordion with all 8 questions (7 cols on desktop) */}
+          <div className="lg:col-span-7 space-y-3 sm:space-y-3.5">
             {FAQ_LIST.map((faq, idx) => {
               const isOpen = openIndex === idx;
               const numStr = (faq as any).num || (idx < 9 ? `0${idx + 1}` : `${idx + 1}`);

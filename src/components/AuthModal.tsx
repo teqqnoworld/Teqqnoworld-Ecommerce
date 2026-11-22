@@ -18,7 +18,6 @@ import {
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { UserProfile } from '../types';
-import { DEFAULT_USER_PROFILE } from '../data/mockData';
 import {
   sendEmailVerificationOtp,
   sendForgotPasswordOtp,
@@ -778,15 +777,6 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   };
 
   // -------------------------------------------------------------
-  // QUICK DEMO LOGIN
-  // -------------------------------------------------------------
-  const handleUseDemoAccount = () => {
-    localStorage.setItem('teqqno_user', JSON.stringify(DEFAULT_USER_PROFILE));
-    onLoginSuccess(DEFAULT_USER_PROFILE);
-    onClose();
-  };
-
-  // -------------------------------------------------------------
   // FORGOT PASSWORD (3-STEP 6-DIGIT GMAIL OTP VERIFICATION)
   // -------------------------------------------------------------
   const openForgotPasswordFlow = () => {
@@ -910,15 +900,15 @@ export const AuthModal: React.FC<AuthModalProps> = ({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[#071B35]/80 backdrop-blur-md overflow-y-auto"
+      className="fixed inset-0 z-50 flex items-start sm:items-center justify-center p-3 sm:p-4 bg-[#071B35]/80 backdrop-blur-md overflow-y-auto"
       onClick={onClose}
     >
       <div
-        className="relative w-full max-w-lg bg-[#091830] border border-white/15 rounded-3xl shadow-[0_30px_80px_-15px_rgba(4,12,28,0.85)] overflow-hidden my-8 animate-admin-scale-in"
+        className="relative w-full max-w-lg bg-[#091830] border border-white/15 rounded-2xl sm:rounded-3xl shadow-[0_30px_80px_-15px_rgba(4,12,28,0.85)] overflow-hidden my-3 sm:my-8 animate-admin-scale-in"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Top Header Banner */}
-        <div className="relative overflow-hidden bg-gradient-to-br from-[#071B35] via-[#0D274A] to-[#081A33] p-6 border-b border-white/10">
+        <div className="relative overflow-hidden bg-gradient-to-br from-[#071B35] via-[#0D274A] to-[#081A33] p-5 sm:p-6 border-b border-white/10">
           <div
             aria-hidden="true"
             className="pointer-events-none absolute -top-16 -right-12 w-64 h-64 rounded-full opacity-35 blur-3xl"
@@ -1523,21 +1513,8 @@ export const AuthModal: React.FC<AuthModalProps> = ({
             </form>
           )}
 
-          {/* Quick Demo Credentials Footer */}
-          <div className="mt-6 pt-5 border-t border-zinc-800/80 text-center">
-            <p className="text-[11px] text-zinc-500 mb-2">Want to test the platform instantly without entering credentials?</p>
-            <button
-              type="button"
-              onClick={handleUseDemoAccount}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-zinc-900 hover:bg-zinc-800 text-zinc-300 hover:text-white border border-zinc-700/80 text-xs font-medium transition-colors cursor-pointer"
-            >
-              <KeyRound className="w-3.5 h-3.5 text-[#FF7A00]" />
-              <span>Use Demo Account (demo@teqqnoworld.com)</span>
-            </button>
-          </div>
-
           {/* Trust badges */}
-          <div className="mt-4 flex items-center justify-center gap-4 text-[10px] text-zinc-500">
+          <div className="mt-5 pt-4 border-t border-zinc-800/80 flex items-center justify-center gap-4 text-[10px] text-zinc-500">
             <span className="flex items-center gap-1">
               <ShieldCheck className="w-3.5 h-3.5 text-emerald-500" />
               256-Bit SSL Encrypted

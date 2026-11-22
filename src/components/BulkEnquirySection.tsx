@@ -118,15 +118,15 @@ export const BulkEnquirySection: React.FC<BulkEnquirySectionProps> = ({
 
 
   return (
-    <section id="bulk-enquiry-section" className="py-20 bg-[#16171B] text-white border-b border-[#2A2A30] relative overflow-hidden">
+    <section id="bulk-enquiry-section" className="py-14 sm:py-20 bg-[#16171B] text-white border-b border-[#2A2A30] relative overflow-hidden">
       {/* Background ambient glow */}
-      <div className="absolute top-1/2 right-1/4 w-[500px] h-[500px] bg-[#FF7A00]/8 rounded-full blur-[130px] pointer-events-none" />
+      <div className="absolute top-1/2 right-1/4 w-[320px] sm:w-[500px] h-[320px] sm:h-[500px] bg-[#FF7A00]/8 rounded-full blur-[110px] sm:blur-[130px] pointer-events-none" />
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
-        <div className="grid grid-cols-1 md:grid-cols-12 gap-8 lg:gap-14 items-center">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-14 items-center">
           
-          {/* Left Column (6 cols tablet, 7 cols desktop): Enterprise Pitch & Checklist */}
-          <div className="md:col-span-6 lg:col-span-7 space-y-6 text-left">
+          {/* Left Column (7 cols desktop): Enterprise Pitch & Checklist */}
+          <div className="lg:col-span-7 space-y-5 sm:space-y-6 text-left">
             
             <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#202127] border border-[#2F3038] text-[11px] font-mono font-semibold uppercase tracking-wider text-[#FF7A00]">
               ENTERPRISE & BULK SOLUTIONS
@@ -180,14 +180,14 @@ export const BulkEnquirySection: React.FC<BulkEnquirySectionProps> = ({
             </div>
 
             {/* Action Buttons */}
-            <div className="flex flex-wrap items-center gap-4 pt-4">
+            <div className="flex flex-col sm:flex-row flex-wrap items-stretch sm:items-center gap-3 sm:gap-4 pt-3 sm:pt-4">
               <a
                 href={getWhatsAppLink('Hi TeqqnoWorld, we have an enterprise bulk merchandise requirement.')}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="bg-[#1EBE5D] hover:bg-[#19a851] text-white font-display font-semibold text-xs sm:text-sm px-5 py-3.5 rounded-xl shadow-lg transition-all flex items-center gap-2 group cursor-pointer"
+                className="w-full sm:w-auto justify-center bg-[#1EBE5D] hover:bg-[#19a851] text-white font-display font-semibold text-xs sm:text-sm px-5 py-3.5 min-h-[46px] rounded-xl shadow-lg transition-all flex items-center gap-2 group cursor-pointer"
               >
-                <WhatsAppIcon className="w-4 h-4 text-white group-hover:animate-icon-ring transition-transform" />
+                <WhatsAppIcon className="w-4 h-4 text-white group-hover:animate-icon-ring transition-transform shrink-0" />
                 <span>Chat on WhatsApp ({BUSINESS_CONFIG.contact.whatsapp})</span>
               </a>
 
@@ -195,9 +195,9 @@ export const BulkEnquirySection: React.FC<BulkEnquirySectionProps> = ({
                 <button
                   type="button"
                   onClick={handleDownloadCatalog}
-                  className="bg-[#202127] hover:bg-[#282a32] text-white border border-[#3A3B45] hover:border-[#FF7A00]/40 font-display font-medium text-xs sm:text-sm px-5 py-3.5 rounded-xl transition-all flex items-center justify-center gap-2 group cursor-pointer min-h-[44px]"
+                  className="w-full sm:w-auto bg-[#202127] hover:bg-[#282a32] text-white border border-[#3A3B45] hover:border-[#FF7A00]/40 font-display font-medium text-xs sm:text-sm px-5 py-3.5 rounded-xl transition-all flex items-center justify-center gap-2 group cursor-pointer min-h-[46px]"
                 >
-                  <Download className="w-4 h-4 text-zinc-400 group-hover:text-[#FF7A00] group-hover:translate-y-0.5 transition-all duration-300" />
+                  <Download className="w-4 h-4 text-zinc-400 group-hover:text-[#FF7A00] group-hover:translate-y-0.5 transition-all duration-300 shrink-0" />
                   <span>{catalogDownloaded ? '✓ Catalog PDF Sent to Download' : 'Download Enterprise Catalog'}</span>
                 </button>
               </div>
@@ -212,9 +212,9 @@ export const BulkEnquirySection: React.FC<BulkEnquirySectionProps> = ({
 
           </div>
 
-          {/* Right Column (6 cols tablet, 5 cols desktop): White RFQ Estimator Card */}
-          <div className="md:col-span-6 lg:col-span-5">
-            <div className="bg-white rounded-2xl p-5 sm:p-7 text-[#0B0B0D] shadow-2xl border border-white/20">
+          {/* Right Column (5 cols desktop): White RFQ Estimator Card */}
+          <div className="lg:col-span-5">
+            <div className="bg-white rounded-2xl p-4 sm:p-7 text-[#0B0B0D] shadow-2xl border border-white/20">
               
               <div className="mb-4 pb-3 border-b border-zinc-100 flex items-center justify-between">
                 <div>

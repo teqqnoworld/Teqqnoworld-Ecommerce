@@ -434,8 +434,8 @@ export const OrderProcessingStepsSection: React.FC<OrderProcessingStepsSectionPr
             </div>
 
             {/* Pill Container for ORDER PROCESSING */}
-            <div className="bg-[#FFF2EA] px-3.5 sm:px-8 py-1 sm:py-2 rounded-2xl shadow-2xs border border-[#FFE3D1] max-w-full">
-              <span className="text-[#FF5500] text-lg xs:text-2xl sm:text-3xl md:text-4xl font-black uppercase tracking-tight sm:tracking-normal font-display whitespace-nowrap">
+            <div className="bg-[#FFF2EA] px-3 sm:px-8 py-1 sm:py-2 rounded-2xl shadow-2xs border border-[#FFE3D1] max-w-full">
+              <span className="text-[#FF5500] text-base xs:text-2xl sm:text-3xl md:text-4xl font-black uppercase tracking-tight sm:tracking-normal font-display whitespace-nowrap">
                 ORDER PROCESSING
               </span>
             </div>
@@ -459,8 +459,8 @@ export const OrderProcessingStepsSection: React.FC<OrderProcessingStepsSectionPr
         {/* TIMELINE STEPS CONTAINER                                              */}
         {/* ===================================================================== */}
         
-        {/* DESKTOP TIMELINE (EXACT HORIZONTAL 5-STEP BLUEPRINT) */}
-        <div className="hidden md:block relative">
+        {/* DESKTOP TIMELINE (EXACT HORIZONTAL 5-STEP BLUEPRINT — LG+ ONLY TO PREVENT TABLET CRAMPING) */}
+        <div className="hidden lg:block relative">
           
           {/* Dotted horizontal connector line spanning behind the circles */}
           <div 
@@ -560,12 +560,12 @@ export const OrderProcessingStepsSection: React.FC<OrderProcessingStepsSectionPr
 
         </div>
 
-        {/* MOBILE & TABLET TIMELINE (ADAPTIVE CLEAN VERTICAL / COMPACT FLOW) */}
-        <div className="md:hidden relative max-w-sm mx-auto space-y-8 pl-4">
+        {/* MOBILE & TABLET TIMELINE (ADAPTIVE CLEAN VERTICAL FLOW) */}
+        <div className="lg:hidden relative max-w-md md:max-w-xl mx-auto space-y-7 sm:space-y-8 pl-2 sm:pl-4">
           
-          {/* Vertical Dotted Connector Line */}
+          {/* Vertical Dotted Connector Line (centered behind 80px circle: pl-2(8px)+40px=48px / sm:pl-4(16px)+40px=56px) */}
           <div 
-            className="absolute left-13 top-6 bottom-6 w-0.5 z-0" 
+            className="absolute left-[47px] sm:left-[55px] top-6 bottom-6 w-0.5 z-0" 
             aria-hidden="true"
           >
             <div className="w-full h-full border-l-[3px] border-dashed border-[#0C1D36] opacity-80" />

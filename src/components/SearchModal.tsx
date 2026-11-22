@@ -32,12 +32,12 @@ export const SearchModal: React.FC<SearchModalProps> = ({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-start justify-center pt-16 sm:pt-20 px-4 bg-[#071B35]/70 backdrop-blur-sm"
+      className="fixed inset-0 z-50 flex items-start justify-center pt-6 sm:pt-20 px-3 sm:px-4 bg-[#071B35]/70 backdrop-blur-sm"
       onClick={onClose}
     >
       <div
         onClick={(e) => e.stopPropagation()}
-        className="bg-white rounded-3xl border border-slate-200/80 shadow-[0_28px_70px_-15px_rgba(7,27,53,0.42)] max-w-xl w-full overflow-hidden animate-admin-scale-in"
+        className="bg-white rounded-2xl sm:rounded-3xl border border-slate-200/80 shadow-[0_28px_70px_-15px_rgba(7,27,53,0.42)] max-w-xl w-full overflow-hidden animate-admin-scale-in"
       >
         {/* Search Input Bar */}
         <div className="p-4 sm:p-5 bg-gradient-to-r from-[#071B35] to-[#0B2347] border-b border-white/10 flex items-center gap-3 group">
@@ -63,8 +63,8 @@ export const SearchModal: React.FC<SearchModalProps> = ({
         </div>
 
         {/* Results List */}
-        <div className="p-4 sm:p-5 max-h-[26rem] overflow-y-auto space-y-2 bg-[#F8FAFC]">
-          <div className="flex items-center justify-between text-[11px] font-mono text-slate-500 uppercase tracking-wider mb-2 px-1">
+        <div className="p-3.5 sm:p-5 max-h-[calc(100dvh-9rem)] sm:max-h-[26rem] overflow-y-auto space-y-2 bg-[#F8FAFC]">
+          <div className="flex flex-wrap items-center justify-between gap-1 text-[11px] font-mono text-slate-500 uppercase tracking-wider mb-2 px-1">
             <span>{query.trim() ? `Search Results (${results.length})` : 'Popular Corporate Merchandise'}</span>
             <span className="text-[10px] text-slate-400">Instant Customizer Ready</span>
           </div>

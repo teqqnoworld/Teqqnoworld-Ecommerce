@@ -1034,11 +1034,11 @@ export const CheckoutView: React.FC<CheckoutViewProps> = ({
   ];
 
   return (
-    <div className="bg-[#F5F5F7] min-h-screen py-10">
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 space-y-8">
+    <div className="bg-[#F5F5F7] min-h-screen py-6 sm:py-10 pb-12">
+      <div className="max-w-6xl mx-auto px-3 sm:px-6 lg:px-8 space-y-6 sm:space-y-8">
         
         {/* Top Back & Header */}
-        <div className="flex items-center justify-between">
+        <div className="flex flex-wrap items-center justify-between gap-2">
           <button
             type="button"
             onClick={() => {
@@ -1048,15 +1048,16 @@ export const CheckoutView: React.FC<CheckoutViewProps> = ({
                 onBackToCart();
               }
             }}
-            className="inline-flex items-center gap-1.5 text-xs font-semibold text-zinc-600 hover:text-[#0B0B0D] transition-colors cursor-pointer"
+            className="inline-flex items-center gap-1.5 text-xs font-semibold text-zinc-600 hover:text-[#0B0B0D] transition-colors cursor-pointer min-h-[38px]"
           >
-            <ArrowLeft className="w-4 h-4" />
+            <ArrowLeft className="w-4 h-4 shrink-0" />
             <span>Return to Shopping Bag</span>
           </button>
 
-          <div className="flex items-center gap-2 text-xs font-mono text-zinc-500">
-            <Lock className="w-3.5 h-3.5 text-emerald-600" />
-            <span>256-Bit SSL Encrypted Procurement Checkout</span>
+          <div className="flex items-center gap-1.5 text-[11px] sm:text-xs font-mono text-zinc-500">
+            <Lock className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+            <span className="sm:hidden">256-Bit SSL Secure Checkout</span>
+            <span className="hidden sm:inline">256-Bit SSL Encrypted Procurement Checkout</span>
           </div>
         </div>
 
@@ -1097,26 +1098,26 @@ export const CheckoutView: React.FC<CheckoutViewProps> = ({
             
             {/* Quick Login Prompt for Guests */}
             {!user && onRequestLogin && (
-              <div className="bg-orange-50/70 border border-[#FF7A00]/30 rounded-2xl p-4 flex items-center justify-between text-xs">
-                <div className="flex items-center gap-2.5">
-                  <Sparkles className="w-4 h-4 text-[#FF7A00] shrink-0" />
+              <div className="bg-orange-50/70 border border-[#FF7A00]/30 rounded-2xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
+                <div className="flex items-start sm:items-center gap-2.5">
+                  <Sparkles className="w-4 h-4 text-[#FF7A00] shrink-0 mt-0.5 sm:mt-0" />
                   <div>
                     <span className="font-bold text-[#0B0B0D]">Already have a corporate account?</span>
-                    <p className="text-zinc-600 text-[11px]">Log in with Mobile OTP to auto-fill GSTIN & verified company addresses.</p>
+                    <p className="text-zinc-600 text-[11px]">Log in to auto-fill GSTIN & verified company addresses.</p>
                   </div>
                 </div>
                 <button
                   type="button"
                   onClick={onRequestLogin}
-                  className="bg-[#FF7A00] hover:bg-[#ff881a] text-white font-semibold px-3.5 py-1.5 rounded-xl shrink-0 transition-colors shadow-xs"
+                  className="w-full sm:w-auto bg-[#FF7A00] hover:bg-[#ff881a] text-white font-semibold px-4 py-2.5 sm:py-2 rounded-xl shrink-0 transition-colors shadow-xs min-h-[42px] sm:min-h-[38px] cursor-pointer"
                 >
-                  Login with OTP
+                  Sign In
                 </button>
               </div>
             )}
 
             {/* Step 1: Contact & Company Profile */}
-            <div className="bg-white rounded-2xl border border-[#E5E5EA] p-6 shadow-xs space-y-4">
+            <div className="bg-white rounded-2xl border border-[#E5E5EA] p-4 sm:p-6 shadow-xs space-y-4">
               <h3 className="font-display font-bold text-base text-[#0B0B0D] flex items-center gap-2">
                 <span className="w-6 h-6 rounded-full bg-[#FF7A00] text-white flex items-center justify-center text-xs">1</span>
                 <span>Contact & GST Invoicing Details</span>
@@ -1521,20 +1522,20 @@ export const CheckoutView: React.FC<CheckoutViewProps> = ({
                         onChange={(e) => setBillingStreet(e.target.value)}
                         className="w-full p-2.5 text-xs border border-zinc-300 rounded-lg bg-white outline-none focus:border-[#FF7A00]"
                       />
-                      <div className="grid grid-cols-3 gap-2">
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
                         <input
                           type="text"
                           placeholder="City"
                           value={billingCity}
                           onChange={(e) => setBillingCity(e.target.value)}
-                          className="p-2 text-xs border border-zinc-300 rounded-lg bg-white outline-none"
+                          className="p-2.5 sm:p-2 text-xs border border-zinc-300 rounded-lg bg-white outline-none min-h-[42px] sm:min-h-0"
                         />
                         <input
                           type="text"
                           placeholder="State"
                           value={billingState}
                           onChange={(e) => setBillingState(e.target.value)}
-                          className="p-2 text-xs border border-zinc-300 rounded-lg bg-white outline-none"
+                          className="p-2.5 sm:p-2 text-xs border border-zinc-300 rounded-lg bg-white outline-none min-h-[42px] sm:min-h-0"
                         />
                         <input
                           type="text"
@@ -1542,7 +1543,7 @@ export const CheckoutView: React.FC<CheckoutViewProps> = ({
                           maxLength={6}
                           value={billingPincode}
                           onChange={(e) => setBillingPincode(e.target.value)}
-                          className="p-2 text-xs border border-zinc-300 rounded-lg bg-white outline-none font-mono"
+                          className="p-2.5 sm:p-2 text-xs border border-zinc-300 rounded-lg bg-white outline-none font-mono min-h-[42px] sm:min-h-0"
                         />
                       </div>
                     </div>
@@ -1552,7 +1553,7 @@ export const CheckoutView: React.FC<CheckoutViewProps> = ({
             </div>
 
             {/* Step 3: Razorpay Payment Plan (100% Prepaid or 50% Partial Advance — NO COD) */}
-            <div className="bg-white rounded-2xl border border-[#E5E5EA] p-6 shadow-xs space-y-4">
+            <div className="bg-white rounded-2xl border border-[#E5E5EA] p-4 sm:p-6 shadow-xs space-y-4">
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <h3 className="font-display font-bold text-base text-[#0B0B0D] flex items-center gap-2">
                   <span className="w-6 h-6 rounded-full bg-[#FF7A00] text-white flex items-center justify-center text-xs">3</span>

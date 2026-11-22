@@ -804,13 +804,7 @@ export default function App() {
       )}
 
       {/* 3. Main Views Routing */}
-      <main
-        className={`flex-1 ${
-          isCustomerPortalFull || currentTab === 'product-detail' || currentTab === 'checkout'
-            ? 'pb-0'
-            : 'pb-24 md:pb-0'
-        }`}
-      >
+      <main className="flex-1">
         {/* VIEW A: HOMEPAGE (Exact match to IMAGE 2) */}
         {currentTab === 'home' && (
           <div>
@@ -1179,7 +1173,7 @@ export default function App() {
 
       {/* 9. B2B Bulk Quotation Calculator Modal */}
       {isQuoteCalculatorOpen && (
-        <div className="fixed inset-0 z-50 bg-black/75 backdrop-blur-xs flex items-center justify-center p-2 sm:p-4 md:p-6 overflow-y-auto">
+        <div className="fixed inset-0 z-50 bg-black/75 backdrop-blur-xs flex items-start sm:items-center justify-center p-2 sm:p-4 md:p-6 overflow-y-auto">
           <BulkQuotationCalculator
             isModal={true}
             onCloseModal={() => setIsQuoteCalculatorOpen(false)}
@@ -1190,7 +1184,7 @@ export default function App() {
 
       {/* 10. Corporate Gift Bundle Builder Modal */}
       {isBundleBuilderOpen && (
-        <div className="fixed inset-0 z-50 bg-black/75 backdrop-blur-xs flex items-center justify-center p-2 sm:p-4 md:p-6 overflow-y-auto">
+        <div className="fixed inset-0 z-50 bg-black/75 backdrop-blur-xs flex items-start sm:items-center justify-center p-2 sm:p-4 md:p-6 overflow-y-auto">
           <CorporateGiftBundleBuilder
             isModal={true}
             onClose={() => setIsBundleBuilderOpen(false)}

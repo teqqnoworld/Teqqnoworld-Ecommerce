@@ -1031,13 +1031,13 @@ export const ProductDetailView: React.FC<ProductDetailViewProps> = ({
       </div>
 
       {/* Main 2-Column Product Studio Area */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6 sm:pt-8">
-        <div className="grid grid-cols-1 md:grid-cols-12 gap-6 lg:gap-12 items-start">
+      <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 pt-4 sm:pt-8">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-12 items-start">
           
           {/* ========================================================================= */}
-          {/* LEFT COLUMN (6 cols on tablet & desktop): Sticky Gallery & Interactive Visualizer */}
+          {/* LEFT COLUMN (6 cols on desktop, full width on mobile/tablet): Sticky Gallery & Visualizer */}
           {/* ========================================================================= */}
-          <div className="md:col-span-6 lg:col-span-6 space-y-4 md:sticky md:top-24">
+          <div className="lg:col-span-6 space-y-4 lg:sticky lg:top-24">
             
             {/* Primary Image & Interactive Canvas Container */}
             <div className="relative bg-white rounded-2xl border border-[#E5E5EA] shadow-xs overflow-hidden group">
@@ -1045,18 +1045,18 @@ export const ProductDetailView: React.FC<ProductDetailViewProps> = ({
               {/* Top Controls Bar: Badges & View Switcher (Fluid, non-overlapping flex layout) */}
               <div className="absolute top-2.5 sm:top-3 inset-x-2.5 sm:inset-x-3 z-20 flex items-start justify-between gap-1.5 pointer-events-none">
                 {/* Left: Badges */}
-                <div className="flex items-center gap-1 sm:gap-1.5 pointer-events-auto shrink-0 max-w-[45%] xs:max-w-[50%] sm:max-w-none">
+                <div className="flex items-center gap-1 sm:gap-1.5 pointer-events-auto shrink-0 max-w-[46%] sm:max-w-none">
                   <span className="bg-[#FF7A00] text-white text-[9px] sm:text-[11px] font-bold px-1.5 sm:px-2.5 py-0.5 sm:py-1 rounded-md shadow-xs truncate">
                     {product.badge || '15% Bulk Off'}
                   </span>
-                  <span className="bg-zinc-900/80 backdrop-blur-xs text-white text-[9px] sm:text-[11px] font-mono px-1 sm:px-2 py-0.5 sm:py-1 rounded-md border border-white/10 shrink-0">
+                  <span className="hidden xs:inline-block bg-zinc-900/80 backdrop-blur-xs text-white text-[9px] sm:text-[11px] font-mono px-1.5 sm:px-2 py-0.5 sm:py-1 rounded-md border border-white/10 shrink-0">
                     Min {product.moq || (isUmbrella || isPromoTable ? 1 : 2)} {isUmbrella || isPromoTable ? 'unit' : 'pcs'}
                   </span>
                 </div>
 
                 {/* Right: Front/Back View Switcher & Maximize Button */}
                 {!isVisitingCard && (
-                  <div className="flex items-center gap-1.5 pointer-events-auto shrink-0">
+                  <div className="flex items-center gap-1 sm:gap-1.5 pointer-events-auto shrink-0">
                     {!isCanopy && !isPromoTable && !isMug && !isStandee && (
                       <div className="inline-flex items-center bg-white/95 backdrop-blur-xs border border-zinc-200 rounded-lg p-0.5 shadow-2xs">
                         <button
@@ -1071,7 +1071,8 @@ export const ProductDetailView: React.FC<ProductDetailViewProps> = ({
                               : 'text-zinc-600 hover:text-zinc-900'
                           }`}
                         >
-                          Front View
+                          <span className="sm:hidden">Front</span>
+                          <span className="hidden sm:inline">Front View</span>
                         </button>
                         <button
                           type="button"
@@ -1085,7 +1086,8 @@ export const ProductDetailView: React.FC<ProductDetailViewProps> = ({
                               : 'text-zinc-600 hover:text-zinc-900'
                           }`}
                         >
-                          Back View
+                          <span className="sm:hidden">Back</span>
+                          <span className="hidden sm:inline">Back View</span>
                         </button>
                       </div>
                     )}
@@ -1095,29 +1097,29 @@ export const ProductDetailView: React.FC<ProductDetailViewProps> = ({
                         onClick={() => onToggleWishlist(product.id)}
                         aria-label={isWishlisted ? 'Remove from wishlist' : 'Save to wishlist'}
                         title={isWishlisted ? 'Saved in Wishlist' : 'Save to Wishlist'}
-                        className={`w-7 h-7 sm:w-8 sm:h-8 rounded-lg border flex items-center justify-center shadow-2xs transition-all cursor-pointer shrink-0 ${
+                        className={`w-8 h-8 rounded-lg border flex items-center justify-center shadow-2xs transition-all cursor-pointer shrink-0 ${
                           isWishlisted
                             ? 'bg-rose-50 border-rose-200 text-rose-500'
                             : 'bg-white/90 hover:bg-white border-zinc-200 text-zinc-700 hover:text-rose-500'
                         }`}
                       >
-                        <Heart className={`w-3.5 h-3.5 sm:w-4 sm:h-4 ${isWishlisted ? 'fill-rose-500 text-rose-500' : ''}`} />
+                        <Heart className={`w-4 h-4 ${isWishlisted ? 'fill-rose-500 text-rose-500' : ''}`} />
                       </button>
                     )}
                     <button
                       type="button"
                       onClick={() => setIsLightboxOpen(true)}
-                      className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-white/90 hover:bg-white border border-zinc-200 flex items-center justify-center text-zinc-700 shadow-2xs transition-colors cursor-pointer shrink-0"
+                      className="w-8 h-8 rounded-lg bg-white/90 hover:bg-white border border-zinc-200 flex items-center justify-center text-zinc-700 shadow-2xs transition-colors cursor-pointer shrink-0"
                       title="Fullscreen Zoom"
                     >
-                      <Maximize2 className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                      <Maximize2 className="w-4 h-4" />
                     </button>
                   </div>
                 )}
               </div>
 
               {/* Main Visual Display (Mockup Canvas or High-Def Detail Focus) */}
-              <div className="p-6 sm:p-10 flex items-center justify-center min-h-[380px] sm:min-h-[460px] bg-gradient-to-b from-zinc-50/70 to-white relative">
+              <div className="p-4 pt-12 sm:p-10 flex items-center justify-center min-h-[320px] sm:min-h-[440px] lg:min-h-[460px] bg-gradient-to-b from-zinc-50/70 to-white relative">
                 
                 {/* Visual Header Watermark / Title Overlay (Positioned in bottom-left above size strip to avoid covering product collar, chest & top controls) */}
                 {!isPromoTable && !isUmbrella && !isMug && !isCanopy && !isStandee && !isVisitingCard && (
@@ -2058,9 +2060,9 @@ export const ProductDetailView: React.FC<ProductDetailViewProps> = ({
           </div>
 
           {/* ========================================================================= */}
-          {/* RIGHT COLUMN (6 cols on tablet & desktop): Product Configuration & Customization Workflow */}
+          {/* RIGHT COLUMN (6 cols on desktop, full width on mobile/tablet): Product Configuration */}
           {/* ========================================================================= */}
-          <div className="md:col-span-6 lg:col-span-6 space-y-6">
+          <div className="lg:col-span-6 space-y-6">
             {isVisitingCard ? (
               <VisitingCardBuyBox
                 product={product}
@@ -2279,7 +2281,7 @@ export const ProductDetailView: React.FC<ProductDetailViewProps> = ({
                 </div>
 
                 {/* Swatches Grid */}
-                <div className="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 gap-2">
+                <div className="grid grid-cols-4 sm:grid-cols-6 lg:grid-cols-6 xl:grid-cols-8 gap-2">
                   {product.colors.map((c) => {
                     const isSelected = selectedColor.name === c.name;
                     return (

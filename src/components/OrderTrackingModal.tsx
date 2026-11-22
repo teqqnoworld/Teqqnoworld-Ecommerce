@@ -211,15 +211,15 @@ export const OrderTrackingModal: React.FC<OrderTrackingModalProps> = ({
 
   return (
     <div
-      className="fixed inset-0 z-50 bg-[#071B35]/70 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4 overflow-y-auto"
+      className="fixed inset-0 z-50 bg-[#071B35]/70 backdrop-blur-sm flex items-start sm:items-center justify-center p-2.5 sm:p-4 overflow-y-auto"
       onClick={onClose}
     >
       <div
         onClick={(e) => e.stopPropagation()}
-        className="bg-white rounded-3xl max-w-3xl w-full border border-slate-200/80 shadow-[0_28px_70px_-15px_rgba(7,27,53,0.4)] overflow-hidden my-6 max-h-[90vh] flex flex-col animate-admin-scale-in"
+        className="bg-white rounded-2xl sm:rounded-3xl max-w-3xl w-full border border-slate-200/80 shadow-[0_28px_70px_-15px_rgba(7,27,53,0.4)] overflow-hidden my-3 sm:my-6 max-h-[calc(100dvh-1.5rem)] sm:max-h-[90dvh] flex flex-col animate-admin-scale-in"
       >
         {/* Top Brand Navy Header */}
-        <div className="relative overflow-hidden bg-gradient-to-r from-[#071B35] via-[#0B2347] to-[#071B35] text-white px-5 sm:px-7 py-5 sm:py-6 shrink-0 border-b border-white/10">
+        <div className="relative overflow-hidden bg-gradient-to-r from-[#071B35] via-[#0B2347] to-[#071B35] text-white px-4 sm:px-7 py-4 sm:py-6 shrink-0 border-b border-white/10">
           <div
             aria-hidden="true"
             className="pointer-events-none absolute -top-16 -right-12 w-72 h-72 rounded-full opacity-35 blur-3xl animate-portal-glow"

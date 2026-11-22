@@ -474,11 +474,11 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
     },
   ];
 
-  // Shared Sidebar Content (Desktop fixed + Mobile Drawer)
+  // Shared Sidebar Content (Desktop/Tablet fixed + Mobile Drawer)
   const renderSidebarBody = () => (
-    <div className="flex flex-col h-full bg-gradient-to-b from-[#0B1530] via-[#091834] to-[#071B35] text-white select-none">
-      {/* Brand Logo */}
-      <div className="px-5 pt-5 pb-4 flex items-center justify-between border-b border-white/10">
+    <div className="flex flex-col h-full bg-gradient-to-b from-[#0B1530] via-[#091834] to-[#071B35] text-white select-none overflow-hidden">
+      {/* Brand Logo (Pinned at top) */}
+      <div className="px-5 pt-5 pb-4 flex items-center justify-between border-b border-white/10 shrink-0">
         <button
           type="button"
           onClick={() => onNavigateTab('home')}
@@ -507,8 +507,10 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
         </button>
       </div>
 
+      {/* Scrollable Inner Area (Profile + Nav + Promo) so shorter tablet landscape screens never clip nav items */}
+      <div className="flex-1 min-h-0 overflow-y-auto no-scrollbar flex flex-col">
       {/* Customer Profile Card inside Sidebar */}
-      <div className="px-5 py-5 flex flex-col items-center text-center border-b border-white/10">
+      <div className="px-5 py-4 flex flex-col items-center text-center border-b border-white/10 shrink-0">
         <div className="relative">
           <div className="w-20 h-20 rounded-full bg-white text-[#0B1530] flex items-center justify-center overflow-hidden border-[3px] border-white/85 shadow-xl">
             {user.avatarUrl ? (
@@ -564,7 +566,7 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
       </div>
 
       {/* Navigation Links */}
-      <nav aria-label="Customer Dashboard Navigation" className="flex-1 overflow-y-auto px-3 py-3 space-y-1 no-scrollbar">
+      <nav aria-label="Customer Dashboard Navigation" className="px-3 py-3 space-y-1 shrink-0">
         {primaryNavItems.map((item) => {
           const active = activeTab === item.id;
           return (
@@ -660,7 +662,7 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
       </nav>
 
       {/* Bottom Promo Card */}
-      <div className="p-3.5">
+      <div className="p-3.5 mt-auto shrink-0">
         <div className="rounded-2xl bg-gradient-to-br from-[#13254D] via-[#0F1E3F] to-[#081228] border border-white/10 p-4 relative overflow-hidden">
           <div className="absolute -right-6 -top-6 w-24 h-24 rounded-full bg-[#FF7900]/25 blur-xl pointer-events-none" />
           <div className="flex items-center gap-3 mb-2.5">
@@ -697,6 +699,7 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
             </span>
           </button>
         </div>
+      </div>
       </div>
     </div>
   );
@@ -868,20 +871,20 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
   ];
 
   return (
-    <div className="min-h-screen bg-[#F4F7FB] text-[#0B1530] flex flex-col lg:flex-row w-full max-w-full overflow-x-hidden">
-      {/* Desktop Fixed Dark Navy Sidebar */}
-      <aside className="hidden lg:block w-[272px] shrink-0 sticky top-0 h-screen shadow-xl z-30">
+    <div className="min-h-screen bg-[#F4F7FB] text-[#0B1530] flex flex-col lg:flex-row w-full max-w-full overflow-x-clip">
+      {/* Desktop & Landscape Tablet Viewport-Pinned Dark Navy Sidebar (never scrolls away or leaves white gap) */}
+      <aside className="hidden lg:flex lg:flex-col fixed inset-y-0 left-0 w-[272px] bg-[#071B35] shadow-xl z-30">
         {renderSidebarBody()}
       </aside>
 
-      {/* Mobile Slide-Out Sidebar Drawer */}
+      {/* Mobile & Portrait Tablet Slide-Out Sidebar Drawer */}
       {mobileDrawerOpen && (
         <div
           className="fixed inset-0 z-50 lg:hidden bg-[#0B1530]/60 backdrop-blur-xs flex"
           onClick={() => setMobileDrawerOpen(false)}
         >
           <div
-            className="w-[280px] max-w-[85vw] h-full shadow-2xl animate-admin-slide-left"
+            className="w-[280px] max-w-[85vw] h-[100dvh] bg-[#071B35] shadow-2xl animate-admin-slide-left"
             onClick={(e) => e.stopPropagation()}
           >
             {renderSidebarBody()}
@@ -889,8 +892,8 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
         </div>
       )}
 
-      {/* Main Content Area */}
-      <div className="flex-1 min-w-0 flex flex-col">
+      {/* Main Content Area (offset by fixed 272px sidebar on lg+) */}
+      <div className="flex-1 min-w-0 flex flex-col lg:pl-[272px]">
         {/* Top Portal Utility Header */}
         <header className="sticky top-0 z-20 bg-white/95 backdrop-blur-md border-b border-slate-200/80 px-3 sm:px-6 py-2.5 flex items-center justify-between gap-3">
           <div className="flex items-center gap-2.5 min-w-0">
@@ -970,7 +973,12 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
               </button>
 
               {notifPopoverOpen && (
-                <div className="absolute right-0 mt-2 w-80 sm:w-96 bg-white rounded-2xl shadow-2xl border border-slate-200 overflow-hidden z-40 animate-admin-scale-in">
+                <>
+                  <div
+                    className="fixed inset-0 z-30"
+                    onClick={() => setNotifPopoverOpen(false)}
+                  />
+                  <div className="absolute right-0 mt-2 w-[min(22rem,calc(100vw-1.5rem))] sm:w-96 bg-white rounded-2xl shadow-2xl border border-slate-200 overflow-hidden z-40 animate-admin-scale-in">
                   <div className="px-4 py-3 bg-[#0B1530] text-white flex items-center justify-between">
                     <span className="text-xs font-bold">
                       Alerts & Proof Updates ({notifications.length})
@@ -1023,6 +1031,7 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
                     )}
                   </div>
                 </div>
+                </>
               )}
             </div>
 

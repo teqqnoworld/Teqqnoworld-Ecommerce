@@ -525,10 +525,10 @@ export const MockupEngineSection: React.FC<MockupEngineSectionProps> = ({
 
         {/* Large White Customization Container */}
         <div className="bg-white rounded-2xl sm:rounded-3xl p-4 sm:p-6 lg:p-10 text-[#0B0B0D] shadow-2xl border border-white/20">
-          <div className="grid grid-cols-1 md:grid-cols-12 gap-6 lg:gap-10 items-start">
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-10 items-start">
             
-            {/* Left Column: Upload & Customization (5 cols on tablet/desktop) */}
-            <div className="md:col-span-5 lg:col-span-5 space-y-5">
+            {/* Left Column: Upload & Customization (5 cols on desktop, stacked on mobile/tablet) */}
+            <div className="lg:col-span-5 space-y-5 order-2 lg:order-1">
               
               {/* Step 1: Upload Your Logo / Artwork */}
               <div>
@@ -957,7 +957,7 @@ export const MockupEngineSection: React.FC<MockupEngineSectionProps> = ({
                 </button>
 
                 {/* Value Props Strip */}
-                <div className="grid grid-cols-3 gap-2 mt-3 pt-3 border-t border-zinc-100 text-center">
+                <div className="grid grid-cols-1 xs:grid-cols-3 gap-2 mt-3 pt-3 border-t border-zinc-100 text-center">
                   <div className="flex items-center justify-center gap-1 text-[11px] font-semibold text-zinc-600">
                     <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
                     <span>100% Free Preview</span>
@@ -975,8 +975,8 @@ export const MockupEngineSection: React.FC<MockupEngineSectionProps> = ({
 
             </div>
 
-            {/* Right Column: Live Product Preview & 3D Interactive Controls (7 cols on tablet/desktop) */}
-            <div className="md:col-span-7 lg:col-span-7 space-y-4">
+            {/* Right Column: Live Product Preview & 3D Interactive Controls (first on mobile/tablet so users see live preview immediately) */}
+            <div className="lg:col-span-7 space-y-4 order-1 lg:order-2">
               
               {/* Preview Bar Top Controls (Views, Rotation, Reset) */}
               <div className="flex flex-wrap items-center justify-between bg-zinc-50 border border-zinc-200/90 rounded-xl px-3.5 py-2.5 gap-2">
@@ -1057,7 +1057,7 @@ export const MockupEngineSection: React.FC<MockupEngineSectionProps> = ({
 
               {/* Large Product Mockup Canvas Frame with 3D Orbit Perspective */}
               <div 
-                className="bg-[#F8F8FC] rounded-2xl border border-zinc-200/90 p-4 sm:p-6 flex items-center justify-center relative min-h-[400px] sm:min-h-[460px] shadow-inner overflow-hidden select-none touch-none"
+                className="bg-[#F8F8FC] rounded-2xl border border-zinc-200/90 p-3 sm:p-6 flex items-center justify-center relative min-h-[300px] sm:min-h-[380px] lg:min-h-[460px] shadow-inner overflow-hidden select-none touch-pan-y"
                 style={{ perspective: '1200px' }}
                 onMouseDown={handleOrbitMouseDown}
                 onMouseMove={handleOrbitMouseMove}
@@ -1069,7 +1069,7 @@ export const MockupEngineSection: React.FC<MockupEngineSectionProps> = ({
                 onTouchCancel={handleOrbitTouchEnd}
               >
                 {/* Product Badge Pill */}
-                <div className="absolute top-2.5 sm:top-3.5 left-2.5 sm:left-3.5 z-20 flex items-center gap-1.5 sm:gap-2 pointer-events-none max-w-[calc(100%-80px)] sm:max-w-none">
+                <div className="absolute top-2.5 sm:top-3.5 left-2.5 sm:left-3.5 z-20 flex items-center gap-1.5 sm:gap-2 pointer-events-none max-w-[calc(100%-84px)] sm:max-w-none">
                   <span className="text-[9px] sm:text-[10px] font-bold font-mono uppercase bg-white/95 backdrop-blur-xs text-zinc-800 px-2 sm:px-2.5 py-0.5 sm:py-1 rounded-full border border-zinc-200 shadow-2xs truncate">
                     {activeConfig.name} • {activeColor.name}
                   </span>
@@ -1087,13 +1087,14 @@ export const MockupEngineSection: React.FC<MockupEngineSectionProps> = ({
 
                 {/* Watermark / Preset notice if no user logo */}
                 {!uploadedLogo && (
-                  <div className="absolute bottom-3.5 left-3.5 z-20 text-[10px] bg-black/60 backdrop-blur-xs text-white px-2.5 py-1 rounded-md pointer-events-none">
-                    Sample Logo Shown • Upload your logo on the left
+                  <div className="absolute bottom-2.5 sm:bottom-3.5 left-2.5 sm:left-3.5 z-20 text-[9px] sm:text-[10px] bg-black/60 backdrop-blur-xs text-white px-2 sm:px-2.5 py-1 rounded-md pointer-events-none max-w-[44%] sm:max-w-none truncate">
+                    <span className="sm:hidden">Sample Logo</span>
+                    <span className="hidden sm:inline">Sample Logo Shown • Upload your logo below</span>
                   </div>
                 )}
 
                 {/* Bottom Zoom & Reset Controls */}
-                <div className="absolute bottom-3.5 right-3.5 z-20 flex items-center gap-1 bg-white/90 backdrop-blur-xs p-1 rounded-lg border border-zinc-200 shadow-sm">
+                <div className="absolute bottom-2.5 sm:bottom-3.5 right-2.5 sm:right-3.5 z-20 flex items-center gap-1 bg-white/90 backdrop-blur-xs p-1 rounded-lg border border-zinc-200 shadow-sm">
                   <button
                     type="button"
                     onClick={() => setPreviewZoom(z => Math.max(0.8, z - 0.1))}
@@ -1160,7 +1161,7 @@ export const MockupEngineSection: React.FC<MockupEngineSectionProps> = ({
                   </span>
                 </div>
 
-                <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
+                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2">
                   {(['polo', 'hoodie', 'mug', 'cap', 'visiting-card'] as MerchType[]).map((type) => {
                     const cfg = MERCH_CONFIGS[type];
                     const isSelected = activeMerch === type;

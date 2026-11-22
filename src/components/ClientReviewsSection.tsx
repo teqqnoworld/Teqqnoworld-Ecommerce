@@ -36,11 +36,11 @@ export const ClientReviewsSection: React.FC = () => {
         </div>
 
         {/* 3 Review Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 sm:gap-6">
           {REVIEWS_LIST.map((r, idx) => (
             <div
               key={idx}
-              className="bg-white rounded-2xl border border-zinc-200/90 p-6 shadow-xs flex flex-col justify-between space-y-4 hover:shadow-md hover:border-[#FF7A00]/40 transition-all duration-300 group cursor-default"
+              className="bg-white rounded-2xl border border-zinc-200/90 p-5 sm:p-6 shadow-xs flex flex-col justify-between space-y-4 hover:shadow-md hover:border-[#FF7A00]/40 transition-all duration-300 group cursor-default"
             >
               <div>
                 {/* Rating stars & verified badge */}
