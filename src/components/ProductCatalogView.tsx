@@ -17,6 +17,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { PRODUCTS } from '../data/mockData';
 import { Product, ProductCategory, PrintMethod } from '../types';
 import { ProductMockupCanvas } from './ProductMockupCanvas';
+import { getCategoryPath, getProductPath } from '../config/seoRoutes';
 
 const SHOWCASE_BANNER_BY_PRODUCT_ID: Record<string, { src: string; fit: 'cover' | 'contain' }> = {
   'prod-ceramic-mug': {
@@ -68,6 +69,7 @@ const SHOWCASE_BANNER_BY_PRODUCT_ID: Record<string, { src: string; fit: 'cover' 
 interface ProductCatalogViewProps {
   initialCategory?: ProductCategory;
   searchQuery?: string;
+  onCategoryChange?: (category: ProductCategory) => void;
   onSelectProduct: (product: Product) => void;
   onCustomizeProduct: (productId: string) => void;
   onOpenQuoteCalculator?: () => void;
@@ -79,6 +81,7 @@ interface ProductCatalogViewProps {
 export const ProductCatalogView: React.FC<ProductCatalogViewProps> = ({
   initialCategory = 'all',
   searchQuery = '',
+  onCategoryChange,
   onSelectProduct,
   onCustomizeProduct,
   onOpenQuoteCalculator,
@@ -87,6 +90,11 @@ export const ProductCatalogView: React.FC<ProductCatalogViewProps> = ({
   onToggleWishlist,
 }) => {
   const [selectedCategory, setSelectedCategory] = useState<ProductCategory>(initialCategory);
+
+  const handleCategorySelect = (cat: ProductCategory) => {
+    setSelectedCategory(cat);
+    onCategoryChange?.(cat);
+  };
   const [searchTerm, setSearchTerm] = useState(searchQuery);
   const [selectedPrintMethod, setSelectedPrintMethod] = useState<string>('all');
   const [selectedPriceRange, setSelectedPriceRange] = useState<'all' | 'under-200' | '200-500' | '500-1000' | '1000-plus'>('all');
@@ -180,7 +188,7 @@ export const ProductCatalogView: React.FC<ProductCatalogViewProps> = ({
     (searchTerm.trim() !== '' ? 1 : 0);
 
   const resetAllFilters = () => {
-    setSelectedCategory('all');
+    handleCategorySelect('all');
     setSelectedPrintMethod('all');
     setSelectedPriceRange('all');
     setSelectedMoqRange('all');
@@ -361,17 +369,23 @@ export const ProductCatalogView: React.FC<ProductCatalogViewProps> = ({
             <div className="lg:col-span-5 grid grid-cols-2 gap-3">
               {heroShowcaseTiles.map((tile, idx) => {
                 const matchedProduct = PRODUCTS.find((p) => p.id === tile.productId);
+                const tileHref = matchedProduct ? getProductPath(matchedProduct.slug) : '/catalog';
                 return (
-                  <motion.button
+                  <motion.a
                     key={tile.productId}
-                    type="button"
+                    href={tileHref}
                     initial={{ opacity: 0, y: 14, scale: 0.96 }}
                     animate={{ opacity: 1, y: 0, scale: 1 }}
                     transition={{ duration: 0.4, delay: 0.08 + idx * 0.07 }}
                     whileHover={{ y: -4, scale: 1.03 }}
                     whileTap={{ scale: 0.98 }}
-                    onClick={() => matchedProduct && onSelectProduct(matchedProduct)}
-                    className="group relative bg-white/95 hover:bg-white rounded-2xl p-2 text-left shadow-xl border border-white/20 overflow-hidden cursor-pointer transition-shadow hover:shadow-2xl"
+                    onClick={(e) => {
+                      if (!e.metaKey && !e.ctrlKey && !e.shiftKey && !e.altKey && e.button === 0) {
+                        e.preventDefault();
+                        if (matchedProduct) onSelectProduct(matchedProduct);
+                      }
+                    }}
+                    className="group relative bg-white/95 hover:bg-white rounded-2xl p-2 text-left shadow-xl border border-white/20 overflow-hidden cursor-pointer transition-shadow hover:shadow-2xl block"
                   >
                     <div className="relative aspect-[16/10] w-full rounded-xl overflow-hidden bg-slate-100">
                       <img
@@ -393,7 +407,7 @@ export const ProductCatalogView: React.FC<ProductCatalogViewProps> = ({
                       </span>
                       <span className="text-[9px] font-mono text-zinc-500 shrink-0">{tile.tag}</span>
                     </div>
-                  </motion.button>
+                  </motion.a>
                 );
               })}
             </div>
@@ -418,15 +432,20 @@ export const ProductCatalogView: React.FC<ProductCatalogViewProps> = ({
             {categories.map((c, idx) => {
               const isActive = selectedCategory === c.id;
               return (
-                <motion.button
+                <motion.a
                   key={c.id}
-                  type="button"
+                  href={getCategoryPath(c.id)}
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.3, delay: idx * 0.04 }}
                   whileHover={{ y: -3 }}
                   whileTap={{ scale: 0.97 }}
-                  onClick={() => setSelectedCategory(c.id as ProductCategory)}
+                  onClick={(e) => {
+                    if (!e.metaKey && !e.ctrlKey && !e.shiftKey && !e.altKey && e.button === 0) {
+                      e.preventDefault();
+                      handleCategorySelect(c.id as ProductCategory);
+                    }
+                  }}
                   className={`group shrink-0 w-[132px] sm:w-[152px] lg:w-auto rounded-2xl p-3 border transition-all duration-200 flex flex-col items-center text-center cursor-pointer ${
                     isActive
                       ? 'bg-[#0B1530] text-white border-[#FF7900] shadow-lg shadow-[#0B1530]/18 ring-2 ring-[#FF7900]/25'
@@ -460,7 +479,7 @@ export const ProductCatalogView: React.FC<ProductCatalogViewProps> = ({
                   >
                     {c.sub}
                   </div>
-                </motion.button>
+                </motion.a>
               );
             })}
           </div>
@@ -623,7 +642,7 @@ export const ProductCatalogView: React.FC<ProductCatalogViewProps> = ({
               {selectedCategory !== 'all' && (
                 <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-orange-100 text-[#FF7A00] font-semibold text-[11px]">
                   Category: {categories.find(c => c.id === selectedCategory)?.label}
-                  <button onClick={() => setSelectedCategory('all')} className="hover:text-black cursor-pointer">×</button>
+                  <button onClick={() => handleCategorySelect('all')} className="hover:text-black cursor-pointer">×</button>
                 </span>
               )}
               {selectedPrintMethod !== 'all' && (
@@ -871,11 +890,19 @@ export const ProductCatalogView: React.FC<ProductCatalogViewProps> = ({
                         </div>
                       </div>
 
-                      <h3
-                        onClick={() => onSelectProduct(product)}
-                        className="font-display font-bold text-sm sm:text-base text-[#0B1530] group-hover:text-[#FF7900] transition-colors cursor-pointer line-clamp-1"
-                      >
-                        {product.name}
+                      <h3 className="font-display font-bold text-sm sm:text-base text-[#0B1530] group-hover:text-[#FF7900] transition-colors line-clamp-1">
+                        <a
+                          href={getProductPath(product.slug || product.id)}
+                          onClick={(e) => {
+                            if (!e.metaKey && !e.ctrlKey && !e.shiftKey && !e.altKey && e.button === 0) {
+                              e.preventDefault();
+                              onSelectProduct(product);
+                            }
+                          }}
+                          className="hover:text-[#FF7900] transition-colors"
+                        >
+                          {product.name}
+                        </a>
                       </h3>
 
                       <p className="text-[11px] text-zinc-500 line-clamp-2 mt-1 leading-relaxed">
@@ -927,31 +954,49 @@ export const ProductCatalogView: React.FC<ProductCatalogViewProps> = ({
                     {/* Action Buttons */}
                     {product.id === 'prod-rollup-standee' ? (
                       <div className="pt-1">
-                        <button
-                          onClick={() => onSelectProduct(product)}
+                        <a
+                          href={getProductPath(product.slug || product.id)}
+                          onClick={(e) => {
+                            if (!e.metaKey && !e.ctrlKey && !e.shiftKey && !e.altKey && e.button === 0) {
+                              e.preventDefault();
+                              onSelectProduct(product);
+                            }
+                          }}
                           className="w-full bg-[#FF7A00] hover:bg-[#e06c00] active:scale-98 text-white text-xs font-display font-semibold py-2.5 rounded-lg transition-all flex items-center justify-center gap-1.5 shadow-xs cursor-pointer"
                         >
                           <span>View Details</span>
                           <ArrowRight className="w-3.5 h-3.5" />
-                        </button>
+                        </a>
                       </div>
                     ) : (
                       <div className="grid grid-cols-2 gap-2 pt-1">
-                        <button
-                          onClick={() => onCustomizeProduct(product.id)}
+                        <a
+                          href={getProductPath(product.slug || product.id)}
+                          onClick={(e) => {
+                            if (!e.metaKey && !e.ctrlKey && !e.shiftKey && !e.altKey && e.button === 0) {
+                              e.preventDefault();
+                              onCustomizeProduct(product.id);
+                            }
+                          }}
                           className="w-full bg-[#FF7A00] hover:bg-[#e06c00] text-white text-xs font-display font-semibold py-2.5 rounded-lg transition-colors flex items-center justify-center gap-1 shadow-xs cursor-pointer"
                         >
                           <Sparkles className="w-3 h-3" />
                           <span>Customize</span>
-                        </button>
+                        </a>
 
-                        <button
-                          onClick={() => onSelectProduct(product)}
+                        <a
+                          href={getProductPath(product.slug || product.id)}
+                          onClick={(e) => {
+                            if (!e.metaKey && !e.ctrlKey && !e.shiftKey && !e.altKey && e.button === 0) {
+                              e.preventDefault();
+                              onSelectProduct(product);
+                            }
+                          }}
                           className="w-full bg-[#0B0B0D] hover:bg-[#1f2026] text-white text-xs font-display font-medium py-2.5 rounded-lg transition-colors flex items-center justify-center gap-1 cursor-pointer"
                         >
                           <span>Details</span>
                           <ArrowRight className="w-3 h-3" />
-                        </button>
+                        </a>
                       </div>
                     )}
 

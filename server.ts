@@ -9,6 +9,12 @@ import QRCode from 'qrcode';
 import { fileURLToPath } from 'url';
 import dotenv from 'dotenv';
 import { registerProductFeedRoutes } from './server/productFeed.ts';
+import {
+  injectSeoIntoHtml,
+  isNonHtmlRoutePath,
+  registerSeoPublicEndpoints,
+  resolveSeoPageContext,
+} from './server/seoMiddleware.ts';
 
 dotenv.config();
 
@@ -5810,10 +5816,10 @@ app.post('/api/aisensy/test', async (req: Request, res: Response) => {
 });
 
 // ==============================================================================
-// 3Z. DYNAMIC PUBLIC PRODUCT FEEDS (CSV & JSONL FOR CHATGPT CATALOG IMPORTS)
+// 3Z. DYNAMIC PUBLIC PRODUCT FEEDS & PHASE 1 SEO (ROBOTS, SITEMAP, 301, META, 404)
 // ==============================================================================
 
-registerProductFeedRoutes(app, {
+const seoAndFeedOptions = {
   rootDir: __dirname,
   getSupabaseConfig: () => {
     const pub = getSupabasePublicConfig();
@@ -5822,7 +5828,10 @@ registerProductFeedRoutes(app, {
       apiKey: pub.anonKey,
     };
   },
-});
+};
+
+registerProductFeedRoutes(app, seoAndFeedOptions);
+registerSeoPublicEndpoints(app, seoAndFeedOptions);
 
 // ==============================================================================
 // 4. DEV SERVER & STATIC FILE SERVING
@@ -5834,30 +5843,52 @@ app.get('/health', (_req: Request, res: Response) => {
 
 async function startServer() {
   if (process.env.NODE_ENV !== 'production') {
-    // Initialize Vite dev middleware without blocking port 3000 from binding immediately on cold boot
-    let viteMiddlewarePromise: Promise<any> | null = null;
-    const getViteMiddleware = () => {
-      if (!viteMiddlewarePromise) {
-        viteMiddlewarePromise = import('vite').then(async ({ createServer: createViteServer }) => {
+    // Initialize Vite dev middleware in 'custom' mode so Express controls HTML meta & 404 status
+    let viteServerPromise: Promise<any> | null = null;
+    const getViteServer = () => {
+      if (!viteServerPromise) {
+        viteServerPromise = import('vite').then(async ({ createServer: createViteServer }) => {
           const vite = await createViteServer({
             server: { middlewareMode: true },
-            appType: 'spa',
+            appType: 'custom',
           });
           console.log('[TeqqnoWorld] Vite dev middleware ready');
-          return vite.middlewares;
+          return vite;
         });
       }
-      return viteMiddlewarePromise;
+      return viteServerPromise;
     };
 
-    void getViteMiddleware().catch((err) => {
+    void getViteServer().catch((err) => {
       console.error('[TeqqnoWorld] Vite dev middleware initialization error:', err);
     });
 
     app.use(async (req, res, next) => {
       try {
-        const middlewares = await getViteMiddleware();
-        return middlewares(req, res, next);
+        const vite = await getViteServer();
+        return vite.middlewares(req, res, next);
+      } catch (err) {
+        return next(err);
+      }
+    });
+
+    app.get('*', async (req: Request, res: Response, next) => {
+      if (isNonHtmlRoutePath(req.path)) {
+        return res.status(404).type('text/plain; charset=utf-8').send('Not Found');
+      }
+      try {
+        const vite = await getViteServer();
+        const indexPath = path.join(__dirname, 'index.html');
+        const rawHtml = fs.readFileSync(indexPath, 'utf8');
+        const seoPage = await resolveSeoPageContext(req.path, seoAndFeedOptions);
+        const transformed = await vite.transformIndexHtml(req.originalUrl, rawHtml);
+        const finalHtml = injectSeoIntoHtml(transformed, seoPage);
+
+        if (seoPage.isPrivateNoindex || seoPage.statusCode === 404) {
+          res.setHeader('X-Robots-Tag', 'noindex, nofollow');
+        }
+        res.status(seoPage.statusCode).setHeader('Content-Type', 'text/html; charset=utf-8');
+        return res.send(finalHtml);
       } catch (err) {
         return next(err);
       }
@@ -5878,15 +5909,30 @@ async function startServer() {
       console.log(`[TeqqnoWorld] Serving frontend from: ${path.basename(activeBuildDir)}/`);
     }
 
-    // Serve pre-built Vite bundle + static public assets (copyPublicDir: false avoids duplicating 48MB of images)
-    app.use(express.static(activeBuildDir, { maxAge: '1d' }));
-    app.use(express.static(publicDir, { maxAge: '7d' }));
+    // Serve pre-built Vite bundle + static public assets (index: false so / also receives SEO meta)
+    app.use(express.static(activeBuildDir, { maxAge: '1d', index: false }));
+    app.use(express.static(publicDir, { maxAge: '7d', index: false }));
 
-    app.get('*', (_req: Request, res: Response) => {
+    app.get('*', async (req: Request, res: Response) => {
+      if (isNonHtmlRoutePath(req.path)) {
+        return res.status(404).type('text/plain; charset=utf-8').send('Not Found');
+      }
       if (!fs.existsSync(activeIndex)) {
         return res.status(503).send('Production build missing. Please run npm run build and redeploy.');
       }
-      return res.sendFile(activeIndex);
+      try {
+        const rawHtml = fs.readFileSync(activeIndex, 'utf8');
+        const seoPage = await resolveSeoPageContext(req.path, seoAndFeedOptions);
+        const finalHtml = injectSeoIntoHtml(rawHtml, seoPage);
+        if (seoPage.isPrivateNoindex || seoPage.statusCode === 404) {
+          res.setHeader('X-Robots-Tag', 'noindex, nofollow');
+        }
+        res.status(seoPage.statusCode).setHeader('Content-Type', 'text/html; charset=utf-8');
+        return res.send(finalHtml);
+      } catch (err) {
+        console.error('[TeqqnoWorld] Error serving SEO HTML:', err);
+        return res.sendFile(activeIndex);
+      }
     });
   }
 

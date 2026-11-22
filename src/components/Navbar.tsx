@@ -87,8 +87,14 @@ export const Navbar: React.FC<NavbarProps> = ({
         <div className="flex items-center justify-between h-14 sm:h-16 lg:h-20 gap-1 xs:gap-1.5 sm:gap-3 lg:gap-4">
           
           {/* Logo & Branding */}
-          <button
-            onClick={() => onNavigate('home')}
+          <a
+            href="/"
+            onClick={(e) => {
+              if (!e.metaKey && !e.ctrlKey && !e.shiftKey && !e.altKey && e.button === 0) {
+                e.preventDefault();
+                onNavigate('home');
+              }
+            }}
             className="flex items-center gap-1.5 sm:gap-2.5 text-left shrink-0 group focus:outline-none min-h-[44px] py-1 cursor-pointer"
           >
             <div className="w-7 h-7 sm:w-8 sm:h-8 xl:w-9 xl:h-9 rounded-lg bg-[#FF7A00] flex items-center justify-center font-display font-bold text-white text-sm sm:text-base xl:text-lg shadow-md shadow-[#FF7A00]/25 group-hover:scale-105 transition-transform shrink-0">
@@ -102,7 +108,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                 PRINTING • BRANDING • SOLUTIONS
               </div>
             </div>
-          </button>
+          </a>
 
           {/* Central Search Bar (Desktop & Large Tablets) */}
           <div className="hidden lg:flex flex-1 min-w-[200px] max-w-md xl:max-w-lg mx-1 xl:mx-3">
@@ -347,15 +353,21 @@ export const Navbar: React.FC<NavbarProps> = ({
           <div className="flex items-center justify-between h-10 sm:h-11 text-xs">
             
             {/* Nav links - smoothly scrollable on tablet with no visible scrollbar */}
-            <nav className="flex items-center gap-4 sm:gap-5 lg:gap-6 overflow-x-auto no-scrollbar touch-pan-x py-1">
-              <button
-                onClick={() => onNavigate('catalog')}
+            <nav aria-label="Primary Store Navigation" className="flex items-center gap-4 sm:gap-5 lg:gap-6 overflow-x-auto no-scrollbar touch-pan-x py-1">
+              <a
+                href="/catalog"
+                onClick={(e) => {
+                  if (!e.metaKey && !e.ctrlKey && !e.shiftKey && !e.altKey && e.button === 0) {
+                    e.preventDefault();
+                    onNavigate('catalog');
+                  }
+                }}
                 className={`font-medium transition-colors hover:text-[#FF7A00] py-1.5 whitespace-nowrap shrink-0 min-h-[36px] flex items-center cursor-pointer ${
                   currentTab === 'catalog' ? 'text-[#FF7A00] font-bold' : 'text-zinc-700'
                 }`}
               >
                 Shop by Category
-              </button>
+              </a>
 
               {onOpenQuoteCalculator && (
                 <button
@@ -390,14 +402,20 @@ export const Navbar: React.FC<NavbarProps> = ({
                 Customize Logo
               </button>
 
-              <button
-                onClick={() => onNavigate('bulk')}
+              <a
+                href="/bulk"
+                onClick={(e) => {
+                  if (!e.metaKey && !e.ctrlKey && !e.shiftKey && !e.altKey && e.button === 0) {
+                    e.preventDefault();
+                    onNavigate('bulk');
+                  }
+                }}
                 className={`font-medium transition-colors hover:text-[#FF7A00] py-1.5 whitespace-nowrap shrink-0 min-h-[36px] flex items-center cursor-pointer ${
                   currentTab === 'bulk' ? 'text-[#FF7A00] font-bold' : 'text-zinc-700'
                 }`}
               >
                 Bulk RFQ
-              </button>
+              </a>
 
               {onOpenAppointment && (
                 <button
@@ -431,8 +449,14 @@ export const Navbar: React.FC<NavbarProps> = ({
                 </button>
               )}
 
-              <button
-                onClick={() => onNavigate('dashboard')}
+              <a
+                href="/dashboard"
+                onClick={(e) => {
+                  if (!e.metaKey && !e.ctrlKey && !e.shiftKey && !e.altKey && e.button === 0) {
+                    e.preventDefault();
+                    onNavigate('dashboard');
+                  }
+                }}
                 className={`font-medium transition-colors hover:text-[#FF7A00] flex items-center gap-1.5 py-1.5 whitespace-nowrap shrink-0 min-h-[36px] cursor-pointer ${
                   currentTab === 'dashboard' ? 'text-[#FF7A00] font-bold' : 'text-zinc-700'
                 }`}
@@ -441,7 +465,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                 {user && (
                   <span className="w-2 h-2 rounded-full bg-emerald-500 inline-block" />
                 )}
-              </button>
+              </a>
             </nav>
 
             {/* Right Dispatch & Delhivery Area Check */}
@@ -502,18 +526,32 @@ export const Navbar: React.FC<NavbarProps> = ({
 
             {/* Nav Links with 44px tap targets */}
             <div className="flex flex-col space-y-1 text-sm font-medium">
-              <button
-                onClick={() => { onNavigate('home'); setMobileMenuOpen(false); }}
+              <a
+                href="/"
+                onClick={(e) => {
+                  if (!e.metaKey && !e.ctrlKey && !e.shiftKey && !e.altKey && e.button === 0) {
+                    e.preventDefault();
+                    onNavigate('home');
+                    setMobileMenuOpen(false);
+                  }
+                }}
                 className={`text-left px-3.5 py-3 rounded-xl transition-colors flex items-center justify-between min-h-[44px] ${
                   currentTab === 'home' ? 'bg-orange-50 text-[#FF7A00] font-bold' : 'text-zinc-800 hover:bg-zinc-100'
                 }`}
               >
                 <span>Home</span>
                 <span className="text-zinc-400 text-xs">›</span>
-              </button>
+              </a>
 
-              <button
-                onClick={() => { onNavigate('catalog'); setMobileMenuOpen(false); }}
+              <a
+                href="/catalog"
+                onClick={(e) => {
+                  if (!e.metaKey && !e.ctrlKey && !e.shiftKey && !e.altKey && e.button === 0) {
+                    e.preventDefault();
+                    onNavigate('catalog');
+                    setMobileMenuOpen(false);
+                  }
+                }}
                 className={`text-left px-3.5 py-3 rounded-xl transition-colors flex items-center justify-between min-h-[44px] ${
                   currentTab === 'catalog' ? 'bg-orange-50 text-[#FF7A00] font-bold' : 'text-zinc-800 hover:bg-zinc-100'
                 }`}
@@ -523,7 +561,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                   <span className="text-[9px] bg-emerald-100 text-emerald-800 font-bold px-1.5 py-0.5 rounded">NEW</span>
                 </div>
                 <span className="text-zinc-400 text-xs">›</span>
-              </button>
+              </a>
 
               <button
                 onClick={() => { onNavigate('customizer'); setMobileMenuOpen(false); }}
@@ -536,15 +574,22 @@ export const Navbar: React.FC<NavbarProps> = ({
                 <span className="text-[#FF7A00] text-xs">›</span>
               </button>
 
-              <button
-                onClick={() => { onNavigate('bulk'); setMobileMenuOpen(false); }}
+              <a
+                href="/bulk"
+                onClick={(e) => {
+                  if (!e.metaKey && !e.ctrlKey && !e.shiftKey && !e.altKey && e.button === 0) {
+                    e.preventDefault();
+                    onNavigate('bulk');
+                    setMobileMenuOpen(false);
+                  }
+                }}
                 className={`text-left px-3.5 py-3 rounded-xl transition-colors flex items-center justify-between min-h-[44px] ${
                   currentTab === 'bulk' ? 'bg-orange-50 text-[#FF7A00] font-bold' : 'text-zinc-800 hover:bg-zinc-100'
                 }`}
               >
                 <span>Bulk Orders / B2B RFQ</span>
                 <span className="text-zinc-400 text-xs">›</span>
-              </button>
+              </a>
 
               {onOpenQuoteCalculator && (
                 <button

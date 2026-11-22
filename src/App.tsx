@@ -53,80 +53,336 @@ import { PRODUCTS } from './data/mockData';
 import { calculateProductPrice } from './data/pricingRules';
 import { Product, ProductCategory, CartItem, Order, CustomArtwork, PrintMethod, UserProfile } from './types';
 import { doesOrderBelongToUser, isLegacyMockOrder } from './components/customer/customerUtils';
-import { ShieldCheck, Sparkles, Home, LayoutGrid, ShoppingBag, Package } from 'lucide-react';
+import { ShieldCheck, Sparkles, Home, LayoutGrid, ShoppingBag, Package, ArrowRight } from 'lucide-react';
 import { WhatsAppIcon } from './components/WhatsAppIcon';
+import {
+  SEO_BULK_META,
+  SEO_BUNDLE_BUILDER_META,
+  SEO_CATALOG_META,
+  SEO_HOME_META,
+  SEO_LEGAL_PAGES,
+  SEO_QUOTE_CALCULATOR_META,
+  VALID_LEGAL_PATHS,
+  buildProductSeoDescription,
+  buildProductSeoTitle,
+  findCategoryByCatalogKey,
+  findCategoryBySlugOrAlias,
+  getCategoryPath,
+  getProductPath,
+} from './config/seoRoutes';
+import { applyDocumentSeo } from './utils/seoManager';
+
+interface ResolvedClientRoute {
+  tab: string;
+  product?: Product;
+  category?: ProductCategory;
+  searchQuery?: string;
+  orderAction?: {
+    action: 'confirm' | 'cancel';
+    orderId: string;
+    orderNumber: string;
+    token?: string;
+  };
+  recoveryCoupon?: boolean;
+  openModal?: 'catalogues' | 'tracking';
+  replaceUrl?: string;
+  preserveAuthHash?: boolean;
+}
+
+function resolveClientRouteFromLocation(): ResolvedClientRoute {
+  if (typeof window === 'undefined') {
+    return { tab: 'home' };
+  }
+
+  const rawPath = window.location.pathname || '/';
+  const normalizedPath = rawPath === '/' ? '/' : rawPath.replace(/\/+$/, '') || '/';
+  const search = window.location.search || '';
+  const searchParams = new URLSearchParams(search);
+  const hash = window.location.hash || '';
+
+  // Never interfere with Supabase OAuth / email verification / password recovery callbacks
+  if (
+    hash.includes('access_token=') ||
+    hash.includes('type=signup') ||
+    hash.includes('type=recovery')
+  ) {
+    return { tab: 'home', preserveAuthHash: true };
+  }
+
+  // 1. Legacy hash URLs -> safely migrate via history.replaceState to clean SEO paths
+  if (hash && hash !== '#') {
+    if (hash.startsWith('#order-action')) {
+      const qIdx = hash.indexOf('?');
+      const params = new URLSearchParams(qIdx !== -1 ? hash.slice(qIdx + 1) : '');
+      const rawAct = params.get('action');
+      return {
+        tab: 'order-action',
+        orderAction: {
+          action: rawAct === 'cancel' ? 'cancel' : 'confirm',
+          orderId: params.get('orderId') || '',
+          orderNumber: params.get('orderNumber') || params.get('orderId') || '',
+          token: params.get('token') || undefined,
+        },
+        replaceUrl: qIdx !== -1 ? `/order-action${hash.slice(qIdx)}` : '/order-action',
+      };
+    }
+
+    if (hash.startsWith('#checkout')) {
+      const qIdx = hash.indexOf('?');
+      const qStr = qIdx !== -1 ? hash.slice(qIdx) : search;
+      const params = new URLSearchParams(qStr.replace(/^\?/, ''));
+      const coupon = params.get('coupon')?.trim().toUpperCase();
+      return {
+        tab: 'checkout',
+        recoveryCoupon: coupon === 'SAVE5NOW' || coupon === 'TEQQNO5',
+        replaceUrl: `/checkout${qStr}`,
+      };
+    }
+
+    if (hash.startsWith('#product/')) {
+      const rawSeg = hash.slice('#product/'.length).split('?')[0].replace(/\/+$/, '');
+      let slugOrId = rawSeg;
+      try {
+        slugOrId = decodeURIComponent(rawSeg);
+      } catch {
+        // leave raw
+      }
+      const found = PRODUCTS.find(
+        (p) =>
+          p.slug.toLowerCase() === slugOrId.toLowerCase() ||
+          p.id.toLowerCase() === slugOrId.toLowerCase()
+      );
+      if (found) {
+        return {
+          tab: 'product-detail',
+          product: found,
+          replaceUrl: getProductPath(found.slug),
+        };
+      }
+      return { tab: 'not-found' };
+    }
+
+    if (hash.startsWith('#category/')) {
+      const rawSeg = hash.slice('#category/'.length).split('?')[0].replace(/\/+$/, '');
+      let slugOrAlias = rawSeg;
+      try {
+        slugOrAlias = decodeURIComponent(rawSeg);
+      } catch {
+        // leave raw
+      }
+      const cat = findCategoryBySlugOrAlias(slugOrAlias);
+      if (cat) {
+        return {
+          tab: 'catalog',
+          category: cat.catalogCategory as ProductCategory,
+          replaceUrl: `/category/${cat.slug}`,
+        };
+      }
+      return { tab: 'not-found' };
+    }
+
+    if (hash === '#admin' || hash === '#admin/') {
+      return { tab: 'admin', replaceUrl: '/admin' };
+    }
+
+    for (const legalRoute of VALID_LEGAL_PATHS) {
+      if (hash === `#${legalRoute}` || hash === `#${legalRoute.slice(1)}`) {
+        return { tab: legalRoute, replaceUrl: legalRoute };
+      }
+    }
+
+    if (hash === '#catalog' || hash.startsWith('#catalog?')) {
+      const qIdx = hash.indexOf('?');
+      const params = new URLSearchParams(qIdx !== -1 ? hash.slice(qIdx + 1) : '');
+      const catParam = params.get('category');
+      const qParam = params.get('q') || '';
+      if (catParam) {
+        const matchedCat = findCategoryBySlugOrAlias(catParam);
+        if (matchedCat) {
+          return {
+            tab: 'catalog',
+            category: matchedCat.catalogCategory as ProductCategory,
+            searchQuery: qParam,
+            replaceUrl: `/category/${matchedCat.slug}`,
+          };
+        }
+      }
+      return {
+        tab: 'catalog',
+        category: 'all',
+        searchQuery: qParam,
+        replaceUrl: qParam ? `/catalog?q=${encodeURIComponent(qParam)}` : '/catalog',
+      };
+    }
+
+    if (hash === '#customizer') {
+      return { tab: 'customizer' };
+    }
+    if (hash === '#bulk') {
+      return { tab: 'bulk', replaceUrl: '/bulk' };
+    }
+    if (hash === '#orders') {
+      return { tab: 'orders', replaceUrl: '/orders' };
+    }
+    if (hash === '#dashboard') {
+      return { tab: 'dashboard', replaceUrl: '/dashboard' };
+    }
+    if (hash === '#quote-calculator') {
+      return { tab: 'quote-calculator', replaceUrl: '/quote-calculator' };
+    }
+    if (hash === '#bundle-builder') {
+      return { tab: 'bundle-builder', replaceUrl: '/bundle-builder' };
+    }
+    if (hash === '#catalogues') {
+      return { tab: 'home', openModal: 'catalogues', replaceUrl: '/' };
+    }
+    if (hash === '#track' || hash === '#track-order') {
+      return { tab: 'home', openModal: 'tracking', replaceUrl: '/' };
+    }
+  }
+
+  // 2. Clean path-based SEO routes
+  if (normalizedPath === '/') {
+    return { tab: 'home' };
+  }
+
+  if (normalizedPath === '/admin' || normalizedPath.startsWith('/admin/')) {
+    return { tab: 'admin' };
+  }
+
+  if (normalizedPath === '/dashboard' || normalizedPath.startsWith('/dashboard/')) {
+    return { tab: 'dashboard' };
+  }
+
+  if (normalizedPath === '/checkout') {
+    const coupon = searchParams.get('coupon')?.trim().toUpperCase();
+    return {
+      tab: 'checkout',
+      recoveryCoupon: coupon === 'SAVE5NOW' || coupon === 'TEQQNO5',
+    };
+  }
+
+  if (normalizedPath === '/orders') {
+    return { tab: 'orders' };
+  }
+
+  if (normalizedPath === '/order-action') {
+    const rawAct = searchParams.get('action');
+    return {
+      tab: 'order-action',
+      orderAction: {
+        action: rawAct === 'cancel' ? 'cancel' : 'confirm',
+        orderId: searchParams.get('orderId') || '',
+        orderNumber: searchParams.get('orderNumber') || searchParams.get('orderId') || '',
+        token: searchParams.get('token') || undefined,
+      },
+    };
+  }
+
+  if (normalizedPath === '/catalog') {
+    const catParam = searchParams.get('category');
+    const qParam = searchParams.get('q') || '';
+    if (catParam) {
+      const matchedCat = findCategoryBySlugOrAlias(catParam);
+      if (matchedCat) {
+        return {
+          tab: 'catalog',
+          category: matchedCat.catalogCategory as ProductCategory,
+          searchQuery: qParam,
+        };
+      }
+    }
+    return {
+      tab: 'catalog',
+      category: 'all',
+      searchQuery: qParam,
+    };
+  }
+
+  if (normalizedPath.startsWith('/category/')) {
+    const rawSeg = normalizedPath.slice('/category/'.length);
+    let slugOrAlias = rawSeg;
+    try {
+      slugOrAlias = decodeURIComponent(rawSeg);
+    } catch {
+      // invalid encoding falls through to 404
+    }
+    const matchedCat = findCategoryBySlugOrAlias(slugOrAlias);
+    if (matchedCat) {
+      const canonicalCatPath = `/category/${matchedCat.slug}`;
+      return {
+        tab: 'catalog',
+        category: matchedCat.catalogCategory as ProductCategory,
+        searchQuery: searchParams.get('q') || '',
+        replaceUrl: normalizedPath !== canonicalCatPath ? `${canonicalCatPath}${search}` : undefined,
+      };
+    }
+    return { tab: 'not-found' };
+  }
+
+  if (normalizedPath.startsWith('/product/')) {
+    const rawSeg = normalizedPath.slice('/product/'.length);
+    let slugOrId = rawSeg;
+    try {
+      slugOrId = decodeURIComponent(rawSeg);
+    } catch {
+      // invalid encoding falls through to 404
+    }
+    const found = PRODUCTS.find(
+      (p) =>
+        p.slug.toLowerCase() === slugOrId.toLowerCase() ||
+        p.id.toLowerCase() === slugOrId.toLowerCase()
+    );
+    if (found) {
+      const canonicalProdPath = getProductPath(found.slug);
+      return {
+        tab: 'product-detail',
+        product: found,
+        replaceUrl: normalizedPath !== canonicalProdPath ? `${canonicalProdPath}${search}` : undefined,
+      };
+    }
+    return { tab: 'not-found' };
+  }
+
+  if (normalizedPath === '/bulk') {
+    return { tab: 'bulk' };
+  }
+
+  if (normalizedPath === '/quote-calculator') {
+    return { tab: 'quote-calculator' };
+  }
+
+  if (normalizedPath === '/bundle-builder') {
+    return { tab: 'bundle-builder' };
+  }
+
+  if (VALID_LEGAL_PATHS.includes(normalizedPath)) {
+    return { tab: normalizedPath };
+  }
+
+  return { tab: 'not-found' };
+}
 
 export default function App() {
-  // Navigation & View Routing (Supports direct URL path e.g. /admin, /privacy-policy, etc.)
-  const [currentTab, setCurrentTab] = useState<string>(() => {
-    if (typeof window !== 'undefined') {
-      const path = window.location.pathname;
-      const hash = window.location.hash;
-      if (path === '/admin' || path === '/admin/' || hash === '#admin' || hash === '#admin/') return 'admin';
-      if (path.startsWith('/product/') || hash.startsWith('#product/')) return 'product-detail';
-      const validLegal = [
-        '/privacy-policy',
-        '/terms-and-conditions',
-        '/shipping-policy',
-        '/cancellation-refund-policy',
-        '/return-replacement-policy',
-        '/contact-us',
-        '/payment-policy',
-        '/pricing-and-taxes',
-        '/cookie-policy',
-      ];
-      if (validLegal.includes(path)) return path;
-      for (const r of validLegal) {
-        if (hash === `#${r}` || hash === `#${r.slice(1)}`) return r;
-      }
-      if (hash === '#catalog') return 'catalog';
-      if (hash === '#customizer') return 'customizer';
-      if (hash === '#bulk') return 'bulk';
-      if (hash === '#orders') return 'orders';
-      if (hash === '#dashboard') return 'dashboard';
-      if (hash.startsWith('#checkout')) return 'checkout';
-      if (hash.startsWith('#order-action')) return 'order-action';
-    }
-    return 'home';
-  });
+  const initialRoute = resolveClientRouteFromLocation();
 
+  // Navigation & View Routing (Clean SEO-friendly paths + safe legacy hash migration)
+  const [currentTab, setCurrentTab] = useState<string>(initialRoute.tab);
   const [orderActionParams, setOrderActionParams] = useState<{
     action: 'confirm' | 'cancel';
     orderId: string;
     orderNumber: string;
     token?: string;
-  } | null>(() => {
-    if (typeof window !== 'undefined' && window.location.hash.startsWith('#order-action')) {
-      const qIdx = window.location.hash.indexOf('?');
-      const params = new URLSearchParams(qIdx !== -1 ? window.location.hash.slice(qIdx + 1) : '');
-      const rawAct = params.get('action');
-      return {
-        action: rawAct === 'cancel' ? 'cancel' : 'confirm',
-        orderId: params.get('orderId') || '',
-        orderNumber: params.get('orderNumber') || params.get('orderId') || '',
-        token: params.get('token') || undefined,
-      };
-    }
-    return null;
-  });
-  const [selectedProduct, setSelectedProduct] = useState<Product>(() => {
-    if (typeof window !== 'undefined') {
-      const path = window.location.pathname;
-      const hash = window.location.hash;
-      if (path.startsWith('/product/')) {
-        const slug = decodeURIComponent(path.replace('/product/', ''));
-        const found = PRODUCTS.find(p => p.slug === slug || p.id === slug);
-        if (found) return found;
-      }
-      if (hash.startsWith('#product/')) {
-        const slug = decodeURIComponent(hash.replace('#product/', ''));
-        const found = PRODUCTS.find(p => p.slug === slug || p.id === slug);
-        if (found) return found;
-      }
-    }
-    return PRODUCTS[0];
-  });
-  const [catalogCategory, setCatalogCategory] = useState<ProductCategory>('all');
+  } | null>(initialRoute.orderAction || null);
+  const [selectedProduct, setSelectedProduct] = useState<Product>(
+    initialRoute.product || PRODUCTS[0]
+  );
+  const [catalogCategory, setCatalogCategory] = useState<ProductCategory>(
+    initialRoute.category || 'all'
+  );
+  const [catalogSearchQuery, setCatalogSearchQuery] = useState<string>(
+    initialRoute.searchQuery || ''
+  );
   const [customizerProductId, setCustomizerProductId] = useState<string>('prod-polo-01');
 
   // Authentication State (Persisted in localStorage; fresh visitors start logged out)
@@ -352,7 +608,7 @@ export default function App() {
             `teqqno_user_profile_${verifiedProfile.id}`,
             JSON.stringify(verifiedProfile)
           );
-          window.history.replaceState(null, '', '/#dashboard');
+          window.history.replaceState(null, '', '/dashboard');
         } catch {
           // ignore
         }
@@ -370,104 +626,48 @@ export default function App() {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }, [currentTab]);
 
-  // Support direct product deep-linking and browser path/popstate routing
+  // Synchronize clean browser paths, popstate/hashchange navigation, and safe legacy hash migration
   useEffect(() => {
     const syncLocationToState = () => {
-      const path = window.location.pathname;
-      const hash = window.location.hash;
-      const validLegal = [
-        '/privacy-policy',
-        '/terms-and-conditions',
-        '/shipping-policy',
-        '/cancellation-refund-policy',
-        '/return-replacement-policy',
-        '/contact-us',
-        '/payment-policy',
-        '/pricing-and-taxes',
-        '/cookie-policy',
-      ];
-
-      if (validLegal.includes(path)) {
-        setCurrentTab(path);
+      const resolved = resolveClientRouteFromLocation();
+      if (resolved.preserveAuthHash) {
         return;
       }
 
-      for (const r of validLegal) {
-        if (hash === `#${r}` || hash === `#${r.slice(1)}`) {
-          setCurrentTab(r);
-          return;
+      if (resolved.replaceUrl) {
+        try {
+          window.history.replaceState(null, '', resolved.replaceUrl);
+        } catch {
+          // ignore restricted history environments
         }
       }
 
-      if (path === '/admin' || path === '/admin/' || hash === '#admin' || hash === '#admin/') {
-        setCurrentTab('admin');
-        return;
+      if (resolved.product) {
+        setSelectedProduct(resolved.product);
       }
-
-      if (hash.startsWith('#product/') || path.startsWith('/product/')) {
-        const slugOrId = path.startsWith('/product/')
-          ? decodeURIComponent(path.replace('/product/', ''))
-          : decodeURIComponent(hash.replace('#product/', ''));
-        const found = PRODUCTS.find(p => p.slug === slugOrId || p.id === slugOrId);
-        if (found) {
-          setSelectedProduct(found);
-          setCurrentTab('product-detail');
-          return;
-        }
+      if (resolved.category !== undefined) {
+        setCatalogCategory(resolved.category);
       }
-
-      if (hash.startsWith('#order-action')) {
-        const qIdx = hash.indexOf('?');
-        const params = new URLSearchParams(qIdx !== -1 ? hash.slice(qIdx + 1) : '');
-        const rawAct = params.get('action');
-        setOrderActionParams({
-          action: rawAct === 'cancel' ? 'cancel' : 'confirm',
-          orderId: params.get('orderId') || '',
-          orderNumber: params.get('orderNumber') || params.get('orderId') || '',
-          token: params.get('token') || undefined,
+      if (resolved.searchQuery !== undefined) {
+        setCatalogSearchQuery(resolved.searchQuery);
+      }
+      if (resolved.orderAction) {
+        setOrderActionParams(resolved.orderAction);
+      }
+      if (resolved.recoveryCoupon) {
+        activateRecoveryCoupon({
+          triggerReason: 'whatsapp_recovery_link',
+          validMinutes: 15,
+          autoApply: true,
         });
-        setCurrentTab('order-action');
-        return;
       }
-
-      if (hash.startsWith('#checkout')) {
-        const qIdx = hash.indexOf('?');
-        if (qIdx !== -1) {
-          const params = new URLSearchParams(hash.slice(qIdx + 1));
-          const coupon = params.get('coupon')?.trim().toUpperCase();
-          if (coupon === 'SAVE5NOW' || coupon === 'TEQQNO5') {
-            activateRecoveryCoupon({
-              triggerReason: 'whatsapp_recovery_link',
-              validMinutes: 15,
-              autoApply: true,
-            });
-          }
-        }
-        setCurrentTab('checkout');
-        return;
-      }
-
-      if (hash === '#catalog') {
-        setCurrentTab('catalog');
-      } else if (hash === '#customizer') {
-        setCurrentTab('customizer');
-      } else if (hash === '#bulk') {
-        setCurrentTab('bulk');
-      } else if (hash === '#orders') {
-        setCurrentTab('orders');
-      } else if (hash === '#dashboard') {
-        setCurrentTab('dashboard');
-      } else if (hash === '#quote-calculator') {
-        setCurrentTab('quote-calculator');
-      } else if (hash === '#bundle-builder') {
-        setCurrentTab('bundle-builder');
-      } else if (hash === '#catalogues') {
+      if (resolved.openModal === 'catalogues') {
         setIsDownloadCatalogOpen(true);
-      } else if (hash === '#track' || hash === '#track-order') {
+      } else if (resolved.openModal === 'tracking') {
         setIsTrackingModalOpen(true);
-      } else if (path === '/' && (!hash || hash === '#')) {
-        setCurrentTab('home');
       }
+
+      setCurrentTab(resolved.tab);
     };
 
     syncLocationToState();
@@ -479,39 +679,197 @@ export default function App() {
     };
   }, []);
 
+  // Dynamically synchronize <title>, meta description, canonical, robots, OpenGraph, and Twitter tags
+  useEffect(() => {
+    const noindexRobots = 'noindex, nofollow';
+
+    if (currentTab === 'product-detail' && selectedProduct) {
+      applyDocumentSeo({
+        title: buildProductSeoTitle(selectedProduct.id, selectedProduct.name),
+        description: buildProductSeoDescription({
+          name: selectedProduct.name,
+          description: selectedProduct.shortDesc || selectedProduct.description,
+          priceInr: selectedProduct.basePrice,
+          moq: selectedProduct.moq,
+        }),
+        canonicalPath: getProductPath(selectedProduct.slug),
+        ogType: 'product',
+        imageUrl: selectedProduct.colors?.[0]?.imageFront,
+        imageAlt: selectedProduct.name,
+      });
+      return;
+    }
+
+    if (currentTab === 'catalog') {
+      const matchedCat =
+        catalogCategory && catalogCategory !== 'all'
+          ? findCategoryByCatalogKey(catalogCategory)
+          : undefined;
+      if (matchedCat) {
+        applyDocumentSeo({
+          title: matchedCat.title,
+          description: matchedCat.description,
+          canonicalPath: `/category/${matchedCat.slug}`,
+          imageUrl: matchedCat.image,
+          imageAlt: matchedCat.h1,
+        });
+      } else {
+        applyDocumentSeo({
+          title: SEO_CATALOG_META.title,
+          description: SEO_CATALOG_META.description,
+          canonicalPath: '/catalog',
+          imageAlt: SEO_CATALOG_META.h1,
+        });
+      }
+      return;
+    }
+
+    if (currentTab === 'bulk') {
+      applyDocumentSeo({
+        title: SEO_BULK_META.title,
+        description: SEO_BULK_META.description,
+        canonicalPath: '/bulk',
+        imageAlt: SEO_BULK_META.h1,
+      });
+      return;
+    }
+
+    if (currentTab === 'quote-calculator') {
+      applyDocumentSeo({
+        title: SEO_QUOTE_CALCULATOR_META.title,
+        description: SEO_QUOTE_CALCULATOR_META.description,
+        canonicalPath: '/quote-calculator',
+        imageAlt: SEO_QUOTE_CALCULATOR_META.h1,
+      });
+      return;
+    }
+
+    if (currentTab === 'bundle-builder') {
+      applyDocumentSeo({
+        title: SEO_BUNDLE_BUILDER_META.title,
+        description: SEO_BUNDLE_BUILDER_META.description,
+        canonicalPath: '/bundle-builder',
+        imageAlt: SEO_BUNDLE_BUILDER_META.h1,
+      });
+      return;
+    }
+
+    const legalMeta = SEO_LEGAL_PAGES.find(
+      (p) => p.path === currentTab || p.path === `/${currentTab}`
+    );
+    if (legalMeta) {
+      applyDocumentSeo({
+        title: legalMeta.title,
+        description: legalMeta.description,
+        canonicalPath: legalMeta.path,
+        imageAlt: legalMeta.h1,
+      });
+      return;
+    }
+
+    if (
+      currentTab === 'admin' ||
+      currentTab === 'dashboard' ||
+      currentTab === 'checkout' ||
+      currentTab === 'orders' ||
+      currentTab === 'order-action'
+    ) {
+      const privateTitles: Record<string, string> = {
+        admin: 'Admin Portal | TeqqnoWorld',
+        dashboard: 'Customer Dashboard | TeqqnoWorld',
+        checkout: 'Checkout | TeqqnoWorld',
+        orders: 'Orders & Tracking | TeqqnoWorld',
+        'order-action': 'Order Confirmation | TeqqnoWorld',
+      };
+      applyDocumentSeo({
+        title: privateTitles[currentTab] || 'Account | TeqqnoWorld',
+        description: 'TeqqnoWorld account and order management portal.',
+        canonicalPath: `/${currentTab}`,
+        robots: noindexRobots,
+      });
+      return;
+    }
+
+    if (currentTab === 'not-found') {
+      applyDocumentSeo({
+        title: 'Page Not Found (404) | TeqqnoWorld',
+        description:
+          'The requested page could not be found on TeqqnoWorld. Browse our custom printed corporate merchandise and promotional products catalog.',
+        canonicalPath:
+          typeof window !== 'undefined' ? window.location.pathname || '/404' : '/404',
+        robots: noindexRobots,
+      });
+      return;
+    }
+
+    // Default: Homepage (or customizer section on homepage)
+    applyDocumentSeo({
+      title: SEO_HOME_META.title,
+      description: SEO_HOME_META.description,
+      canonicalPath: '/',
+      imageAlt: SEO_HOME_META.h1,
+    });
+  }, [currentTab, selectedProduct, catalogCategory]);
+
+  // Helper to safely push clean path URLs
+  const pushCleanUrl = (targetPath: string) => {
+    try {
+      if (window.location.pathname + window.location.search !== targetPath || window.location.hash) {
+        window.history.pushState(null, '', targetPath);
+      }
+    } catch {
+      // ignore restricted history environments
+    }
+  };
+
   // Navigation handlers
   const handleNavigate = (tabOrRoute: string) => {
-    const validLegal = [
-      '/privacy-policy',
-      '/terms-and-conditions',
-      '/shipping-policy',
-      '/cancellation-refund-policy',
-      '/return-replacement-policy',
-      '/contact-us',
-      '/payment-policy',
-      '/pricing-and-taxes',
-      '/cookie-policy',
-    ];
+    const cleanInput = tabOrRoute.trim();
+    const normalized = cleanInput.startsWith('/') ? cleanInput : `/${cleanInput}`;
 
-    const normalized = tabOrRoute.startsWith('/') ? tabOrRoute : `/${tabOrRoute}`;
-    if (validLegal.includes(normalized)) {
-      try {
-        window.history.pushState(null, '', normalized);
-      } catch (e) {}
+    if (VALID_LEGAL_PATHS.includes(normalized)) {
+      pushCleanUrl(normalized);
       setCurrentTab(normalized);
       return;
     }
 
-    if (tabOrRoute === 'home') {
-      try {
-        window.history.pushState(null, '', '/');
-      } catch (e) {}
+    if (normalized.startsWith('/category/')) {
+      const slugOrAlias = decodeURIComponent(normalized.slice('/category/'.length));
+      handleSelectCategory(slugOrAlias);
+      return;
+    }
+
+    if (normalized.startsWith('/product/')) {
+      const slugOrId = decodeURIComponent(normalized.slice('/product/'.length));
+      const found = PRODUCTS.find(
+        (p) => p.slug.toLowerCase() === slugOrId.toLowerCase() || p.id.toLowerCase() === slugOrId.toLowerCase()
+      );
+      if (found) {
+        handleSelectProduct(found);
+      } else {
+        pushCleanUrl(normalized);
+        setCurrentTab('not-found');
+      }
+      return;
+    }
+
+    if (cleanInput === 'home' || cleanInput === '/') {
+      pushCleanUrl('/');
       setCurrentTab('home');
       return;
     }
 
-    if (tabOrRoute === 'customizer') {
+    if (cleanInput === 'catalog' || cleanInput === '/catalog') {
+      setCatalogCategory('all');
+      setCatalogSearchQuery('');
+      pushCleanUrl('/catalog');
+      setCurrentTab('catalog');
+      return;
+    }
+
+    if (cleanInput === 'customizer') {
       if (currentTab !== 'home') {
+        pushCleanUrl('/');
         setCurrentTab('home');
         setTimeout(() => {
           document.getElementById('customizer-section')?.scrollIntoView({ behavior: 'smooth' });
@@ -522,46 +880,66 @@ export default function App() {
       return;
     }
 
-    if (tabOrRoute === 'quote-calculator') {
+    if (cleanInput === 'quote-calculator' || cleanInput === '/quote-calculator') {
+      pushCleanUrl('/quote-calculator');
       setCurrentTab('quote-calculator');
       return;
     }
 
-    if (tabOrRoute === 'bundle-builder') {
+    if (cleanInput === 'bundle-builder' || cleanInput === '/bundle-builder') {
+      pushCleanUrl('/bundle-builder');
       setCurrentTab('bundle-builder');
       return;
     }
 
-    if (tabOrRoute === 'catalogues') {
+    if (cleanInput === 'catalogues') {
       setIsDownloadCatalogOpen(true);
       return;
     }
 
-    if (tabOrRoute === 'track-order' || tabOrRoute === 'track') {
+    if (cleanInput === 'track-order' || cleanInput === 'track') {
       setIsTrackingModalOpen(true);
       return;
     }
 
-    if (tabOrRoute === 'admin' || tabOrRoute === '/admin' || tabOrRoute === '#admin') {
-      try {
-        window.history.pushState(null, '', '#admin');
-      } catch (e) {}
+    if (cleanInput === 'admin' || cleanInput === '/admin' || cleanInput === '#admin') {
+      pushCleanUrl('/admin');
       setCurrentTab('admin');
       return;
     }
 
-    try {
-      window.history.pushState(null, '', `#${tabOrRoute}`);
-    } catch (e) {}
-    setCurrentTab(tabOrRoute);
+    if (cleanInput === 'bulk' || cleanInput === '/bulk') {
+      pushCleanUrl('/bulk');
+      setCurrentTab('bulk');
+      return;
+    }
+
+    if (cleanInput === 'dashboard' || cleanInput === '/dashboard') {
+      pushCleanUrl('/dashboard');
+      setCurrentTab('dashboard');
+      return;
+    }
+
+    if (cleanInput === 'checkout' || cleanInput === '/checkout') {
+      pushCleanUrl('/checkout');
+      setCurrentTab('checkout');
+      return;
+    }
+
+    if (cleanInput === 'orders' || cleanInput === '/orders') {
+      pushCleanUrl('/orders');
+      setCurrentTab('orders');
+      return;
+    }
+
+    pushCleanUrl(normalized);
+    setCurrentTab(cleanInput);
   };
 
   const handleSelectProduct = (product: Product) => {
     setSelectedProduct(product);
     setCurrentTab('product-detail');
-    try {
-      window.history.pushState(null, '', `#product/${product.slug || product.id}`);
-    } catch (e) {}
+    pushCleanUrl(getProductPath(product.slug || product.id));
   };
 
   const handleCustomizeProduct = (productId: string) => {
@@ -569,32 +947,28 @@ export default function App() {
     setSelectedProduct(prod);
     setCustomizerProductId(prod.id);
     setCurrentTab('product-detail');
-    try {
-      window.history.pushState(null, '', `#product/${prod.slug || prod.id}`);
-    } catch (e) {}
+    pushCleanUrl(getProductPath(prod.slug || prod.id));
   };
 
   const handleSelectCategory = (categoryId: string) => {
     let targetCategory: ProductCategory = 'all';
-    if (categoryId === 'event-signage' || categoryId === 'promotional-items' || categoryId === 'signage') {
-      targetCategory = 'promotional-items';
-    } else if (categoryId === 'visiting-cards' || categoryId === 'printing-items' || categoryId === 'stationery') {
-      targetCategory = 'printing-items';
-    } else if (categoryId === 'custom-tshirt-printing' || categoryId === 'tshirts' || categoryId === 'polos' || categoryId === 'apparel') {
-      targetCategory = 'custom-tshirt-printing';
-    } else if (categoryId === 'corporate-gifting' || categoryId === 'kits' || categoryId === 'drinkware') {
-      targetCategory = 'corporate-gifting';
-    } else if (categoryId === 'custom-caps' || categoryId === 'caps') {
-      targetCategory = 'caps';
+    const matchedSeoCat = findCategoryBySlugOrAlias(categoryId);
+    if (matchedSeoCat) {
+      targetCategory = matchedSeoCat.catalogCategory as ProductCategory;
+    } else if (categoryId === 'all') {
+      targetCategory = 'all';
     } else {
       targetCategory = categoryId as ProductCategory;
     }
     setCatalogCategory(targetCategory);
+    setCatalogSearchQuery('');
     setCurrentTab('catalog');
+    pushCleanUrl(getCategoryPath(targetCategory));
     try {
-      window.history.pushState(null, '', `#catalog`);
       window.scrollTo({ top: 0, behavior: 'smooth' });
-    } catch (e) {}
+    } catch {
+      // ignore
+    }
   };
 
   const handleQuickAddProduct = (product: Product) => {
@@ -671,14 +1045,14 @@ export default function App() {
 
   const handleProceedToCheckout = () => {
     setIsCartOpen(false);
-    setCurrentTab('checkout');
+    handleNavigate('checkout');
   };
 
   const handleOrderPlaced = (newOrder: Order) => {
     setOrders(prev => [newOrder, ...prev]);
     setActiveOrder(newOrder);
     setCartItems([]);
-    setCurrentTab('orders');
+    handleNavigate('orders');
   };
 
   const handleUpdateOrder = (updatedOrder: Order) => {
@@ -698,7 +1072,7 @@ export default function App() {
       console.error(e);
     }
     if (currentTab === 'home' || currentTab === 'orders') {
-      setCurrentTab('dashboard');
+      handleNavigate('dashboard');
     }
   };
 
@@ -710,12 +1084,12 @@ export default function App() {
     } catch (e) {
       console.error(e);
     }
-    setCurrentTab('home');
+    handleNavigate('home');
   };
 
   const handleOpenAccount = () => {
     if (user) {
-      setCurrentTab('dashboard');
+      handleNavigate('dashboard');
     } else {
       setAuthModalNote('');
       setIsAuthModalOpen(true);
@@ -778,7 +1152,7 @@ export default function App() {
       
       {/* 1. Global Announcement Ribbon */}
       {!isCustomerPortalFull && (
-        <AnnouncementBar onTrackOrderClick={() => setCurrentTab('orders')} />
+        <AnnouncementBar onTrackOrderClick={() => handleNavigate('orders')} />
       )}
 
       {/* 2. Top Navigation Bar */}
@@ -811,11 +1185,8 @@ export default function App() {
             {/* 1. Hero Section + Reassurance Ribbon */}
             <Hero
               onStartCustomizing={() => handleCustomizeProduct('prod-polo-01')}
-              onExploreCatalog={() => {
-                setCatalogCategory('all');
-                setCurrentTab('catalog');
-              }}
-              onRequestQuote={() => setCurrentTab('bulk')}
+              onExploreCatalog={() => handleNavigate('catalog')}
+              onRequestQuote={() => handleNavigate('bulk')}
               onSelectProduct={(productId) => handleCustomizeProduct(productId)}
             />
 
@@ -860,7 +1231,7 @@ export default function App() {
             <FaqSection />
 
             {/* 10. Elevate Your Corporate Presence (Final CTA Banner) */}
-            <CtaBanner onExploreCatalog={() => setCurrentTab('catalog')} />
+            <CtaBanner onExploreCatalog={() => handleNavigate('catalog')} />
           </div>
         )}
 
@@ -868,6 +1239,11 @@ export default function App() {
         {currentTab === 'catalog' && (
           <ProductCatalogView
             initialCategory={catalogCategory}
+            searchQuery={catalogSearchQuery}
+            onCategoryChange={(cat) => {
+              setCatalogCategory(cat);
+              pushCleanUrl(getCategoryPath(cat));
+            }}
             onSelectProduct={handleSelectProduct}
             onCustomizeProduct={handleCustomizeProduct}
             onOpenQuoteCalculator={() => setIsQuoteCalculatorOpen(true)}
@@ -881,10 +1257,10 @@ export default function App() {
         {currentTab === 'product-detail' && (
           <ProductDetailView
             product={selectedProduct}
-            onBack={() => setCurrentTab('catalog')}
+            onBack={() => handleNavigate('catalog')}
             onCustomize={handleCustomizeProduct}
             onAddToCart={handleAddToCart}
-            onRequestQuote={() => setCurrentTab('bulk')}
+            onRequestQuote={() => handleNavigate('bulk')}
             wishlistIds={wishlistIds}
             onToggleWishlist={handleToggleWishlist}
           />
@@ -1105,6 +1481,49 @@ export default function App() {
 
         {(currentTab === '/cookie-policy' || currentTab === 'cookie-policy') && (
           <CookiePolicyView onNavigate={handleNavigate} />
+        )}
+
+        {/* VIEW J: 404 PAGE NOT FOUND */}
+        {currentTab === 'not-found' && (
+          <section className="py-20 sm:py-28 px-4 text-center max-w-xl mx-auto space-y-5">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#FF7A00]/10 border border-[#FF7A00]/25 text-[#FF7A00] text-xs font-mono font-bold uppercase tracking-wider">
+              HTTP 404 · Page Not Found
+            </div>
+            <h1 className="font-display text-3xl sm:text-4xl font-bold text-[#0B0B0D] tracking-tight">
+              We couldn&apos;t find that page
+            </h1>
+            <p className="text-sm text-zinc-600 leading-relaxed">
+              The link may have moved or no longer exists on TeqqnoWorld. Explore our custom printed corporate merchandise catalog or return to the homepage.
+            </p>
+            <div className="flex flex-wrap items-center justify-center gap-3 pt-2">
+              <a
+                href="/"
+                onClick={(e) => {
+                  if (!e.metaKey && !e.ctrlKey && !e.shiftKey && !e.altKey && e.button === 0) {
+                    e.preventDefault();
+                    handleNavigate('home');
+                  }
+                }}
+                className="bg-[#FF7A00] hover:bg-[#e06c00] text-white text-xs sm:text-sm font-display font-semibold px-5 py-3 rounded-xl shadow-md transition-all inline-flex items-center gap-2"
+              >
+                <Home className="w-4 h-4" />
+                <span>Back to Homepage</span>
+              </a>
+              <a
+                href="/catalog"
+                onClick={(e) => {
+                  if (!e.metaKey && !e.ctrlKey && !e.shiftKey && !e.altKey && e.button === 0) {
+                    e.preventDefault();
+                    handleNavigate('catalog');
+                  }
+                }}
+                className="bg-white hover:bg-zinc-50 border border-zinc-200 text-zinc-800 text-xs sm:text-sm font-display font-semibold px-5 py-3 rounded-xl transition-all inline-flex items-center gap-2"
+              >
+                <span>Browse All Products</span>
+                <ArrowRight className="w-4 h-4" />
+              </a>
+            </div>
+          </section>
         )}
       </main>
 

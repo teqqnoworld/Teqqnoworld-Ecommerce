@@ -54,7 +54,7 @@ export const BUSINESS_CONFIG = {
     mailtoLink: 'mailto:teqqnoworld@gmail.com',
 
     // Web & Domain
-    websiteUrl: 'https://teqqnoworld.in',
+    websiteUrl: 'https://teqqnoworld.com',
     canonicalUrl: 'https://teqqnoworld.com',
 
     // Operating Hours

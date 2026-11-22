@@ -56,13 +56,19 @@ export const LegalLayout: React.FC<LegalLayoutProps> = ({
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3.5 flex items-center justify-between gap-4 text-xs">
           {/* Breadcrumb */}
           <nav aria-label="Breadcrumb" className="flex items-center gap-2 text-slate-500 overflow-x-auto py-0.5">
-            <button
-              onClick={() => onNavigate('home')}
+            <a
+              href="/"
+              onClick={(e) => {
+                if (!e.metaKey && !e.ctrlKey && !e.shiftKey && !e.altKey && e.button === 0) {
+                  e.preventDefault();
+                  onNavigate('home');
+                }
+              }}
               className="hover:text-[#FF7A00] transition-colors flex items-center gap-1 font-medium shrink-0 cursor-pointer"
             >
               <ArrowLeft className="w-3.5 h-3.5" />
               <span>Back to Store</span>
-            </button>
+            </a>
             <ChevronRight className="w-3.5 h-3.5 text-slate-400 shrink-0" />
             <span className="text-slate-400 shrink-0">Legal & Compliance</span>
             <ChevronRight className="w-3.5 h-3.5 text-slate-400 shrink-0" />
@@ -73,12 +79,12 @@ export const LegalLayout: React.FC<LegalLayoutProps> = ({
           <div className="hidden md:flex items-center gap-3 text-slate-600">
             <span>Official Portal:</span>
             <a
-              href="https://teqqnoworld.in"
+              href="https://teqqnoworld.com/"
               target="_blank"
-              rel="noreferrer"
+              rel="noopener noreferrer"
               className="text-[#FF7A00] font-mono font-medium hover:underline flex items-center gap-1"
             >
-              teqqnoworld.in
+              teqqnoworld.com
               <ExternalLink className="w-3 h-3" />
             </a>
           </div>

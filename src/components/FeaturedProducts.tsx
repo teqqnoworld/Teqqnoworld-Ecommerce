@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Star, Sparkles, ArrowRight, Heart } from 'lucide-react';
 import { BEST_SELLERS, BestSellerProduct } from '../data/mockData';
 import { Product } from '../types';
+import { getProductPath } from '../config/seoRoutes';
 
 interface FeaturedProductsProps {
   products: Product[];
@@ -92,41 +93,59 @@ export const FeaturedProducts: React.FC<FeaturedProductsProps> = ({
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-5 lg:gap-6">
           {displayedProducts.map((p) => {
             const fullProd = resolveFullProduct(p);
+            const productHref = getProductPath(fullProd.slug || fullProd.id);
             const isWishlisted = wishlistIds.includes(fullProd.id);
+            const onProductLinkClick = (e: React.MouseEvent<HTMLAnchorElement>) => {
+              if (!e.metaKey && !e.ctrlKey && !e.shiftKey && !e.altKey && e.button === 0) {
+                e.preventDefault();
+                handleCtaClick(p);
+              }
+            };
             return (
             <div
               key={p.id}
               className="group bg-white rounded-2xl border border-zinc-200/90 overflow-hidden shadow-xs hover:shadow-lg hover:border-[#FF7A00]/40 transition-all duration-300 flex flex-col justify-between"
             >
               {/* Product Image Box - 16:9 standard widescreen banner ratio */}
-              <div 
-                onClick={() => handleCtaClick(p)}
-                className="relative aspect-[16/9] bg-zinc-100 overflow-hidden cursor-pointer"
-              >
-                <img
-                  src={p.image}
-                  alt={p.name}
-                  width={480}
-                  height={270}
-                  loading="lazy"
-                  decoding="async"
-                  sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
-                  className={`w-full h-full ${p.id === 'bs-promo-table' || p.id === 'bs-ceramic-mug' || p.id === 'bs-branding-umbrella' || p.id === 'bs-canopy-kiosk' || p.id === 'bs-rollup-standee' || p.id === 'bs-visiting-card-300gsm' ? 'object-contain bg-white' : 'object-cover object-center'} group-hover:scale-104 transition-transform duration-300`}
-                />
+              <div className="relative aspect-[16/9] bg-zinc-100 overflow-hidden">
+                <a
+                  href={productHref}
+                  onClick={onProductLinkClick}
+                  aria-label={`View ${p.name}`}
+                  className="block w-full h-full cursor-pointer"
+                >
+                  <img
+                    src={p.image}
+                    alt={p.name}
+                    width={480}
+                    height={270}
+                    loading="lazy"
+                    decoding="async"
+                    sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+                    className={`w-full h-full ${p.id === 'bs-promo-table' || p.id === 'bs-ceramic-mug' || p.id === 'bs-branding-umbrella' || p.id === 'bs-canopy-kiosk' || p.id === 'bs-rollup-standee' || p.id === 'bs-visiting-card-300gsm' ? 'object-contain bg-white' : 'object-cover object-center'} group-hover:scale-104 transition-transform duration-300`}
+                  />
 
-                {/* Top Left Badges */}
-                <div className="absolute top-3 left-3 flex flex-wrap items-center gap-1.5 z-10 max-w-[calc(100%-64px)]">
-                  {p.badges.map((b, idx) => (
-                    <span
-                      key={idx}
-                      className={`text-[10px] font-bold text-white px-2 py-0.5 rounded-md shadow-2xs ${b.color || 'bg-zinc-800'}`}
-                    >
-                      {b.text}
-                    </span>
-                  ))}
-                </div>
+                  {/* Top Left Badges */}
+                  <div className="absolute top-3 left-3 flex flex-wrap items-center gap-1.5 z-10 max-w-[calc(100%-64px)]">
+                    {p.badges.map((b, idx) => (
+                      <span
+                        key={idx}
+                        className={`text-[10px] font-bold text-white px-2 py-0.5 rounded-md shadow-2xs ${b.color || 'bg-zinc-800'}`}
+                      >
+                        {b.text}
+                      </span>
+                    ))}
+                  </div>
 
-                {/* Top Right Wishlist Toggle */}
+                  {/* Bottom Left Delivery Tag */}
+                  {p.deliveryTag && (
+                    <div className="absolute bottom-3 left-3 bg-black/75 backdrop-blur-xs text-white text-[10px] font-medium px-2 py-0.5 rounded-md border border-white/10 z-10">
+                      {p.deliveryTag}
+                    </div>
+                  )}
+                </a>
+
+                {/* Top Right Wishlist Toggle (sibling outside anchor for valid HTML) */}
                 {onToggleWishlist && (
                   <button
                     type="button"
@@ -145,13 +164,6 @@ export const FeaturedProducts: React.FC<FeaturedProductsProps> = ({
                     <Heart className={`w-4 h-4 transition-transform ${isWishlisted ? 'fill-rose-500 text-rose-500' : ''}`} />
                   </button>
                 )}
-
-                {/* Bottom Left Delivery Tag */}
-                {p.deliveryTag && (
-                  <div className="absolute bottom-3 left-3 bg-black/75 backdrop-blur-xs text-white text-[10px] font-medium px-2 py-0.5 rounded-md border border-white/10 z-10">
-                    {p.deliveryTag}
-                  </div>
-                )}
               </div>
 
               {/* Card Details */}
@@ -167,11 +179,14 @@ export const FeaturedProducts: React.FC<FeaturedProductsProps> = ({
                   </div>
 
                   {/* Title */}
-                  <h3 
-                    onClick={() => handleCtaClick(p)}
-                    className="font-display font-bold text-base text-[#0B0B0D] leading-snug group-hover:text-[#FF7A00] transition-colors cursor-pointer"
-                  >
-                    {p.name}
+                  <h3 className="font-display font-bold text-base text-[#0B0B0D] leading-snug group-hover:text-[#FF7A00] transition-colors">
+                    <a
+                      href={productHref}
+                      onClick={onProductLinkClick}
+                      className="hover:text-[#FF7A00] transition-colors"
+                    >
+                      {p.name}
+                    </a>
                   </h3>
 
                   {/* Description */}
@@ -223,8 +238,9 @@ export const FeaturedProducts: React.FC<FeaturedProductsProps> = ({
                     </div>
                   </div>
 
-                  <button
-                    onClick={() => handleCtaClick(p)}
+                  <a
+                    href={productHref}
+                    onClick={onProductLinkClick}
                     className={`text-xs font-display font-bold px-3.5 sm:px-4 py-2.5 min-h-[42px] rounded-xl shadow-xs transition-all hover:scale-102 flex items-center gap-1.5 cursor-pointer group/cta shrink-0 ${
                       p.ctaType === 'orange'
                         ? 'bg-[#FF7A00] hover:bg-[#e06c00] text-white shadow-[#FF7A00]/25'
@@ -237,7 +253,7 @@ export const FeaturedProducts: React.FC<FeaturedProductsProps> = ({
                       <ArrowRight className="w-3.5 h-3.5 group-hover/cta:translate-x-1 transition-transform duration-300" />
                     )}
                     <span>{p.ctaText}</span>
-                  </button>
+                  </a>
                 </div>
 
               </div>

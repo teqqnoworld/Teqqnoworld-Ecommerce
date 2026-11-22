@@ -111,12 +111,90 @@ export const Footer: React.FC<FooterProps> = ({ onNavigate, onOpenSupabaseDev })
               PRODUCTS
             </h4>
             <ul className="space-y-2 text-zinc-400 text-xs">
-              <li><button onClick={() => onNavigate('catalog')} className="hover:text-white transition-colors cursor-pointer text-left">Custom Apparel & Hoodies</button></li>
-              <li><button onClick={() => onNavigate('catalog')} className="hover:text-white transition-colors cursor-pointer text-left">Visiting Cards & Stationery</button></li>
-              <li><button onClick={() => onNavigate('catalog')} className="hover:text-white transition-colors cursor-pointer text-left">Drinkware & Sippers</button></li>
-              <li><button onClick={() => onNavigate('catalog')} className="hover:text-white transition-colors cursor-pointer text-left">Lanyards & ID Cards</button></li>
-              <li><button onClick={() => onNavigate('catalog')} className="hover:text-white transition-colors cursor-pointer text-left">Tech Accessories & Sleeves</button></li>
-              <li><button onClick={() => onNavigate('catalog')} className="hover:text-white transition-colors cursor-pointer text-left">Festive & Diwali Hampers</button></li>
+              <li>
+                <a
+                  href="/category/custom-polo-t-shirts"
+                  onClick={(e) => {
+                    if (!e.metaKey && !e.ctrlKey && !e.shiftKey && !e.altKey && e.button === 0) {
+                      e.preventDefault();
+                      onNavigate('/category/custom-polo-t-shirts');
+                    }
+                  }}
+                  className="hover:text-white transition-colors cursor-pointer text-left inline-block"
+                >
+                  Custom Polo T-Shirts
+                </a>
+              </li>
+              <li>
+                <a
+                  href="/category/visiting-cards-printing"
+                  onClick={(e) => {
+                    if (!e.metaKey && !e.ctrlKey && !e.shiftKey && !e.altKey && e.button === 0) {
+                      e.preventDefault();
+                      onNavigate('/category/visiting-cards-printing');
+                    }
+                  }}
+                  className="hover:text-white transition-colors cursor-pointer text-left inline-block"
+                >
+                  Visiting Cards & Stationery
+                </a>
+              </li>
+              <li>
+                <a
+                  href="/category/corporate-gifting-drinkware"
+                  onClick={(e) => {
+                    if (!e.metaKey && !e.ctrlKey && !e.shiftKey && !e.altKey && e.button === 0) {
+                      e.preventDefault();
+                      onNavigate('/category/corporate-gifting-drinkware');
+                    }
+                  }}
+                  className="hover:text-white transition-colors cursor-pointer text-left inline-block"
+                >
+                  Ceramic Mugs & Drinkware
+                </a>
+              </li>
+              <li>
+                <a
+                  href="/category/promotional-displays-signage"
+                  onClick={(e) => {
+                    if (!e.metaKey && !e.ctrlKey && !e.shiftKey && !e.altKey && e.button === 0) {
+                      e.preventDefault();
+                      onNavigate('/category/promotional-displays-signage');
+                    }
+                  }}
+                  className="hover:text-white transition-colors cursor-pointer text-left inline-block"
+                >
+                  Standees, Canopies & Displays
+                </a>
+              </li>
+              <li>
+                <a
+                  href="/category/custom-caps"
+                  onClick={(e) => {
+                    if (!e.metaKey && !e.ctrlKey && !e.shiftKey && !e.altKey && e.button === 0) {
+                      e.preventDefault();
+                      onNavigate('/category/custom-caps');
+                    }
+                  }}
+                  className="hover:text-white transition-colors cursor-pointer text-left inline-block"
+                >
+                  Custom Cotton Caps
+                </a>
+              </li>
+              <li>
+                <a
+                  href="/catalog"
+                  onClick={(e) => {
+                    if (!e.metaKey && !e.ctrlKey && !e.shiftKey && !e.altKey && e.button === 0) {
+                      e.preventDefault();
+                      onNavigate('catalog');
+                    }
+                  }}
+                  className="hover:text-white transition-colors cursor-pointer text-left inline-block"
+                >
+                  All Custom Products
+                </a>
+              </li>
             </ul>
           </div>
 
@@ -126,15 +204,120 @@ export const Footer: React.FC<FooterProps> = ({ onNavigate, onOpenSupabaseDev })
               CORPORATE SOLUTIONS
             </h4>
             <ul className="space-y-2 text-zinc-400 text-xs">
-              <li><button onClick={() => onNavigate('orders')} className="hover:text-white transition-colors cursor-pointer text-left flex items-center gap-1.5"><span className="text-emerald-400">●</span> Track Your Consignment</button></li>
-              <li><button onClick={() => onNavigate('quote-calculator')} className="hover:text-white transition-colors cursor-pointer text-left text-[#FF7A00] font-semibold">⚡ B2B Volume Quote Calculator</button></li>
-              <li><button onClick={() => onNavigate('bundle-builder')} className="hover:text-white transition-colors cursor-pointer text-left text-emerald-400 font-semibold">🎁 Corporate Gift Bundle Builder</button></li>
-              <li><button onClick={() => onNavigate('catalogues')} className="hover:text-white transition-colors cursor-pointer text-left">📑 Download PDF Catalogues</button></li>
-              <li><button onClick={() => onNavigate('bulk')} className="hover:text-white transition-colors cursor-pointer text-left">Enterprise Bulk RFQ</button></li>
-              <li><button onClick={() => onNavigate('customizer')} className="hover:text-white transition-colors cursor-pointer text-left">Online Custom Logo Studio</button></li>
-              <li><button onClick={() => onNavigate('dashboard')} className="hover:text-white transition-colors cursor-pointer text-left">Corporate Client Dashboard</button></li>
-              <li><button onClick={() => onNavigate('/pricing-and-taxes')} className="hover:text-white transition-colors cursor-pointer text-left">B2B GST & Volume Discounts</button></li>
-              <li><button onClick={() => onNavigate('/contact-us')} className="hover:text-white transition-colors cursor-pointer text-left">Procurement Vendor Desk</button></li>
+              <li>
+                <a
+                  href="/orders"
+                  onClick={(e) => {
+                    if (!e.metaKey && !e.ctrlKey && !e.shiftKey && !e.altKey && e.button === 0) {
+                      e.preventDefault();
+                      onNavigate('orders');
+                    }
+                  }}
+                  className="hover:text-white transition-colors cursor-pointer text-left flex items-center gap-1.5"
+                >
+                  <span className="text-emerald-400">●</span> Track Your Consignment
+                </a>
+              </li>
+              <li>
+                <a
+                  href="/quote-calculator"
+                  onClick={(e) => {
+                    if (!e.metaKey && !e.ctrlKey && !e.shiftKey && !e.altKey && e.button === 0) {
+                      e.preventDefault();
+                      onNavigate('quote-calculator');
+                    }
+                  }}
+                  className="hover:text-white transition-colors cursor-pointer text-left text-[#FF7A00] font-semibold inline-block"
+                >
+                  ⚡ B2B Volume Quote Calculator
+                </a>
+              </li>
+              <li>
+                <a
+                  href="/bundle-builder"
+                  onClick={(e) => {
+                    if (!e.metaKey && !e.ctrlKey && !e.shiftKey && !e.altKey && e.button === 0) {
+                      e.preventDefault();
+                      onNavigate('bundle-builder');
+                    }
+                  }}
+                  className="hover:text-white transition-colors cursor-pointer text-left text-emerald-400 font-semibold inline-block"
+                >
+                  🎁 Corporate Gift Bundle Builder
+                </a>
+              </li>
+              <li>
+                <button
+                  onClick={() => onNavigate('catalogues')}
+                  className="hover:text-white transition-colors cursor-pointer text-left"
+                >
+                  📑 Download PDF Catalogues
+                </button>
+              </li>
+              <li>
+                <a
+                  href="/bulk"
+                  onClick={(e) => {
+                    if (!e.metaKey && !e.ctrlKey && !e.shiftKey && !e.altKey && e.button === 0) {
+                      e.preventDefault();
+                      onNavigate('bulk');
+                    }
+                  }}
+                  className="hover:text-white transition-colors cursor-pointer text-left inline-block"
+                >
+                  Enterprise Bulk RFQ
+                </a>
+              </li>
+              <li>
+                <button
+                  onClick={() => onNavigate('customizer')}
+                  className="hover:text-white transition-colors cursor-pointer text-left"
+                >
+                  Online Custom Logo Studio
+                </button>
+              </li>
+              <li>
+                <a
+                  href="/dashboard"
+                  onClick={(e) => {
+                    if (!e.metaKey && !e.ctrlKey && !e.shiftKey && !e.altKey && e.button === 0) {
+                      e.preventDefault();
+                      onNavigate('dashboard');
+                    }
+                  }}
+                  className="hover:text-white transition-colors cursor-pointer text-left inline-block"
+                >
+                  Corporate Client Dashboard
+                </a>
+              </li>
+              <li>
+                <a
+                  href="/pricing-and-taxes"
+                  onClick={(e) => {
+                    if (!e.metaKey && !e.ctrlKey && !e.shiftKey && !e.altKey && e.button === 0) {
+                      e.preventDefault();
+                      onNavigate('/pricing-and-taxes');
+                    }
+                  }}
+                  className="hover:text-white transition-colors cursor-pointer text-left inline-block"
+                >
+                  B2B GST & Volume Discounts
+                </a>
+              </li>
+              <li>
+                <a
+                  href="/contact-us"
+                  onClick={(e) => {
+                    if (!e.metaKey && !e.ctrlKey && !e.shiftKey && !e.altKey && e.button === 0) {
+                      e.preventDefault();
+                      onNavigate('/contact-us');
+                    }
+                  }}
+                  className="hover:text-white transition-colors cursor-pointer text-left inline-block"
+                >
+                  Procurement Vendor Desk
+                </a>
+              </li>
             </ul>
           </div>
 
@@ -147,8 +330,14 @@ export const Footer: React.FC<FooterProps> = ({ onNavigate, onOpenSupabaseDev })
             <ul className="space-y-1.5 text-zinc-400 text-xs">
               {LEGAL_PAGES.map((page) => (
                 <li key={page.id}>
-                  <button 
-                    onClick={() => onNavigate(page.route)} 
+                  <a
+                    href={page.route}
+                    onClick={(e) => {
+                      if (!e.metaKey && !e.ctrlKey && !e.shiftKey && !e.altKey && e.button === 0) {
+                        e.preventDefault();
+                        onNavigate(page.route);
+                      }
+                    }}
                     className="hover:text-[#FF7A00] transition-colors text-left flex items-center justify-between w-full group py-0.5 cursor-pointer"
                   >
                     <span className="truncate group-hover:translate-x-1 transition-transform">
@@ -157,7 +346,7 @@ export const Footer: React.FC<FooterProps> = ({ onNavigate, onOpenSupabaseDev })
                     <span className="text-zinc-600 group-hover:text-[#FF7A00] text-[10px] shrink-0 ml-1">
                       &rarr;
                     </span>
-                  </button>
+                  </a>
                 </li>
               ))}
             </ul>
@@ -179,37 +368,61 @@ export const Footer: React.FC<FooterProps> = ({ onNavigate, onOpenSupabaseDev })
             </span>
           </div>
           <div className="flex flex-wrap items-center justify-center gap-4 sm:gap-5 text-zinc-400">
-            <button 
-              onClick={() => onNavigate('/privacy-policy')} 
+            <a
+              href="/privacy-policy"
+              onClick={(e) => {
+                if (!e.metaKey && !e.ctrlKey && !e.shiftKey && !e.altKey && e.button === 0) {
+                  e.preventDefault();
+                  onNavigate('/privacy-policy');
+                }
+              }}
               className="group inline-flex items-center gap-1.5 hover:text-white transition-colors cursor-pointer"
             >
               <Lock className="w-3 h-3 text-emerald-400 animate-icon-float group-hover:scale-110 transition-transform" />
               <span>Privacy Policy</span>
-            </button>
+            </a>
             <span className="text-zinc-700">•</span>
-            <button 
-              onClick={() => onNavigate('/terms-and-conditions')} 
+            <a
+              href="/terms-and-conditions"
+              onClick={(e) => {
+                if (!e.metaKey && !e.ctrlKey && !e.shiftKey && !e.altKey && e.button === 0) {
+                  e.preventDefault();
+                  onNavigate('/terms-and-conditions');
+                }
+              }}
               className="group inline-flex items-center gap-1.5 hover:text-white transition-colors cursor-pointer"
             >
               <FileText className="w-3 h-3 text-[#FF7A00] animate-icon-float-delayed group-hover:scale-110 transition-transform" />
               <span>Terms and Conditions</span>
-            </button>
+            </a>
             <span className="text-zinc-700">•</span>
-            <button 
-              onClick={() => onNavigate('/cancellation-refund-policy')} 
+            <a
+              href="/cancellation-refund-policy"
+              onClick={(e) => {
+                if (!e.metaKey && !e.ctrlKey && !e.shiftKey && !e.altKey && e.button === 0) {
+                  e.preventDefault();
+                  onNavigate('/cancellation-refund-policy');
+                }
+              }}
               className="group inline-flex items-center gap-1.5 hover:text-white transition-colors cursor-pointer"
             >
               <RotateCcw className="w-3 h-3 text-amber-400 animate-icon-wiggle group-hover:-rotate-90 transition-transform duration-300" />
               <span>Cancellation & Refund</span>
-            </button>
+            </a>
             <span className="text-zinc-700">•</span>
-            <button 
-              onClick={() => onNavigate('/contact-us')} 
+            <a
+              href="/contact-us"
+              onClick={(e) => {
+                if (!e.metaKey && !e.ctrlKey && !e.shiftKey && !e.altKey && e.button === 0) {
+                  e.preventDefault();
+                  onNavigate('/contact-us');
+                }
+              }}
               className="group inline-flex items-center gap-1.5 hover:text-white transition-colors cursor-pointer"
             >
               <Headphones className="w-3 h-3 text-sky-400 animate-icon-ring group-hover:scale-110 transition-transform" />
               <span>Contact Support</span>
-            </button>
+            </a>
           </div>
         </div>
       </div>

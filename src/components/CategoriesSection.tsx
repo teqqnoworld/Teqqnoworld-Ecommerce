@@ -1,5 +1,6 @@
 import React from 'react';
 import { ArrowRight } from 'lucide-react';
+import { getCategoryPath } from '../config/seoRoutes';
 
 interface CategoriesSectionProps {
   onSelectCategory: (categoryId: string) => void;
@@ -64,13 +65,19 @@ export const CategoriesSection: React.FC<CategoriesSectionProps> = ({ onSelectCa
             </p>
           </div>
 
-          <button
-            onClick={() => onSelectCategory('all')}
+          <a
+            href="/catalog"
+            onClick={(e) => {
+              if (!e.metaKey && !e.ctrlKey && !e.shiftKey && !e.altKey && e.button === 0) {
+                e.preventDefault();
+                onSelectCategory('all');
+              }
+            }}
             className="inline-flex items-center gap-1.5 text-xs font-bold text-[#FF7A00] hover:text-[#e06c00] transition-colors shrink-0 group cursor-pointer self-start sm:self-auto min-h-[36px]"
           >
             <span>View All Categories</span>
             <ArrowRight className="w-4 h-4 group-hover:translate-x-1.5 transition-transform duration-300" />
-          </button>
+          </a>
         </div>
 
         {/* 5 Circular Category Badges */}
@@ -81,9 +88,15 @@ export const CategoriesSection: React.FC<CategoriesSectionProps> = ({ onSelectCa
         */}
         <div className="flex flex-wrap justify-center items-start gap-5 sm:gap-6 md:gap-7 lg:gap-6 xl:gap-8">
           {CIRCULAR_CATEGORIES.map((cat, idx) => (
-            <button
+            <a
               key={cat.id}
-              onClick={() => onSelectCategory(cat.id)}
+              href={getCategoryPath(cat.id)}
+              onClick={(e) => {
+                if (!e.metaKey && !e.ctrlKey && !e.shiftKey && !e.altKey && e.button === 0) {
+                  e.preventDefault();
+                  onSelectCategory(cat.id);
+                }
+              }}
               className={`group flex flex-col items-center cursor-pointer transition-all duration-300 focus:outline-none rounded-2xl p-1
                 w-[calc(50%-0.75rem)] max-w-[170px]
                 sm:w-[calc(33.333%-1rem)] sm:max-w-[190px]
@@ -122,7 +135,7 @@ export const CategoriesSection: React.FC<CategoriesSectionProps> = ({ onSelectCa
                   <ArrowRight className="w-3 h-3 group-hover:translate-x-0.5 transition-transform" />
                 </div>
               </div>
-            </button>
+            </a>
           ))}
         </div>
 
