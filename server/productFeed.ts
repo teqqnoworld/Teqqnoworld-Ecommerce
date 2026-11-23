@@ -43,7 +43,6 @@ export interface ProductFeedItem {
   seller_privacy_policy: string;
   seller_tos: string;
   return_policy: string;
-  return_window: number;
   color?: string;
   size?: string;
   material?: string;
@@ -910,7 +909,6 @@ export async function buildDynamicProductFeed(
       seller_privacy_policy: `${origin}/privacy-policy`,
       seller_tos: `${origin}/terms-and-conditions`,
       return_policy: `${origin}/return-replacement-policy`,
-      return_window: 7,
       color: extractColorSummary(product),
       size:
         Array.isArray(sizesList) && sizesList.length > 0
@@ -994,7 +992,6 @@ export async function buildDynamicProductFeed(
         seller_privacy_policy: `${origin}/privacy-policy`,
         seller_tos: `${origin}/terms-and-conditions`,
         return_policy: `${origin}/return-replacement-policy`,
-        return_window: 7,
         size:
           Array.isArray(row.available_sizes) && row.available_sizes.length > 0
             ? cleanPlainText(row.available_sizes.join(', '), 80)
@@ -1037,7 +1034,6 @@ const CSV_COLUMNS: ReadonlyArray<string> = [
   'seller_privacy_policy',
   'seller_tos',
   'return_policy',
-  'return_window',
   'color',
   'size',
   'material',
@@ -1087,7 +1083,6 @@ export function formatProductsCsv(items: ProductFeedItem[]): string {
       item.seller_privacy_policy,
       item.seller_tos,
       item.return_policy,
-      item.return_window,
       item.color ?? '',
       item.size ?? '',
       item.material ?? '',
@@ -1125,7 +1120,6 @@ export function formatProductsJsonl(items: ProductFeedItem[]): string {
           seller_privacy_policy: item.seller_privacy_policy,
           seller_tos: item.seller_tos,
           return_policy: item.return_policy,
-          return_window: item.return_window,
         };
 
         if (item.additional_image_urls.length > 0) {

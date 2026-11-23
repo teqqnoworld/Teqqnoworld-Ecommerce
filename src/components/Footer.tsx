@@ -397,6 +397,20 @@ export const Footer: React.FC<FooterProps> = ({ onNavigate, onOpenSupabaseDev })
             </a>
             <span className="text-zinc-700">•</span>
             <a
+              href="/return-replacement-policy"
+              onClick={(e) => {
+                if (!e.metaKey && !e.ctrlKey && !e.shiftKey && !e.altKey && e.button === 0) {
+                  e.preventDefault();
+                  onNavigate('/return-replacement-policy');
+                }
+              }}
+              className="group inline-flex items-center gap-1.5 hover:text-white transition-colors cursor-pointer"
+            >
+              <RotateCcw className="w-3 h-3 text-[#FF7A00] animate-icon-wiggle group-hover:-rotate-90 transition-transform duration-300" />
+              <span>Return &amp; Replacement</span>
+            </a>
+            <span className="text-zinc-700">•</span>
+            <a
               href="/cancellation-refund-policy"
               onClick={(e) => {
                 if (!e.metaKey && !e.ctrlKey && !e.shiftKey && !e.altKey && e.button === 0) {
@@ -407,7 +421,7 @@ export const Footer: React.FC<FooterProps> = ({ onNavigate, onOpenSupabaseDev })
               className="group inline-flex items-center gap-1.5 hover:text-white transition-colors cursor-pointer"
             >
               <RotateCcw className="w-3 h-3 text-amber-400 animate-icon-wiggle group-hover:-rotate-90 transition-transform duration-300" />
-              <span>Cancellation & Refund</span>
+              <span>Cancellation &amp; Refund</span>
             </a>
             <span className="text-zinc-700">•</span>
             <a

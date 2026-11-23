@@ -230,7 +230,7 @@ export const SEO_LEGAL_PAGES: ReadonlyArray<SeoStaticPageDefinition> = [
     path: '/return-replacement-policy',
     title: 'Return and Replacement Policy | TeqqnoWorld',
     description:
-      'Details on TeqqnoWorld quality assurance, transit damage reporting, and replacement eligibility for custom printed merchandise.',
+      'TeqqnoWorld follows a No Return / Replacement Only policy. Report damaged, cracked, defective, or incorrect products within 24 hours with unboxing video proof.',
     h1: 'Return and Replacement Policy',
     sitemapPriority: '0.4',
     sitemapChangefreq: 'monthly',

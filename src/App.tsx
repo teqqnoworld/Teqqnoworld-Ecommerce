@@ -1335,6 +1335,7 @@ export default function App() {
             product={selectedProduct}
             onBack={() => handleNavigate('catalog')}
             onNavigateHome={() => handleNavigate('home')}
+            onNavigate={handleNavigate}
             onSelectCategory={handleSelectCategory}
             onSelectProduct={handleSelectProduct}
             onCustomize={handleCustomizeProduct}
@@ -1402,6 +1403,7 @@ export default function App() {
               onUpdateOrder={handleUpdateOrder}
               onBackToHome={() => setCurrentTab('home')}
               onNavigateCatalog={() => setCurrentTab('catalog')}
+              onNavigate={handleNavigate}
             />
           ) : (
             <div className="py-20 px-4 text-center max-w-md mx-auto space-y-4">

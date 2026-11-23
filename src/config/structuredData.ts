@@ -45,7 +45,10 @@ export const SCHEMA_IDS = {
   bachupallyLocation: `${CANONICAL_ORIGIN}/#bachupally-location`,
   gstPrincipalLocation: `${CANONICAL_ORIGIN}/#gst-principal-location`,
   website: `${CANONICAL_ORIGIN}/#website`,
+  returnPolicy: `${CANONICAL_ORIGIN}/#return-policy`,
 } as const;
+
+export const RETURN_POLICY_URL = buildCanonicalUrl('/return-replacement-policy');
 
 export const OFFICIAL_LOGO_URL = `${CANONICAL_ORIGIN}/assets/aistudio/Glossy_TeqqnoWorld_Branding_Badge-photoaidcom-cropped_1055f8dc.png`;
 
@@ -232,6 +235,7 @@ export function buildOrganizationEntity(): Record<string, unknown> {
       { '@id': SCHEMA_IDS.bachupallyLocation },
       { '@id': SCHEMA_IDS.gstPrincipalLocation },
     ],
+    hasMerchantReturnPolicy: { '@id': SCHEMA_IDS.returnPolicy },
     sameAs: [
       BUSINESS_CONFIG.social.facebook,
       BUSINESS_CONFIG.social.instagram,
@@ -312,9 +316,30 @@ export function buildWebSiteEntity(): Record<string, unknown> {
   };
 }
 
+/**
+ * Single canonical MerchantReturnPolicy entity linked via @id from Organization and Product Offers.
+ * Truthfully declares MerchantReturnNotPermitted (No Return / Replacement Only for verified
+ * damaged, cracked, defective, or incorrect items reported within 24 hours with unboxing video proof).
+ * Omits unsupported or misleading fields (no merchantReturnDays, no refundType, no returnFees).
+ */
+export function buildMerchantReturnPolicyEntity(): Record<string, unknown> {
+  return {
+    '@type': 'MerchantReturnPolicy',
+    '@id': SCHEMA_IDS.returnPolicy,
+    name: 'TeqqnoWorld Return and Replacement Policy (No Return / Replacement Only)',
+    description:
+      'TeqqnoWorld follows a No Return / Replacement Only policy. Returns or refunds for change-of-mind reasons are not permitted. Replacement may be considered for damaged, cracked, broken, defective, or incorrect products reported within 24 hours of receiving the parcel with clear continuous unboxing video proof, subject to verification and applicable consumer protection laws.',
+    applicableCountry: BUSINESS_CONFIG.address.countryCode,
+    returnPolicyCategory: 'https://schema.org/MerchantReturnNotPermitted',
+    merchantReturnLink: RETURN_POLICY_URL,
+    url: RETURN_POLICY_URL,
+  };
+}
+
 function buildCoreEntities(): Record<string, unknown>[] {
   return [
     buildOrganizationEntity(),
+    buildMerchantReturnPolicyEntity(),
     buildBachupallyLocationEntity(),
     buildGstPrincipalLocationEntity(),
     buildWebSiteEntity(),
@@ -392,6 +417,7 @@ function buildSingleRuleOffer(
     priceCurrency: 'INR',
     price: formatSchemaPrice(baseSlab.pricePerUnit),
     seller: { '@id': SCHEMA_IDS.organization },
+    hasMerchantReturnPolicy: { '@id': SCHEMA_IDS.returnPolicy },
     eligibleQuantity: {
       '@type': 'QuantitativeValue',
       minValue: rule.moq,
@@ -470,6 +496,7 @@ function buildProductOffers(
       priceCurrency: 'INR',
       price: formatSchemaPrice(product.basePrice),
       seller: { '@id': SCHEMA_IDS.organization },
+      hasMerchantReturnPolicy: { '@id': SCHEMA_IDS.returnPolicy },
     };
     if (product.moq && product.moq > 1) {
       fallbackOffer.eligibleQuantity = {
@@ -659,18 +686,24 @@ export function buildPageStructuredData(input: StructuredDataPageInput): JsonLdD
   const pageType =
     input.pageType || (input.path === '/contact-us' ? 'ContactPage' : 'WebPage');
 
+  const webPageNode: Record<string, unknown> = {
+    '@type': pageType,
+    '@id': `${pageUrl}#webpage`,
+    url: pageUrl,
+    name: input.title,
+    description: input.description,
+    inLanguage: 'en-IN',
+    isPartOf: { '@id': SCHEMA_IDS.website },
+    about: { '@id': SCHEMA_IDS.organization },
+    breadcrumb: { '@id': breadcrumbId },
+  };
+
+  if (input.path === '/return-replacement-policy') {
+    webPageNode.mainEntity = { '@id': SCHEMA_IDS.returnPolicy };
+  }
+
   graph.push(
-    {
-      '@type': pageType,
-      '@id': `${pageUrl}#webpage`,
-      url: pageUrl,
-      name: input.title,
-      description: input.description,
-      inLanguage: 'en-IN',
-      isPartOf: { '@id': SCHEMA_IDS.website },
-      about: { '@id': SCHEMA_IDS.organization },
-      breadcrumb: { '@id': breadcrumbId },
-    },
+    webPageNode,
     buildBreadcrumbListEntity(breadcrumbId, [
       { name: 'Home', url: buildCanonicalUrl('/') },
       { name: input.h1, url: pageUrl },

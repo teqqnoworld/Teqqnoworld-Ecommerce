@@ -65,6 +65,7 @@ interface ProductDetailViewProps {
   product: Product;
   onBack: () => void;
   onNavigateHome?: () => void;
+  onNavigate?: (route: string) => void;
   onSelectCategory?: (categorySlug: string) => void;
   onSelectProduct?: (product: Product) => void;
   onCustomize: (productId: string) => void;
@@ -404,6 +405,7 @@ export const ProductDetailView: React.FC<ProductDetailViewProps> = ({
   product,
   onBack,
   onNavigateHome,
+  onNavigate,
   onSelectCategory,
   onSelectProduct,
   onCustomize,
@@ -2133,6 +2135,28 @@ export const ProductDetailView: React.FC<ProductDetailViewProps> = ({
 
             {/* Quality & Corporate Dispatch Assurance Cards - Shared Component for ALL Products */}
             <ProductAssuranceCards product={product} />
+
+            {/* Return & Replacement Policy Notice Strip (Shared Across All Product Detail Pages) */}
+            <div className="rounded-2xl bg-[#071B35] text-white px-4 py-3 border border-[#0E2A4F] shadow-2xs flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 text-xs">
+              <div className="flex items-start gap-2.5 min-w-0">
+                <ShieldCheck className="w-4 h-4 text-[#FF7A00] shrink-0 mt-0.5" />
+                <p className="text-slate-200 leading-snug">
+                  <strong className="text-white">No Return / Replacement Only:</strong> Report damaged, cracked, defective, or incorrect items within <strong className="text-white">24 hours</strong> of delivery with unboxing video proof.
+                </p>
+              </div>
+              <a
+                href="/return-replacement-policy"
+                onClick={(e) => {
+                  if (onNavigate && !e.metaKey && !e.ctrlKey && !e.shiftKey && !e.altKey && e.button === 0) {
+                    e.preventDefault();
+                    onNavigate('/return-replacement-policy');
+                  }
+                }}
+                className="text-[#FF7A00] hover:text-orange-300 font-semibold underline underline-offset-2 shrink-0 self-start sm:self-center"
+              >
+                Return &amp; Replacement Policy &rarr;
+              </a>
+            </div>
 
           </div>
 

@@ -91,7 +91,7 @@ export const BUSINESS_CONFIG = {
     gstPrincipalPlaceOfBusiness:
       '5th Floor, Plot No-14, Ameenpur Road, Behind HDFC Bank, Suraksha Colony, Hyderabad, Rangareddy, Telangana – 502032.',
     legalEntityPlaceholder: 'TeqqnoWorld',
-    reportingWindowPlaceholder: '48 Hours from physical delivery timestamp as confirmed by courier partner',
+    reportingWindowPlaceholder: '24 hours of receiving the parcel',
     refundSlaPlaceholder: '5 to 7 Working Days post quality audit and bank authorization',
   }
 } as const;

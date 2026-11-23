@@ -1879,6 +1879,17 @@ export const CheckoutView: React.FC<CheckoutViewProps> = ({
 
               <div className="space-y-2 pt-2 text-[11px] text-zinc-500 text-center">
                 <p>🔒 100% Satisfaction Guarantee: We do not start factory manufacturing until you inspect and approve your 1:1 digital proof.</p>
+                <p className="text-zinc-600 leading-relaxed pt-1 border-t border-zinc-100">
+                  <strong className="text-[#071B35]">Policy Notice:</strong> No Return / Replacement Only (report damaged, defective, or incorrect items within 24 hours with unboxing video proof).{' '}
+                  <a
+                    href="/return-replacement-policy"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-[#FF7A00] hover:underline font-semibold"
+                  >
+                    Read Return &amp; Replacement Policy
+                  </a>
+                </p>
               </div>
 
             </div>

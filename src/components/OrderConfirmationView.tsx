@@ -26,12 +26,14 @@ import {
   submitWhatsAppOrderAction,
 } from '../services/aisensyService';
 import { WhatsAppIcon } from './WhatsAppIcon';
+import { BUSINESS_CONFIG, getWhatsAppLink } from '../config/business';
 
 interface OrderConfirmationViewProps {
   order: Order;
   onUpdateOrder: (updated: Order) => void;
   onBackToHome: () => void;
   onNavigateCatalog: () => void;
+  onNavigate?: (route: string) => void;
 }
 
 export const OrderConfirmationView: React.FC<OrderConfirmationViewProps> = ({
@@ -39,6 +41,7 @@ export const OrderConfirmationView: React.FC<OrderConfirmationViewProps> = ({
   onUpdateOrder,
   onBackToHome,
   onNavigateCatalog,
+  onNavigate,
 }) => {
   const [showInvoiceModal, setShowInvoiceModal] = useState(false);
   const [proofNote, setProofNote] = useState('');
@@ -621,6 +624,53 @@ export const OrderConfirmationView: React.FC<OrderConfirmationViewProps> = ({
               </div>
             )}
           </div>
+        </div>
+
+        {/* Delivery Inspection & Replacement Policy Notice */}
+        <div className="bg-[#071B35] text-white rounded-2xl border border-[#0E2A4F] p-5 sm:p-6 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="space-y-1.5">
+            <div className="inline-flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-[#FF7A00]">
+              <ShieldCheck className="w-4 h-4 shrink-0" />
+              <span>Delivery Inspection &amp; Replacement Policy</span>
+            </div>
+            <p className="text-xs sm:text-sm text-slate-200 leading-relaxed max-w-2xl">
+              TeqqnoWorld follows a <strong className="text-white">No Return / Replacement Only</strong> policy. Please record a clear, continuous unboxing video when opening your parcel and report any damaged, cracked, defective, or incorrect item within <strong className="text-white">24 hours of receipt</strong> along with Order ID <strong className="text-white">{order.orderNumber}</strong>.
+            </p>
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-[11px] text-slate-300 pt-0.5">
+              <a
+                href={getWhatsAppLink(`Hello TeqqnoWorld Support, regarding Order ID: ${order.orderNumber}`)}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-[#25D366] hover:underline font-medium"
+              >
+                WhatsApp: {BUSINESS_CONFIG.contact.whatsapp}
+              </a>
+              <a
+                href={`mailto:${BUSINESS_CONFIG.contact.secondaryEmail}`}
+                className="text-[#FF7A00] hover:underline font-medium"
+              >
+                {BUSINESS_CONFIG.contact.secondaryEmail}
+              </a>
+              <a
+                href={`mailto:${BUSINESS_CONFIG.contact.email}`}
+                className="text-slate-300 hover:text-white hover:underline font-medium"
+              >
+                {BUSINESS_CONFIG.contact.email}
+              </a>
+            </div>
+          </div>
+          <a
+            href="/return-replacement-policy"
+            onClick={(e) => {
+              if (onNavigate && !e.metaKey && !e.ctrlKey && !e.shiftKey && !e.altKey && e.button === 0) {
+                e.preventDefault();
+                onNavigate('/return-replacement-policy');
+              }
+            }}
+            className="bg-[#FF7A00] hover:bg-[#e66e00] text-white text-xs font-semibold px-4 py-2.5 rounded-xl transition-colors shrink-0 text-center"
+          >
+            View Full Policy &rarr;
+          </a>
         </div>
 
       </div>
