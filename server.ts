@@ -5832,8 +5832,8 @@ const seoAndFeedOptions = {
   },
 };
 
-registerProductFeedRoutes(app, seoAndFeedOptions);
 registerSeoPublicEndpoints(app, seoAndFeedOptions);
+registerProductFeedRoutes(app, seoAndFeedOptions);
 
 // ==============================================================================
 // 4. DEV SERVER & STATIC FILE SERVING

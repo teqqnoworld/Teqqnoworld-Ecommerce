@@ -643,11 +643,33 @@ async function buildSitemapXml(options: ProductFeedOptions): Promise<string> {
 
 /**
  * Registers:
+ *  0. Canonical host 301 redirect: www.teqqnoworld.com -> https://teqqnoworld.com
  *  1. GET /robots.txt
  *  2. GET /sitemap.xml
  *  3. Server-side 301 redirect middleware for legacy paths, trailing slashes & aliases
  */
 export function registerSeoPublicEndpoints(app: Express, options: ProductFeedOptions): void {
+  // 0. Canonical host 301 redirect (www.teqqnoworld.com -> https://teqqnoworld.com)
+  //    Strictly scoped to www.teqqnoworld.com only; never alters teqqnoworld.in, localhost, or API routes.
+  app.use((req: Request, res: Response, next: NextFunction) => {
+    if (req.method !== 'GET' && req.method !== 'HEAD') {
+      return next();
+    }
+    const reqPath = req.path || '/';
+    if (reqPath.startsWith('/api/') || reqPath === '/api' || reqPath === '/health') {
+      return next();
+    }
+    const rawForwardedHost = req.headers['x-forwarded-host'];
+    const rawHost =
+      (typeof rawForwardedHost === 'string' && rawForwardedHost.split(',')[0].trim()) ||
+      (typeof req.headers.host === 'string' ? req.headers.host.trim() : '');
+    const normalizedHost = rawHost.toLowerCase().replace(/:\d+$/, '');
+    if (normalizedHost === 'www.teqqnoworld.com') {
+      return res.redirect(301, `${CANONICAL_ORIGIN}${req.originalUrl || '/'}`);
+    }
+    return next();
+  });
+
   // 1. Dynamic robots.txt
   app.get('/robots.txt', (_req: Request, res: Response) => {
     res.setHeader('Content-Type', 'text/plain; charset=utf-8');
