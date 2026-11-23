@@ -15,6 +15,7 @@ import {
   registerSeoPublicEndpoints,
   resolveSeoPageContext,
 } from './server/seoMiddleware.ts';
+import { BUSINESS_CONFIG } from './src/config/business.ts';
 
 dotenv.config();
 
@@ -651,7 +652,7 @@ function generateOrderEmailHtml(data: OrderConfirmationPayload, media: PreparedO
                 <div style="font-size: 12px; color: #9CA3AF; margin-top: 4px; margin-bottom: 14px;">
                   Our production leads are ready to share your high-res mockup on WhatsApp.
                 </div>
-                <a href="https://wa.me/918309394934?text=Hi%20TeqqnoWorld,%20checking%20status%20for%20Order%20%23${displayOrderNum}" style="display: inline-block; background-color: #1EBE5D; color: #FFFFFF; font-size: 13px; font-weight: 700; text-decoration: none; padding: 10px 22px; border-radius: 10px; box-shadow: 0 4px 15px rgba(30, 190, 93, 0.3);">
+                <a href="https://wa.me/${BUSINESS_CONFIG.contact.whatsappDigits}?text=Hi%20TeqqnoWorld,%20checking%20status%20for%20Order%20%23${displayOrderNum}" style="display: inline-block; background-color: #1EBE5D; color: #FFFFFF; font-size: 13px; font-weight: 700; text-decoration: none; padding: 10px 22px; border-radius: 10px; box-shadow: 0 4px 15px rgba(30, 190, 93, 0.3);">
                   Chat with Production Team on WhatsApp
                 </a>
               </div>
@@ -662,7 +663,8 @@ function generateOrderEmailHtml(data: OrderConfirmationPayload, media: PreparedO
           <tr>
             <td style="background-color: #0E0F12; padding: 20px 32px; text-align: center; border-top: 1px solid #24252D;">
               <div style="font-size: 11px; color: #6B7280; line-height: 1.5;">
-                TeqqnoWorld Factory • Udyog Vihar Phase 4, Gurugram, HR 122016<br />
+                ${BUSINESS_CONFIG.name} • ${BUSINESS_CONFIG.address.full}<br />
+                Phone / WhatsApp: ${BUSINESS_CONFIG.contact.phone} • Email: ${BUSINESS_CONFIG.contact.secondaryEmail} / ${BUSINESS_CONFIG.contact.email}<br />
                 All orders backed by 100% Quality Print Guarantee & Digital Pre-Production Proof Sign-Off.
               </div>
             </td>

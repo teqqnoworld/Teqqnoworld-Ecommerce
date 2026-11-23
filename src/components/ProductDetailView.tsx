@@ -54,10 +54,19 @@ import { PlainPoloModalCommitPayload } from './plain-polo-studio/plainPoloStudio
 import { generateItemMockupSnapshots } from '../utils/mockupSnapshot';
 import { VoiceInstructionsCard } from './VoiceInstructionsCard';
 import { DelhiveryPincodeChecker } from './DelhiveryPincodeChecker';
+import {
+  SEO_CATEGORIES,
+  getCategoryForProduct,
+  getProductH1,
+  getProductPath,
+} from '../config/seoRoutes';
 
 interface ProductDetailViewProps {
   product: Product;
   onBack: () => void;
+  onNavigateHome?: () => void;
+  onSelectCategory?: (categorySlug: string) => void;
+  onSelectProduct?: (product: Product) => void;
   onCustomize: (productId: string) => void;
   onAddToCart: (item: CartItem) => void;
   onRequestQuote: (product: Product, qty: number) => void;
@@ -144,13 +153,13 @@ export const BRANDING_UMBRELLA_INFOGRAPHIC_BANNERS = [
   {
     id: 'umbrella-banner-intro-colors',
     src: '/assets/aistudio/Custom_Printed_Branding_Umbrella_Infographic__3__911d37fa.png',
-    alt: 'Custom Printed Branding Umbrella - 6 ft Width, 7 ft Height, Available in Red, Blue, Green, Orange + White with Screen & Sublimation Printing',
+    alt: 'Custom Printed Branding Umbrella - 5 ft Width, 7 ft Height, Available in Red, Blue, Green, Orange + White with Screen & Sublimation Printing',
     title: 'Custom Printed Branding Umbrella & Color Options',
   },
   {
     id: 'umbrella-banner-dimensions',
     src: '/assets/aistudio/5_Feet_Promotional_Umbrella_Infographic_3eec08b7.png',
-    alt: '5 Feet Promotional Umbrella Product Dimensions & Component Details - 6 ft Width, 7 ft Height, Tripod Base, Adjustable Center Pole',
+    alt: '5 Feet Promotional Umbrella Product Dimensions & Component Details - 5 ft Width, 7 ft Height, Tripod Base, Adjustable Center Pole',
     title: 'Product Dimensions & Component Details',
   },
   {
@@ -162,7 +171,7 @@ export const BRANDING_UMBRELLA_INFOGRAPHIC_BANNERS = [
   {
     id: 'umbrella-banner-promotions-showcase',
     src: '/assets/aistudio/Branded_Umbrellas_for_Outdoor_Promotions_f738b3b1.png',
-    alt: '5 Feet Promotional Umbrella for Outdoor Promotions & Business Branding - Real World Client Activations (Coca-Cola, Pepsi, Amazon, Oppo, Vivo)',
+    alt: '5 Feet Promotional Umbrella for Outdoor Promotions & Business Branding - Retail Stores, Exhibitions, Events & Brand Activations',
     title: 'Outdoor Promotions & Brand Activations',
   },
   {
@@ -292,7 +301,7 @@ export const CUSTOM_CAPS_INFOGRAPHIC_BANNERS = [
   {
     id: 'caps-banner-color-showcase',
     src: '/assets/aistudio/Custom_Caps_Feature_Showcase_502131d4.png',
-    alt: 'Custom Caps Feature Showcase - 8 Color Variants, Adjustable Snapback, Custom Caps for Teams, Events & Your Brand',
+    alt: 'Custom Caps Feature Showcase - 6 Colour Variants, Adjustable Snapback, Custom Caps for Teams, Events & Your Brand',
     title: 'Color Variants & Features Showcase',
   },
   {
@@ -354,19 +363,19 @@ export const MARS_POLO_INFOGRAPHIC_BANNERS = [
   {
     id: 'mars-polo-banner-quality-customization',
     src: '/assets/aistudio/230_GSM_Premium_Polo_Quality_2f5dba54.png',
-    alt: 'Product Quality & Customization - Premium MARS Fabric (230 GSM), Custom Logo Printing, Bulk & Corporate Orders, Soft Feel, Durable Stitching, Breathable & Comfortable',
-    title: 'Product Quality & Customization - MARS Fabric 230 GSM',
+    alt: 'Product Quality & Customization - Premium MARS Fabric (220 GSM), Custom Logo Printing, Bulk & Corporate Orders, Soft Feel, Durable Stitching, Breathable & Comfortable',
+    title: 'Product Quality & Customization - MARS Fabric 220 GSM',
   },
   {
     id: 'mars-polo-banner-product-features',
     src: '/assets/aistudio/230_GSM_Product_Features_Showcase_6aa94d75.png',
-    alt: 'Product Features Showcase - MARS Fabric (230 GSM), Premium Comfort, High Durability, Breathable Fabric, Color Fastness, Perfect Fit',
+    alt: 'Product Features Showcase - MARS Fabric (220 GSM), Premium Comfort, High Durability, Breathable Fabric, Color Fastness, Perfect Fit',
     title: 'Product Features Showcase',
   },
   {
     id: 'mars-polo-banner-15-colors',
     src: '/assets/aistudio/Premium_Polo_Color_Options_4177c894.png',
-    alt: 'Colour Options - Available in 15 Premium Colours (230 GSM): Black, Navy, Red, Grey, White, Maroon, Royal, Orange, Purple, Pink, Yellow, Sky, D. Green, Lime, L. Green',
+    alt: 'Colour Options - Available in 15 Premium Colours (220 GSM): Black, Navy, Red, Grey, White, Maroon, Royal, Orange, Purple, Pink, Yellow, Sky, D. Green, Lime, L. Green',
     title: 'Available in 15 Premium Colours',
   },
   {
@@ -378,7 +387,7 @@ export const MARS_POLO_INFOGRAPHIC_BANNERS = [
   {
     id: 'mars-polo-banner-why-choose-teqqnoworld',
     src: '/assets/aistudio/Premium_230_GSM_Polo_Promotion_d60debc7.png',
-    alt: 'Why Choose TeqqnoWorld - Premium MARS Fabric 230 GSM, High-Quality Custom Printing, Bulk & Corporate Orders, On-Time Delivery, Solid Colour Classic Polo Design',
+    alt: 'Why Choose TeqqnoWorld - Premium MARS Fabric 220 GSM, High-Quality Custom Printing, Bulk & Corporate Orders, On-Time Delivery, Solid Colour Classic Polo Design',
     title: 'Why Choose TeqqnoWorld',
   },
   {
@@ -394,6 +403,9 @@ export const POLO_TSHIRT_INFOGRAPHIC_BANNERS = MARS_POLO_INFOGRAPHIC_BANNERS;
 export const ProductDetailView: React.FC<ProductDetailViewProps> = ({
   product,
   onBack,
+  onNavigateHome,
+  onSelectCategory,
+  onSelectProduct,
   onCustomize,
   onAddToCart,
   onRequestQuote,
@@ -772,7 +784,7 @@ export const ProductDetailView: React.FC<ProductDetailViewProps> = ({
     { id: 'back', label: 'Back View', type: 'mockup', orientation: 'back' as const },
     { id: 'collar', label: (isPlainPolo || isJoabPolo || isMattyPolo) ? 'Ribbed Collar' : 'Tipping Collar', type: 'detail', focus: 'collar' },
     { id: 'sleeve', label: (isPlainPolo || isJoabPolo || isMattyPolo) ? 'Ribbed Sleeves' : 'Tipping Sleeves', type: 'detail', focus: 'sleeve' },
-    { id: 'fabric', label: isMattyPolo ? '230 GSM Matty' : (isJoabPolo ? '220 GSM MARS' : (isPlainPolo ? '240 GSM Fabric' : '260 GSM Fabric')), type: 'detail', focus: 'fabric' },
+    { id: 'fabric', label: isMattyPolo ? '230 GSM Matty' : (isJoabPolo ? '220 GSM MARS' : '230 GSM Cotton'), type: 'detail', focus: 'fabric' },
     { id: 'embroidery', label: 'DTF & Embroidery', type: 'detail', focus: 'embroidery' },
   ];
 
@@ -995,8 +1007,29 @@ export const ProductDetailView: React.FC<ProductDetailViewProps> = ({
     }, 1500);
   };
 
-  // Related products filtered from catalog
-  const relatedProducts = PRODUCTS.filter(p => p.id !== product.id).slice(0, 4);
+  const productDisplayTitle = getProductH1(product.id, product.name);
+  const productCategorySeo = getCategoryForProduct(product);
+  const productCategoryHref = productCategorySeo ? `/category/${productCategorySeo.slug}` : '/catalog';
+
+  // Related products: prioritize same SEO category first, then complementary catalog items
+  const relatedProducts = (() => {
+    const others = PRODUCTS.filter((p) => p.id !== product.id);
+    const sameCategory = others.filter(
+      (p) => getCategoryForProduct(p)?.slug === productCategorySeo?.slug
+    );
+    const otherCategories = others.filter(
+      (p) => getCategoryForProduct(p)?.slug !== productCategorySeo?.slug
+    );
+    return [...sameCategory, ...otherCategories].slice(0, 4);
+  })();
+
+  const handleOpenRelatedProduct = (rel: Product) => {
+    if (onSelectProduct) {
+      onSelectProduct(rel);
+    } else {
+      onCustomize(rel.id);
+    }
+  };
 
   return (
     <div className="bg-[#FAF9FD] min-h-screen text-[#0B0B0D] pb-36 sm:pb-28">
@@ -1004,25 +1037,69 @@ export const ProductDetailView: React.FC<ProductDetailViewProps> = ({
       {/* Breadcrumb Navigation Ribbon */}
       <div className="bg-white border-b border-[#E5E5EA]">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 flex items-center justify-between text-xs text-zinc-500">
-          <div className="flex items-center gap-2 overflow-x-auto whitespace-nowrap py-1">
-            <button 
-              onClick={onBack}
-              className="hover:text-[#FF7A00] transition-colors font-medium flex items-center gap-1 group cursor-pointer"
-            >
-              <ArrowLeft className="w-3.5 h-3.5 group-hover:-translate-x-1 transition-transform duration-300" />
-              <span>Back</span>
-            </button>
-            <span>/</span>
-            <span className="hover:text-zinc-800 cursor-pointer">Home</span>
-            <span>/</span>
-            <span className="capitalize hover:text-zinc-800 cursor-pointer">{product.category}</span>
-            <span>/</span>
-            <span className="text-zinc-800 font-semibold truncate max-w-xs sm:max-w-md">
-              {product.name}
-            </span>
-          </div>
+          <nav aria-label="Breadcrumb" className="min-w-0">
+            <ol className="flex items-center gap-2 overflow-x-auto whitespace-nowrap py-1">
+              <li className="shrink-0">
+                <a
+                  href={productCategoryHref}
+                  onClick={(e) => {
+                    if (!e.metaKey && !e.ctrlKey && !e.shiftKey && !e.altKey && e.button === 0) {
+                      e.preventDefault();
+                      onBack();
+                    }
+                  }}
+                  className="hover:text-[#FF7A00] transition-colors font-medium flex items-center gap-1 group cursor-pointer"
+                >
+                  <ArrowLeft className="w-3.5 h-3.5 group-hover:-translate-x-1 transition-transform duration-300" />
+                  <span>Back</span>
+                </a>
+              </li>
+              <li aria-hidden="true" className="text-zinc-300">/</li>
+              <li className="shrink-0">
+                <a
+                  href="/"
+                  onClick={(e) => {
+                    if (!e.metaKey && !e.ctrlKey && !e.shiftKey && !e.altKey && e.button === 0) {
+                      e.preventDefault();
+                      if (onNavigateHome) {
+                        onNavigateHome();
+                      } else {
+                        onBack();
+                      }
+                    }
+                  }}
+                  className="hover:text-[#FF7A00] transition-colors"
+                >
+                  Home
+                </a>
+              </li>
+              <li aria-hidden="true" className="text-zinc-300">/</li>
+              <li className="shrink-0">
+                <a
+                  href={productCategoryHref}
+                  onClick={(e) => {
+                    if (!e.metaKey && !e.ctrlKey && !e.shiftKey && !e.altKey && e.button === 0) {
+                      e.preventDefault();
+                      if (productCategorySeo && onSelectCategory) {
+                        onSelectCategory(productCategorySeo.slug);
+                      } else {
+                        onBack();
+                      }
+                    }
+                  }}
+                  className="hover:text-[#FF7A00] transition-colors"
+                >
+                  {productCategorySeo ? productCategorySeo.name : 'Catalog'}
+                </a>
+              </li>
+              <li aria-hidden="true" className="text-zinc-300">/</li>
+              <li aria-current="page" className="text-zinc-800 font-semibold truncate max-w-xs sm:max-w-md">
+                {productDisplayTitle}
+              </li>
+            </ol>
+          </nav>
 
-          <div className="hidden sm:flex items-center gap-3 font-mono text-[11px] text-zinc-400">
+          <div className="hidden sm:flex items-center gap-3 font-mono text-[11px] text-zinc-400 shrink-0 ml-4">
             <span>SKU: {product.id.toUpperCase()}</span>
             <span>·</span>
             <span className="text-emerald-600 font-semibold">18% ITC GST Invoice</span>
@@ -1575,7 +1652,7 @@ export const ProductDetailView: React.FC<ProductDetailViewProps> = ({
                       <div className="w-full h-full relative overflow-hidden flex items-center justify-center bg-zinc-100">
                         <img
                           src={isCap ? (selectedColor.imageFront || '/assets/caps/black.webp') : (viewOrientation === 'back' ? poloImages.back : poloImages.front)}
-                          alt="Detail Zoom"
+                          alt={`${product.name} – ${selectedColor.name} ${isCap ? 'Front Crown Detail' : (viewOrientation === 'back' ? 'Back Yoke Detail' : 'Collar & Fabric Detail')}`}
                           className="w-48 h-48 object-cover object-top -translate-y-3 scale-150 drop-shadow-xs"
                         />
                         <div className="absolute bottom-1 inset-x-0 text-center bg-black/60 backdrop-blur-2xs py-0.5">
@@ -1653,7 +1730,7 @@ export const ProductDetailView: React.FC<ProductDetailViewProps> = ({
                       <div className="w-11 h-11 rounded-lg border border-zinc-200/80 shadow-2xs flex items-center justify-center overflow-hidden bg-zinc-50 p-1 shrink-0">
                         <img
                           src={gv.image || '/assets/aistudio/Blue_Canopy_Booth_Dimensions_Infographic_320b507e.webp'}
-                          alt={gv.label}
+                          alt={`${product.name} (${selectedCanopySize}) – ${gv.label}`}
                           className="w-full h-full object-contain"
                         />
                       </div>
@@ -1686,7 +1763,7 @@ export const ProductDetailView: React.FC<ProductDetailViewProps> = ({
                       <div className="w-12 h-10 rounded-lg border border-zinc-200/80 shadow-2xs flex items-center justify-center overflow-hidden bg-zinc-50 p-1">
                         <img
                           src={gv.image || umbrellaImages.front}
-                          alt={gv.label}
+                          alt={`${product.name} (${selectedColor.name}) – ${gv.label}`}
                           className="w-full h-full object-contain"
                         />
                       </div>
@@ -1714,7 +1791,7 @@ export const ProductDetailView: React.FC<ProductDetailViewProps> = ({
                       <div className="w-14 h-11 rounded-lg border border-zinc-200/80 shadow-2xs flex items-center justify-center overflow-hidden bg-zinc-50 p-1">
                         <img
                           src={gv.image || '/assets/aistudio/Blank_White_Ceramic_Mug_b82bfadb.webp'}
-                          alt={gv.label}
+                          alt={`Promotional Ceramic Mug – ${gv.label}`}
                           className="w-full h-full object-contain"
                         />
                       </div>
@@ -1742,7 +1819,7 @@ export const ProductDetailView: React.FC<ProductDetailViewProps> = ({
                       <div className="w-11 h-11 rounded-lg border border-zinc-200/80 shadow-2xs flex items-center justify-center overflow-hidden bg-zinc-50 p-1 shrink-0">
                         <img
                           src={gv.image || '/assets/standee/front.webp'}
-                          alt={gv.label}
+                          alt={`Rollup Standee (3 ft × 6 ft) – ${gv.label}`}
                           className="w-full h-full object-contain"
                         />
                       </div>
@@ -1753,7 +1830,7 @@ export const ProductDetailView: React.FC<ProductDetailViewProps> = ({
                   ))}
                 </div>
               ) : isPromoTable ? (
-                <div className="grid grid-cols-4 gap-2 pt-1 px-0.5">
+                <div className="grid grid-cols-4 gap-2.5 pt-1 px-0.5">
                   {galleryViews.map((gv, idx) => (
                     <button
                       key={gv.id}
@@ -1770,7 +1847,7 @@ export const ProductDetailView: React.FC<ProductDetailViewProps> = ({
                       <div className="w-12 h-10 rounded-lg border border-zinc-200/80 shadow-2xs flex items-center justify-center overflow-hidden bg-zinc-50 p-0.5">
                         <img
                           src={gv.image || '/assets/promo-table/front.webp'}
-                          alt={gv.label}
+                          alt={`Portable Promo Table – ${gv.label}`}
                           className="w-full h-full object-contain"
                         />
                       </div>
@@ -1801,13 +1878,13 @@ export const ProductDetailView: React.FC<ProductDetailViewProps> = ({
                         {gv.id === 'front' ? (
                           <img 
                             src={isCap ? (selectedColor.imageFront || '/assets/caps/black.webp') : poloImages.front} 
-                            alt="Front View" 
+                            alt={`${product.name} (${selectedColor.name}) – Front View`} 
                             className="w-full h-full object-contain p-0.5" 
                           />
                         ) : gv.id === 'back' || gv.id === 'strap' ? (
                           <img 
                             src={isCap ? (selectedColor.imageBack || selectedColor.imageFront || '/assets/caps/black.webp') : poloImages.back} 
-                            alt="Back View" 
+                            alt={`${product.name} (${selectedColor.name}) – Back View`} 
                             className="w-full h-full object-contain p-0.5" 
                           />
                         ) : (
@@ -2210,14 +2287,19 @@ export const ProductDetailView: React.FC<ProductDetailViewProps> = ({
               {/* Product Title & Brand */}
               <div>
                 <h1 className="font-display text-xl sm:text-2xl font-bold text-[#0B0B0D] tracking-tight leading-snug">
-                  {product.name}
+                  {productDisplayTitle}
                 </h1>
+                {product.shortDesc && (
+                  <p className="text-xs sm:text-sm text-zinc-600 mt-1 leading-relaxed">
+                    {product.shortDesc}
+                  </p>
+                )}
 
                 {/* Specification Badges with Checkmarks (matching screenshot 1) */}
                 <div className="flex flex-wrap items-center gap-2 mt-3.5">
                   {(product.features && product.features.length > 0 ? product.features.slice(0, 5) : [
                     'Tshirts Material - 100% Pure Cotton',
-                    '250 - 260 GSM',
+                    '230 GSM',
                     `Printing - ${selectedPrintMethod}`,
                     'Soft & Breathable Fabric',
                     'Perfect for Daily Wear'
@@ -2263,7 +2345,7 @@ export const ProductDetailView: React.FC<ProductDetailViewProps> = ({
                   )}
                 </div>
                 <div className="text-[11px] font-mono text-zinc-600 font-medium">
-                  {formatCurrencyINR(unitPrice)}/{unitLabel || 'pc'} · Inclusive of All Taxes
+                  {formatCurrencyINR(unitPrice)}/{unitLabel || 'pc'} · GST 18% Extra on Invoice
                 </div>
               </div>
 
@@ -2741,9 +2823,9 @@ export const ProductDetailView: React.FC<ProductDetailViewProps> = ({
               <div className="inline-flex items-center gap-1.5 px-3.5 py-1 rounded-full bg-[#FFF3EB] border border-[#FFE2CC] text-xs font-semibold text-[#FF7A00]">
                 <span>Product Overview & Full Specifications</span>
               </div>
-              <h3 className="font-display text-2xl sm:text-3xl font-bold text-[#0B0B0D] tracking-tight">
+              <h2 className="font-display text-2xl sm:text-3xl font-bold text-[#0B0B0D] tracking-tight">
                 Everything You Need to Know About Our Ceramic Mugs
-              </h3>
+              </h2>
               <p className="text-xs sm:text-sm text-zinc-500">
                 Detailed dimensions, printing specifications, everyday durability, and the 5-step order fulfillment process.
               </p>
@@ -2784,9 +2866,9 @@ export const ProductDetailView: React.FC<ProductDetailViewProps> = ({
               <div className="inline-flex items-center gap-1.5 px-3.5 py-1 rounded-full bg-[#FFF3EB] border border-[#FFE2CC] text-xs font-semibold text-[#FF7A00]">
                 <span>Product Overview & Full Specifications</span>
               </div>
-              <h3 className="font-display text-2xl sm:text-3xl font-bold text-[#0B0B0D] tracking-tight">
+              <h2 className="font-display text-2xl sm:text-3xl font-bold text-[#0B0B0D] tracking-tight">
                 Everything You Need to Know About Our Promo Tables
-              </h3>
+              </h2>
               <p className="text-xs sm:text-sm text-zinc-500">
                 Full 360° views, exact dimensions, heavy-duty construction details, and 4-step ordering guide.
               </p>
@@ -2827,11 +2909,11 @@ export const ProductDetailView: React.FC<ProductDetailViewProps> = ({
               <div className="inline-flex items-center gap-1.5 px-3.5 py-1 rounded-full bg-[#FFF3EB] border border-[#FFE2CC] text-xs font-semibold text-[#FF7A00]">
                 <span>Product Overview & Full Specifications</span>
               </div>
-              <h3 className="font-display text-2xl sm:text-3xl font-bold text-[#0B0B0D] tracking-tight">
+              <h2 className="font-display text-2xl sm:text-3xl font-bold text-[#0B0B0D] tracking-tight">
                 Everything You Need to Know About Our Branding Umbrellas
-              </h3>
+              </h2>
               <p className="text-xs sm:text-sm text-zinc-500">
-                Full 6 ft canopy specifications, weather protection fabric, multi-color branding options, and 4-step ordering guide.
+                Full 5 ft canopy specifications, weather protection fabric, multi-color branding options, and 4-step ordering guide.
               </p>
             </div>
 
@@ -2870,9 +2952,9 @@ export const ProductDetailView: React.FC<ProductDetailViewProps> = ({
               <div className="inline-flex items-center gap-1.5 px-3.5 py-1 rounded-full bg-[#FFF3EB] border border-[#FFE2CC] text-xs font-semibold text-[#FF7A00]">
                 <span>Product Overview & Full Specifications</span>
               </div>
-              <h3 className="font-display text-2xl sm:text-3xl font-bold text-[#0B0B0D] tracking-tight">
+              <h2 className="font-display text-2xl sm:text-3xl font-bold text-[#0B0B0D] tracking-tight">
                 Everything You Need to Know About Our Visiting Cards
-              </h3>
+              </h2>
               <p className="text-xs sm:text-sm text-zinc-500">
                 300 GSM pure art paper, high-definition digital printing, double-sided layouts, and 4-step ordering guide.
               </p>
@@ -2913,9 +2995,9 @@ export const ProductDetailView: React.FC<ProductDetailViewProps> = ({
               <div className="inline-flex items-center gap-1.5 px-3.5 py-1 rounded-full bg-[#FFF3EB] border border-[#FFE2CC] text-xs font-semibold text-[#FF7A00]">
                 <span>Product Overview & Full Specifications</span>
               </div>
-              <h3 className="font-display text-2xl sm:text-3xl font-bold text-[#0B0B0D] tracking-tight">
+              <h2 className="font-display text-2xl sm:text-3xl font-bold text-[#0B0B0D] tracking-tight">
                 Everything You Need to Know About Our Rollup Standees
-              </h3>
+              </h2>
               <p className="text-xs sm:text-sm text-zinc-500">
                 Full 3 ft × 6 ft retractable banner specifications, heavy-duty aluminium base, HD UV flex printing, and 4-step ordering guide.
               </p>
@@ -2956,9 +3038,9 @@ export const ProductDetailView: React.FC<ProductDetailViewProps> = ({
               <div className="inline-flex items-center gap-1.5 px-3.5 py-1 rounded-full bg-[#FFF3EB] border border-[#FFE2CC] text-xs font-semibold text-[#FF7A00]">
                 <span>Product Overview & Full Specifications</span>
               </div>
-              <h3 className="font-display text-2xl sm:text-3xl font-bold text-[#0B0B0D] tracking-tight">
+              <h2 className="font-display text-2xl sm:text-3xl font-bold text-[#0B0B0D] tracking-tight">
                 Everything You Need to Know About Our Canopy Kiosks
-              </h3>
+              </h2>
               <p className="text-xs sm:text-sm text-zinc-500">
                 4×4 ft & 8×8 ft stall specifications, heavy-duty metal frame, weather-resistant fabric, and 4-step ordering guide.
               </p>
@@ -2999,11 +3081,11 @@ export const ProductDetailView: React.FC<ProductDetailViewProps> = ({
               <div className="inline-flex items-center gap-1.5 px-3.5 py-1 rounded-full bg-[#FFF3EB] border border-[#FFE2CC] text-xs font-semibold text-[#FF7A00]">
                 <span>Product Overview & Full Specifications</span>
               </div>
-              <h3 className="font-display text-2xl sm:text-3xl font-bold text-[#0B0B0D] tracking-tight">
+              <h2 className="font-display text-2xl sm:text-3xl font-bold text-[#0B0B0D] tracking-tight">
                 Everything You Need to Know About Our Customized Caps
-              </h3>
+              </h2>
               <p className="text-xs sm:text-sm text-zinc-500">
-                100% breathable pure cotton, adjustable snapback fit, 8 vibrant color choices, and 5-step seamless order processing.
+                100% breathable pure cotton, adjustable snapback fit, 6 vibrant colour choices, and 5-step seamless order processing.
               </p>
             </div>
 
@@ -3042,24 +3124,39 @@ export const ProductDetailView: React.FC<ProductDetailViewProps> = ({
               <div className="inline-flex items-center gap-1.5 px-3.5 py-1 rounded-full bg-[#FFF3EB] border border-[#FFE2CC] text-xs font-semibold text-[#FF7A00]">
                 <span>Product Overview & Full Specifications</span>
               </div>
-              <h3 className="font-display text-2xl sm:text-3xl font-bold text-[#0B0B0D] tracking-tight">
+              <h2 className="font-display text-2xl sm:text-3xl font-bold text-[#0B0B0D] tracking-tight">
                 Everything You Need to Know About Our Polo T-Shirts
-              </h3>
+              </h2>
               <p className="text-xs sm:text-sm text-zinc-500">
-                Premium 220 GSM MARS fabric, 15 vibrant corporate colors, high-definition printing & embroidery, and seamless 4-step delivery.
+                {isJoabPolo
+                  ? 'Premium 220 GSM MARS fabric, 15 vibrant corporate colours, high-definition printing & embroidery, and seamless 4-step delivery.'
+                  : isMattyPolo
+                  ? 'Premium 230 GSM Fine Matty fabric, 15 vibrant corporate colours, high-definition printing & embroidery, and seamless 4-step delivery.'
+                  : isPlainPolo
+                  ? '100% pure cotton 230 GSM fabric, 16 solid corporate colours, high-definition printing & embroidery, and seamless 4-step delivery.'
+                  : '100% pure cotton 230 GSM pique fabric with contrast tipping, 15 corporate colours, high-definition printing & embroidery, and seamless 4-step delivery.'}
               </p>
             </div>
 
             {/* Line-wise Stack of 6 Panoramic Banners */}
             <div className="space-y-4 sm:space-y-6">
-              {POLO_TSHIRT_INFOGRAPHIC_BANNERS.map((banner, index) => (
+              {POLO_TSHIRT_INFOGRAPHIC_BANNERS.map((banner, index) => {
+                const poloBannerAlt = isJoabPolo
+                  ? banner.alt
+                  : banner.alt
+                      .replace(/Premium MARS Fabric \(220 GSM\)/g, isMattyPolo ? '230 GSM Fine Matty Fabric' : '100% Pure Cotton (230 GSM)')
+                      .replace(/MARS Fabric \(220 GSM\)/g, isMattyPolo ? '230 GSM Fine Matty Fabric' : '100% Pure Cotton (230 GSM)')
+                      .replace(/Premium MARS Fabric 220 GSM/g, isMattyPolo ? '230 GSM Fine Matty Fabric' : '100% Pure Cotton 230 GSM')
+                      .replace(/\(220 GSM\)/g, '(230 GSM)')
+                      .replace(/15 Premium Colours/g, isPlainPolo ? '16 Solid Corporate Colours' : '15 Premium Colours');
+                return (
                 <div
                   key={banner.id}
                   className="bg-white rounded-2xl sm:rounded-3xl border border-zinc-200/90 shadow-xs hover:shadow-md transition-shadow duration-300 overflow-hidden flex items-center justify-center p-1 sm:p-2"
                 >
                   <img
                     src={banner.src}
-                    alt={banner.alt}
+                    alt={poloBannerAlt}
                     width={2170}
                     height={725}
                     loading={index === 0 ? 'eager' : 'lazy'}
@@ -3067,7 +3164,8 @@ export const ProductDetailView: React.FC<ProductDetailViewProps> = ({
                     className="w-full h-auto object-contain rounded-xl sm:rounded-2xl select-none"
                   />
                 </div>
-              ))}
+                );
+              })}
             </div>
           </section>
         )}
@@ -3075,39 +3173,81 @@ export const ProductDetailView: React.FC<ProductDetailViewProps> = ({
         {/* ========================================================================= */}
         {/* RELATED PRODUCTS ("You May Also Like")                                   */}
         {/* ========================================================================= */}
-        <div className="mt-16 sm:mt-20 pt-10 border-t border-[#E5E5EA]">
-          <div className="flex items-center justify-between mb-6">
+        <section aria-label="Related Custom Printed Products" className="mt-16 sm:mt-20 pt-10 border-t border-[#E5E5EA]">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
             <div>
-              <h3 className="font-display text-2xl font-bold text-[#0B0B0D] tracking-tight">
+              <h2 className="font-display text-2xl font-bold text-[#0B0B0D] tracking-tight">
                 You May Also Like
-              </h3>
+              </h2>
               <p className="text-xs sm:text-sm text-zinc-500 mt-0.5">
                 Popular companion merchandise ordered by top corporate clients.
               </p>
             </div>
-            <button
-              onClick={onBack}
-              className="text-xs font-semibold text-[#FF7A00] hover:underline"
-            >
-              View Full Catalog →
-            </button>
+            <div className="flex flex-wrap items-center gap-4">
+              {productCategorySeo && (
+                <a
+                  href={`/category/${productCategorySeo.slug}`}
+                  onClick={(e) => {
+                    if (!e.metaKey && !e.ctrlKey && !e.shiftKey && !e.altKey && e.button === 0) {
+                      e.preventDefault();
+                      if (onSelectCategory) {
+                        onSelectCategory(productCategorySeo.slug);
+                      } else {
+                        onBack();
+                      }
+                    }
+                  }}
+                  className="text-xs font-semibold text-zinc-700 hover:text-[#FF7A00] hover:underline transition-colors"
+                >
+                  All {productCategorySeo.name} →
+                </a>
+              )}
+              <a
+                href="/catalog"
+                onClick={(e) => {
+                  if (!e.metaKey && !e.ctrlKey && !e.shiftKey && !e.altKey && e.button === 0) {
+                    e.preventDefault();
+                    onBack();
+                  }
+                }}
+                className="text-xs font-semibold text-[#FF7A00] hover:underline"
+              >
+                View Full Catalog →
+              </a>
+            </div>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
             {relatedProducts.map((rel) => {
               const isRelWishlisted = wishlistIds.includes(rel.id);
+              const relHref = getProductPath(rel.slug || rel.id);
+              const relDisplayTitle = getProductH1(rel.id, rel.name);
+              const relCategorySeo = getCategoryForProduct(rel);
+              const relCategoryHref = relCategorySeo ? `/category/${relCategorySeo.slug}` : '/catalog';
               return (
               <div
                 key={rel.id}
                 className="bg-white rounded-2xl border border-zinc-200 overflow-hidden shadow-xs hover:shadow-md transition-all flex flex-col justify-between"
               >
-                <div className="relative aspect-[16/9] bg-zinc-100 overflow-hidden p-4 flex items-center justify-center">
-                  <ProductMockupCanvas
-                    productType={rel.productType || 'polo'}
-                    color={rel.colors[0]}
-                    className="w-full h-full drop-shadow-xs"
-                  />
-                  <div className="absolute top-2 left-2 bg-zinc-900/80 text-white text-[10px] font-mono px-2 py-0.5 rounded">
+                <div className="relative aspect-[16/9] bg-zinc-100 overflow-hidden">
+                  <a
+                    href={relHref}
+                    onClick={(e) => {
+                      if (!e.metaKey && !e.ctrlKey && !e.shiftKey && !e.altKey && e.button === 0) {
+                        e.preventDefault();
+                        handleOpenRelatedProduct(rel);
+                      }
+                    }}
+                    aria-label={`View ${relDisplayTitle}`}
+                    className="w-full h-full p-4 flex items-center justify-center"
+                  >
+                    <ProductMockupCanvas
+                      productType={rel.productType || 'polo'}
+                      color={rel.colors[0]}
+                      className="w-full h-full drop-shadow-xs"
+                    />
+                  </a>
+                  <div className="absolute top-2 left-2 bg-zinc-900/80 text-white text-[10px] font-mono px-2 py-0.5 rounded pointer-events-none">
                     Min: {rel.moq || 2} pcs
                   </div>
                   {onToggleWishlist && (
@@ -3117,7 +3257,7 @@ export const ProductDetailView: React.FC<ProductDetailViewProps> = ({
                         e.stopPropagation();
                         onToggleWishlist(rel.id);
                       }}
-                      aria-label={isRelWishlisted ? `Remove ${rel.name} from wishlist` : `Save ${rel.name} to wishlist`}
+                      aria-label={isRelWishlisted ? `Remove ${relDisplayTitle} from wishlist` : `Save ${relDisplayTitle} to wishlist`}
                       className={`absolute top-2 right-2 z-20 w-7 h-7 rounded-full border flex items-center justify-center shadow-xs transition-all cursor-pointer ${
                         isRelWishlisted
                           ? 'bg-rose-50 border-rose-200 text-rose-500'
@@ -3131,12 +3271,36 @@ export const ProductDetailView: React.FC<ProductDetailViewProps> = ({
 
                 <div className="p-4 flex-1 flex flex-col justify-between space-y-3">
                   <div>
-                    <div className="text-[10px] font-mono uppercase text-zinc-400">
-                      {rel.category}
-                    </div>
-                    <h4 className="font-display font-bold text-sm text-[#0B0B0D] line-clamp-1 mt-0.5">
-                      {rel.name}
-                    </h4>
+                    <a
+                      href={relCategoryHref}
+                      onClick={(e) => {
+                        if (!e.metaKey && !e.ctrlKey && !e.shiftKey && !e.altKey && e.button === 0) {
+                          e.preventDefault();
+                          if (relCategorySeo && onSelectCategory) {
+                            onSelectCategory(relCategorySeo.slug);
+                          } else {
+                            onBack();
+                          }
+                        }
+                      }}
+                      className="text-[10px] font-mono uppercase text-zinc-500 hover:text-[#FF7A00] transition-colors inline-block"
+                    >
+                      {relCategorySeo ? relCategorySeo.name : rel.category}
+                    </a>
+                    <h3 className="font-display font-bold text-sm text-[#0B0B0D] line-clamp-1 mt-0.5">
+                      <a
+                        href={relHref}
+                        onClick={(e) => {
+                          if (!e.metaKey && !e.ctrlKey && !e.shiftKey && !e.altKey && e.button === 0) {
+                            e.preventDefault();
+                            handleOpenRelatedProduct(rel);
+                          }
+                        }}
+                        className="hover:text-[#FF7A00] transition-colors"
+                      >
+                        {relDisplayTitle}
+                      </a>
+                    </h3>
                     <p className="text-xs text-zinc-500 line-clamp-2 mt-1">
                       {rel.shortDesc}
                     </p>
@@ -3145,23 +3309,58 @@ export const ProductDetailView: React.FC<ProductDetailViewProps> = ({
                   <div className="pt-3 border-t border-zinc-100 flex items-center justify-between">
                     <div>
                       <div className="font-display font-bold text-sm text-[#0B0B0D]">
-                        ₹{rel.basePrice} <span className="text-[10px] font-normal text-zinc-500">/ pc</span>
+                        ₹{rel.basePrice} <span className="text-[10px] font-normal text-zinc-500">/ {rel.id === 'prod-visiting-card-300gsm' ? 'card' : 'pc'}</span>
                       </div>
                     </div>
 
-                    <button
-                      onClick={() => onCustomize(rel.id)}
+                    <a
+                      href={relHref}
+                      onClick={(e) => {
+                        if (!e.metaKey && !e.ctrlKey && !e.shiftKey && !e.altKey && e.button === 0) {
+                          e.preventDefault();
+                          onCustomize(rel.id);
+                        }
+                      }}
+                      aria-label={`Customize ${relDisplayTitle}`}
                       className="text-xs font-bold bg-[#FF7A00] hover:bg-[#e06c00] text-white px-3 py-1.5 rounded-lg shadow-2xs transition-colors"
                     >
                       Customize Now
-                    </button>
+                    </a>
                   </div>
                 </div>
               </div>
               );
             })}
           </div>
-        </div>
+
+          {/* Contextual Category Cross-Links */}
+          <div className="mt-8 pt-6 border-t border-zinc-200/80 flex flex-wrap items-center gap-2 text-xs">
+            <span className="text-zinc-500 font-semibold mr-1">Explore Categories:</span>
+            {SEO_CATEGORIES.map((cat) => (
+              <a
+                key={cat.slug}
+                href={`/category/${cat.slug}`}
+                onClick={(e) => {
+                  if (!e.metaKey && !e.ctrlKey && !e.shiftKey && !e.altKey && e.button === 0) {
+                    e.preventDefault();
+                    if (onSelectCategory) {
+                      onSelectCategory(cat.slug);
+                    } else {
+                      onBack();
+                    }
+                  }
+                }}
+                className={`px-3 py-1.5 rounded-lg border transition-colors ${
+                  productCategorySeo?.slug === cat.slug
+                    ? 'bg-[#0B0B0D] text-white border-[#0B0B0D] font-semibold'
+                    : 'bg-white text-zinc-700 border-zinc-200 hover:border-[#FF7A00] hover:text-[#FF7A00]'
+                }`}
+              >
+                {cat.name}
+              </a>
+            ))}
+          </div>
+        </section>
 
       </div>
 
@@ -3181,7 +3380,7 @@ export const ProductDetailView: React.FC<ProductDetailViewProps> = ({
                 {isVisitingCard ? (
                   <img
                     src={visitingCardDesign.frontDataUrl || '/assets/visiting-card/cover.webp'}
-                    alt="Visiting Card"
+                    alt="Premium 300 GSM Visiting Card – White Art Paper Preview"
                     width={40}
                     height={40}
                     loading="lazy"
@@ -3191,7 +3390,7 @@ export const ProductDetailView: React.FC<ProductDetailViewProps> = ({
                 ) : isCanopy ? (
                   <img
                     src={selectedCanopySize === '8 × 8 ft' ? '/assets/aistudio/7_7_ft_Blue_Canopy_Booth_Infographic_3ac991cf.webp' : '/assets/aistudio/Blue_Canopy_Booth_Dimensions_Infographic_320b507e.webp'}
-                    alt="Canopy Kiosk"
+                    alt={`Promotional Canopy Kiosk (${selectedCanopySize}) – Navy Blue`}
                     width={40}
                     height={40}
                     loading="lazy"
@@ -3199,13 +3398,13 @@ export const ProductDetailView: React.FC<ProductDetailViewProps> = ({
                     className="w-full h-full object-contain p-0.5"
                   />
                 ) : isStandee ? (
-                  <img src="/assets/aistudio/Premium_Rollup_Standee_Infographic_4941e995.webp" alt="Rollup Standee" width={40} height={40} loading="lazy" decoding="async" className="w-full h-full object-contain p-0.5" />
+                  <img src="/assets/aistudio/Premium_Rollup_Standee_Infographic_4941e995.webp" alt="Rollup Standee (3 ft × 6 ft) – Black Retractable Display" width={40} height={40} loading="lazy" decoding="async" className="w-full h-full object-contain p-0.5" />
                 ) : isUmbrella ? (
-                  <img src={umbrellaImages.front} alt={product.name} width={40} height={40} loading="lazy" decoding="async" className="w-full h-full object-contain p-0.5" />
+                  <img src={umbrellaImages.front} alt={`${product.name} – ${selectedColor.name}`} width={40} height={40} loading="lazy" decoding="async" className="w-full h-full object-contain p-0.5" />
                 ) : isMug ? (
-                  <img src="/assets/aistudio/Blank_White_Ceramic_Mug_b82bfadb.webp" alt="Promotional Ceramic Mug" width={40} height={40} loading="lazy" decoding="async" className="w-full h-full object-contain p-0.5" />
+                  <img src="/assets/aistudio/Blank_White_Ceramic_Mug_b82bfadb.webp" alt="Promotional Ceramic Coffee Mug (325 ml, White)" width={40} height={40} loading="lazy" decoding="async" className="w-full h-full object-contain p-0.5" />
                 ) : isPromoTable ? (
-                  <img src="/assets/promo-table/front.webp" alt="Promo Table" width={40} height={40} loading="lazy" decoding="async" className="w-full h-full object-contain p-0.5" />
+                  <img src="/assets/promo-table/front.webp" alt="Portable Promo Table Display Counter – Front View" width={40} height={40} loading="lazy" decoding="async" className="w-full h-full object-contain p-0.5" />
                 ) : (
                   <div className="w-2 h-2 rounded-full bg-white opacity-80" />
                 )}
@@ -3618,7 +3817,7 @@ export const ProductDetailView: React.FC<ProductDetailViewProps> = ({
             </button>
 
             <div className="text-center mb-4">
-              <h3 className="font-display font-bold text-lg text-zinc-900">{product.name}</h3>
+              <h2 className="font-display font-bold text-lg text-zinc-900">{productDisplayTitle}</h2>
               <p className="text-xs text-zinc-500 font-mono">
                 {isVisitingCard
                   ? `300 GSM Pure White Art Paper · 92 × 52 MM · ${viewOrientation === 'front' || activeThumbnailIndex === 0 ? 'FRONT SIDE' : 'BACK SIDE'}`
@@ -3641,7 +3840,7 @@ export const ProductDetailView: React.FC<ProductDetailViewProps> = ({
                 activeThumbnailIndex === 1 || viewOrientation === 'dimensions' ? (
                   <img
                     src={selectedCanopySize === '8 × 8 ft' ? '/assets/aistudio/7_7_ft_Blue_Canopy_Booth_Infographic_3ac991cf.webp' : '/assets/aistudio/Blue_Canopy_Booth_Dimensions_Infographic_320b507e.webp'}
-                    alt={`${product.name} ${selectedCanopySize} Zoom`}
+                    alt={`${product.name} (${selectedCanopySize}) – Full-Size Specifications View`}
                     className="max-h-[80vh] w-auto max-w-full object-contain drop-shadow-xl"
                   />
                 ) : (
@@ -3660,7 +3859,7 @@ export const ProductDetailView: React.FC<ProductDetailViewProps> = ({
                 activeThumbnailIndex === 2 || viewOrientation === 'dimensions' ? (
                   <img
                     src={selectedColor.imageFront || '/assets/umbrella/red-dimensions.webp'}
-                    alt={`${product.name} Zoom`}
+                    alt={`${product.name} (${selectedColor.name}) – 5 ft × 7 ft Dimensions View`}
                     className="max-h-[80vh] w-auto max-w-full object-contain drop-shadow-xl"
                   />
                 ) : (
@@ -3748,7 +3947,13 @@ export const ProductDetailView: React.FC<ProductDetailViewProps> = ({
                         ? '/assets/promo-table/side.webp'
                         : '/assets/promo-table/back.webp'
                     }
-                    alt="Promo Table Zoom"
+                    alt={
+                      activeThumbnailIndex === 3
+                        ? 'Portable Promo Table – Full Dimensions Infographic'
+                        : activeThumbnailIndex === 2
+                        ? 'Portable Promo Table – Side Profile View'
+                        : 'Portable Promo Table – Back Storage Shelves View'
+                    }
                     className="max-h-[500px] w-auto object-contain drop-shadow-xl"
                   />
                 )
@@ -3772,8 +3977,8 @@ export const ProductDetailView: React.FC<ProductDetailViewProps> = ({
                     }
                     alt={
                       activeThumbnailIndex === 2 || viewOrientation === 'back'
-                        ? 'Rollup Standee - Back View Zoom'
-                        : 'Rollup Standee - Specs View Zoom'
+                        ? 'Rollup Standee (3 ft × 6 ft) – Back Support Pole & Base View'
+                        : 'Rollup Standee (3 ft × 6 ft) – Front Banner & Specifications View'
                     }
                     className="max-h-[75vh] w-auto max-w-full object-contain drop-shadow-xl"
                   />
@@ -3789,7 +3994,7 @@ export const ProductDetailView: React.FC<ProductDetailViewProps> = ({
                           ? visitingCardDesign.frontDataUrl
                           : visitingCardDesign.backDataUrl
                       }
-                      alt={`Visiting Card ${viewOrientation === 'front' || activeThumbnailIndex === 0 ? 'Front' : 'Back'} Zoom`}
+                      alt={`Premium 300 GSM Visiting Card – ${viewOrientation === 'front' || activeThumbnailIndex === 0 ? 'Front' : 'Back'} Side Preview`}
                       className="max-w-full max-h-full object-contain"
                     />
                   ) : (

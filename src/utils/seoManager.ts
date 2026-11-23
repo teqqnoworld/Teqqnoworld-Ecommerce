@@ -1,8 +1,13 @@
 import {
-  CANONICAL_ORIGIN,
-  DEFAULT_OG_IMAGE_URL,
+  DEFAULT_OG_IMAGE_ALT,
   buildCanonicalUrl,
+  resolveAbsoluteSocialImageUrl,
 } from '../config/seoRoutes';
+import {
+  JSONLD_SCRIPT_ID,
+  serializeJsonLd,
+  type JsonLdDocument,
+} from '../config/structuredData';
 
 export interface ClientSeoMeta {
   title: string;
@@ -12,6 +17,7 @@ export interface ClientSeoMeta {
   ogType?: 'website' | 'product';
   imageUrl?: string;
   imageAlt?: string;
+  structuredData?: JsonLdDocument | null;
 }
 
 function upsertMetaTag(attr: 'name' | 'property', key: string, content: string): void {
@@ -36,18 +42,45 @@ function upsertCanonicalLink(href: string): void {
   el.setAttribute('href', href);
 }
 
-function resolveAbsoluteImageUrl(raw?: string): string {
-  if (!raw) return DEFAULT_OG_IMAGE_URL;
-  const trimmed = raw.trim();
-  if (trimmed.startsWith('https://')) return trimmed;
-  if (trimmed.startsWith('http://')) return `https://${trimmed.slice(7)}`;
-  if (trimmed.startsWith('/')) return `${CANONICAL_ORIGIN}${trimmed}`;
-  return DEFAULT_OG_IMAGE_URL;
+function syncJsonLdScript(doc: JsonLdDocument | null): void {
+  if (typeof document === 'undefined') return;
+
+  // Clean up any stray/duplicate JSON-LD blocks so at most one unified graph exists
+  const existingScripts = Array.from(
+    document.head.querySelectorAll('script[type="application/ld+json"]')
+  );
+  let primaryEl: HTMLScriptElement | null = null;
+  for (const node of existingScripts) {
+    if (node.id === JSONLD_SCRIPT_ID && !primaryEl) {
+      primaryEl = node as HTMLScriptElement;
+    } else {
+      node.remove();
+    }
+  }
+
+  if (doc === null) {
+    if (primaryEl) {
+      primaryEl.remove();
+    }
+    return;
+  }
+
+  if (!primaryEl) {
+    primaryEl = document.createElement('script');
+    primaryEl.id = JSONLD_SCRIPT_ID;
+    primaryEl.type = 'application/ld+json';
+    document.head.appendChild(primaryEl);
+  }
+
+  const serialized = serializeJsonLd(doc);
+  if (primaryEl.textContent !== serialized) {
+    primaryEl.textContent = serialized;
+  }
 }
 
 /**
  * Synchronizes document <title>, meta description, robots, canonical URL,
- * OpenGraph, and Twitter Card metadata on every SPA route transition.
+ * OpenGraph, Twitter Card, and unified JSON-LD structured data on every SPA route transition.
  */
 export function applyDocumentSeo(meta: ClientSeoMeta): void {
   if (typeof document === 'undefined') return;
@@ -55,8 +88,8 @@ export function applyDocumentSeo(meta: ClientSeoMeta): void {
   const canonicalUrl = buildCanonicalUrl(meta.canonicalPath);
   const robots =
     meta.robots || 'index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1';
-  const imageUrl = resolveAbsoluteImageUrl(meta.imageUrl);
-  const imageAlt = meta.imageAlt || meta.title;
+  const imageUrl = resolveAbsoluteSocialImageUrl(meta.imageUrl);
+  const imageAlt = meta.imageAlt || DEFAULT_OG_IMAGE_ALT;
   const ogType = meta.ogType || 'website';
 
   document.title = meta.title;
@@ -80,4 +113,10 @@ export function applyDocumentSeo(meta: ClientSeoMeta): void {
   upsertMetaTag('name', 'twitter:title', meta.title);
   upsertMetaTag('name', 'twitter:description', meta.description);
   upsertMetaTag('name', 'twitter:image', imageUrl);
+  upsertMetaTag('name', 'twitter:image:alt', imageAlt);
+
+  // Unified JSON-LD Structured Data
+  if (meta.structuredData !== undefined) {
+    syncJsonLdScript(meta.structuredData);
+  }
 }

@@ -268,7 +268,7 @@ export const BEST_SELLERS: BestSellerProduct[] = [
     deliveryTag: '⚡ 24h Ready',
     image: '/assets/aistudio/Classic_Plain_Polo_Color_Collection_17e25f68.webp',
     rating: 4.9,
-    reviewCount: 384,
+    reviewCount: 38,
     description: '100% Pure Combed Cotton 230 GSM with classic solid ribbed collar and sleeves without tipping. Breathable, durable, and ready for custom DTF printing or embroidery.',
     colors: [
       '#1B273D', // Navy Blue
@@ -305,8 +305,8 @@ export const BEST_SELLERS: BestSellerProduct[] = [
     ],
     deliveryTag: '⚡ 24h Ready',
     image: '/assets/products/prod_tipping_polo.webp',
-    rating: 4.9,
-    reviewCount: 428,
+    rating: 4.5,
+    reviewCount: 42,
     description: '100% Cotton 230 GSM pique fabric with contrast tipping on collar & sleeves. Breathable, durable, and ready for custom embroidery or DTF print.',
     colors: [
       '#16233B', // Navy Blue / White
@@ -343,7 +343,7 @@ export const BEST_SELLERS: BestSellerProduct[] = [
     deliveryTag: '⚡ 24h Ready',
     image: '/assets/aistudio/JOAB_Coolmax_Polo_Shirt_Showcase_0673e0a4.webp',
     rating: 4.9,
-    reviewCount: 312,
+    reviewCount: 52,
     description: 'Engineered with 220 GSM MARS fabric for advanced breathability and moisture-wicking comfort. Available in 15 vibrant corporate colours, sizes S to 3XL, ready for custom logo branding.',
     colors: JOAB_COOLMAX_VARIANTS.map(v => v.hex),
     price: 650,
@@ -364,7 +364,7 @@ export const BEST_SELLERS: BestSellerProduct[] = [
     deliveryTag: '⚡ 24h Ready',
     image: '/assets/aistudio/Premium_Matty_Polo_T-Shirt_Banner_45dae9b5.webp',
     rating: 4.9,
-    reviewCount: 294,
+    reviewCount: 46,
     description: 'Crafted from premium 230 GSM Fine Matty fabric with exceptional soft-touch comfort, breathability, and durability. Ideal for corporate uniforms, casual wear, and custom printing or embroidery in 15 vibrant colours.',
     colors: MATTY_POLO_VARIANTS.map(v => v.hex),
     price: 650,

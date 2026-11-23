@@ -17,7 +17,14 @@ import { motion, AnimatePresence } from 'motion/react';
 import { PRODUCTS } from '../data/mockData';
 import { Product, ProductCategory, PrintMethod } from '../types';
 import { ProductMockupCanvas } from './ProductMockupCanvas';
-import { getCategoryPath, getProductPath } from '../config/seoRoutes';
+import {
+  SEO_CATEGORIES,
+  findCategoryBySlugOrAlias,
+  getCategoryForProduct,
+  getCategoryPath,
+  getProductH1,
+  getProductPath,
+} from '../config/seoRoutes';
 
 const SHOWCASE_BANNER_BY_PRODUCT_ID: Record<string, { src: string; fit: 'cover' | 'contain' }> = {
   'prod-ceramic-mug': {
@@ -70,6 +77,8 @@ interface ProductCatalogViewProps {
   initialCategory?: ProductCategory;
   searchQuery?: string;
   onCategoryChange?: (category: ProductCategory) => void;
+  onNavigateHome?: () => void;
+  onNavigateRoute?: (route: string) => void;
   onSelectProduct: (product: Product) => void;
   onCustomizeProduct: (productId: string) => void;
   onOpenQuoteCalculator?: () => void;
@@ -82,6 +91,8 @@ export const ProductCatalogView: React.FC<ProductCatalogViewProps> = ({
   initialCategory = 'all',
   searchQuery = '',
   onCategoryChange,
+  onNavigateHome,
+  onNavigateRoute,
   onSelectProduct,
   onCustomizeProduct,
   onOpenQuoteCalculator,
@@ -90,6 +101,8 @@ export const ProductCatalogView: React.FC<ProductCatalogViewProps> = ({
   onToggleWishlist,
 }) => {
   const [selectedCategory, setSelectedCategory] = useState<ProductCategory>(initialCategory);
+  const activeCategorySeo =
+    selectedCategory !== 'all' ? findCategoryBySlugOrAlias(selectedCategory) : undefined;
 
   const handleCategorySelect = (cat: ProductCategory) => {
     setSelectedCategory(cat);
@@ -255,7 +268,7 @@ export const ProductCatalogView: React.FC<ProductCatalogViewProps> = ({
       productId: 'prod-cotton-flexi-caps',
       title: 'Cotton Flexi Caps',
       tag: '6 Colours',
-      price: 'From ₹150',
+      price: 'From ₹135',
       image: '/assets/aistudio/Cotton_Flexi_Caps_Product_Banner_7057e0bd.webp',
     },
     {
@@ -278,9 +291,53 @@ export const ProductCatalogView: React.FC<ProductCatalogViewProps> = ({
 
   return (
     <div className="bg-[#F4F2FA] min-h-screen py-6 sm:py-10">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-7 sm:space-y-8">
-        
-        {/* Premium Dark Navy Master Catalog Hero Banner with Homepage-Style Visual Showcase */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-6 sm:space-y-8">
+        {/* Semantic Crawlable Breadcrumb Bar (Home > Category or Home > Catalog) */}
+        <nav aria-label="Breadcrumb" className="flex items-center justify-between gap-3 text-xs text-zinc-500">
+          <ol className="flex items-center gap-2 overflow-x-auto whitespace-nowrap">
+            <li>
+              <a
+                href="/"
+                onClick={(e) => {
+                  if (!e.metaKey && !e.ctrlKey && !e.shiftKey && !e.altKey && e.button === 0) {
+                    e.preventDefault();
+                    onNavigateHome?.();
+                  }
+                }}
+                className="hover:text-[#FF7900] transition-colors font-medium"
+              >
+                Home
+              </a>
+            </li>
+            <li aria-hidden="true" className="text-zinc-300">/</li>
+            {activeCategorySeo ? (
+              <li aria-current="page" className="text-[#0B1530] font-semibold truncate">
+                {activeCategorySeo.name}
+              </li>
+            ) : (
+              <li aria-current="page" className="text-[#0B1530] font-semibold">
+                All Custom Products
+              </li>
+            )}
+          </ol>
+
+          {activeCategorySeo && (
+            <a
+              href="/catalog"
+              onClick={(e) => {
+                if (!e.metaKey && !e.ctrlKey && !e.shiftKey && !e.altKey && e.button === 0) {
+                  e.preventDefault();
+                  handleCategorySelect('all');
+                }
+              }}
+              className="text-[11px] font-semibold text-[#FF7900] hover:underline shrink-0"
+            >
+              View Full Catalog →
+            </a>
+          )}
+        </nav>
+
+        {/* Premium Dark Navy Master Catalog / Category Hero Banner */}
         <motion.div
           initial={{ opacity: 0, y: 14 }}
           animate={{ opacity: 1, y: 0 }}
@@ -310,16 +367,28 @@ export const ProductCatalogView: React.FC<ProductCatalogViewProps> = ({
             <div className="lg:col-span-7 space-y-4">
               <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/10 border border-white/15 backdrop-blur-xs text-[11px] font-mono uppercase tracking-wider text-orange-200">
                 <span className="w-2 h-2 rounded-full bg-[#FF7900] animate-pulse" />
-                <span>TeqqnoWorld / Master Catalog</span>
+                <span>
+                  {activeCategorySeo
+                    ? `TeqqnoWorld / ${activeCategorySeo.name}`
+                    : 'TeqqnoWorld / Master Catalog'}
+                </span>
               </div>
 
               <h1 className="font-display text-2xl sm:text-4xl lg:text-[2.6rem] font-bold tracking-tight leading-[1.12] text-white">
-                Corporate Merchandise &amp;{' '}
-                <span className="text-[#FF7900]">Custom Printing</span>
+                {activeCategorySeo ? (
+                  activeCategorySeo.h1
+                ) : (
+                  <>
+                    Corporate Merchandise &amp;{' '}
+                    <span className="text-[#FF7900]">Custom Printing Catalog</span>
+                  </>
+                )}
               </h1>
 
               <p className="text-slate-300 text-xs sm:text-sm max-w-2xl leading-relaxed">
-                Factory-direct branded apparel, corporate drinkware, exhibition displays, and executive stationery with live volume tier discounts and zero middleman markups.
+                {activeCategorySeo
+                  ? activeCategorySeo.intro
+                  : 'Factory-direct branded polo T-shirts, cotton caps, corporate ceramic mugs, exhibition displays, and 300 GSM visiting cards with live volume tier discounts and 18% GST invoicing.'}
               </p>
 
               {/* Micro Reassurance Pills */}
@@ -342,14 +411,19 @@ export const ProductCatalogView: React.FC<ProductCatalogViewProps> = ({
               {(onOpenQuoteCalculator || onOpenDownloadCatalog) && (
                 <div className="flex flex-wrap items-center gap-2.5 pt-1">
                   {onOpenQuoteCalculator && (
-                    <button
-                      type="button"
-                      onClick={onOpenQuoteCalculator}
+                    <a
+                      href="/quote-calculator"
+                      onClick={(e) => {
+                        if (!e.metaKey && !e.ctrlKey && !e.shiftKey && !e.altKey && e.button === 0) {
+                          e.preventDefault();
+                          onOpenQuoteCalculator();
+                        }
+                      }}
                       className="bg-[#FF7900] hover:bg-[#e56d00] active:scale-[0.98] text-white text-xs font-display font-semibold px-4 py-2.5 rounded-xl shadow-lg shadow-[#FF7900]/25 transition-all inline-flex items-center gap-2 cursor-pointer"
                     >
                       <Calculator className="w-3.5 h-3.5" />
                       <span>B2B Quote Calculator</span>
-                    </button>
+                    </a>
                   )}
                   {onOpenDownloadCatalog && (
                     <button
@@ -419,9 +493,9 @@ export const ProductCatalogView: React.FC<ProductCatalogViewProps> = ({
           <div className="flex items-center justify-between px-1">
             <div className="flex items-center gap-2">
               <Layers className="w-4 h-4 text-[#FF7900]" />
-              <span className="text-xs font-bold uppercase tracking-wider text-[#0B1530]">
+              <h2 className="text-xs font-bold uppercase tracking-wider text-[#0B1530]">
                 Browse by Merchandise Category
-              </span>
+              </h2>
             </div>
             <span className="text-[11px] text-zinc-500 font-mono hidden sm:inline">
               Tap a category to filter catalog
@@ -686,10 +760,17 @@ export const ProductCatalogView: React.FC<ProductCatalogViewProps> = ({
 
         </div>
 
-        {/* Results Counter */}
-        <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-zinc-500 font-mono">
-          <span>Displaying {filteredProducts.length} verified products {activeFiltersCount > 0 ? '(Filtered)' : ''}</span>
-          <span>Pan-India 24–48h Dispatch Eligible</span>
+        {/* Section Heading & Results Counter */}
+        <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-2">
+          <div>
+            <h2 className="font-display text-lg sm:text-xl font-bold text-[#0B1530] tracking-tight">
+              {activeCategorySeo ? activeCategorySeo.gridHeading : 'All Custom Printed Products'}
+            </h2>
+            <p className="text-xs text-zinc-500 font-mono mt-0.5">
+              Displaying {filteredProducts.length} verified {filteredProducts.length === 1 ? 'product' : 'products'} {activeFiltersCount > 0 ? '(Filtered)' : ''}
+            </p>
+          </div>
+          <span className="text-xs text-zinc-500 font-mono">Pan-India 24–48h Dispatch Eligible</span>
         </div>
 
         {/* Product Cards Grid */}
@@ -726,6 +807,11 @@ export const ProductCatalogView: React.FC<ProductCatalogViewProps> = ({
                 rotation: 0,
               };
 
+              const productHref = getProductPath(product.slug || product.id);
+              const productDisplayTitle = getProductH1(product.id, product.name);
+              const productCategorySeo = getCategoryForProduct(product);
+              const productCategoryHref = productCategorySeo ? `/category/${productCategorySeo.slug}` : '/catalog';
+
               return (
                 <motion.div
                   key={product.id}
@@ -735,11 +821,8 @@ export const ProductCatalogView: React.FC<ProductCatalogViewProps> = ({
                   className="group bg-white rounded-2xl border border-slate-200/90 overflow-hidden hover:border-[#FF7900]/60 shadow-xs hover:shadow-[0_22px_45px_-16px_rgba(11,21,48,0.18)] hover:-translate-y-1 transition-all duration-300 flex flex-col justify-between"
                 >
                   {/* Image / Studio Showcase Container (16:9 Matching Home Page Featured Products) */}
-                  <div
-                    onClick={() => onSelectProduct(product)}
-                    className="relative aspect-[16/10] bg-zinc-50 cursor-pointer overflow-hidden flex items-center justify-center border-b border-slate-200/80"
-                  >
-                    <div className="absolute top-3 left-3 z-10 flex flex-wrap gap-1 items-start max-w-[calc(100%-56px)]">
+                  <div className="relative aspect-[16/10] bg-zinc-50 overflow-hidden flex items-center justify-center border-b border-slate-200/80">
+                    <div className="absolute top-3 left-3 z-10 flex flex-wrap gap-1 items-start max-w-[calc(100%-56px)] pointer-events-none">
                       {product.id === 'prod-rollup-standee' ? (
                         <>
                           <span className="bg-[#0B1530]/90 backdrop-blur-xs text-white text-[10px] font-mono uppercase font-semibold px-2 py-0.5 rounded-full">
@@ -797,15 +880,25 @@ export const ProductCatalogView: React.FC<ProductCatalogViewProps> = ({
                       </button>
                     )}
 
-                    <div className="absolute bottom-2.5 left-3 z-10 text-[10px] font-mono font-semibold text-zinc-700 bg-white/92 backdrop-blur-xs px-2 py-0.5 rounded-md border border-zinc-200/90 shadow-2xs">
+                    <div className="absolute bottom-2.5 left-3 z-10 text-[10px] font-mono font-semibold text-zinc-700 bg-white/92 backdrop-blur-xs px-2 py-0.5 rounded-md border border-zinc-200/90 shadow-2xs pointer-events-none">
                       ⚡ {product.dispatchTime}
                     </div>
 
-                    <div className="w-full h-full group-hover:scale-105 transition-transform duration-500 flex items-center justify-center">
+                    <a
+                      href={productHref}
+                      onClick={(e) => {
+                        if (!e.metaKey && !e.ctrlKey && !e.shiftKey && !e.altKey && e.button === 0) {
+                          e.preventDefault();
+                          onSelectProduct(product);
+                        }
+                      }}
+                      aria-label={`View ${productDisplayTitle}`}
+                      className="w-full h-full group-hover:scale-105 transition-transform duration-500 flex items-center justify-center cursor-pointer"
+                    >
                       {showcaseConfig && activeCardView === 'studio' ? (
                         <img
                           src={showcaseConfig.src}
-                          alt={product.name}
+                          alt={productDisplayTitle}
                           width={480}
                           height={300}
                           loading={idx < 3 ? 'eager' : 'lazy'}
@@ -832,7 +925,7 @@ export const ProductCatalogView: React.FC<ProductCatalogViewProps> = ({
                           className="w-full h-full p-3"
                         />
                       )}
-                    </div>
+                    </a>
 
                     {supportsGarmentToggle && (
                       <div
@@ -880,9 +973,20 @@ export const ProductCatalogView: React.FC<ProductCatalogViewProps> = ({
                   <div className="p-4 sm:p-5 flex-1 flex flex-col justify-between space-y-3">
                     <div>
                       <div className="flex items-center justify-between text-xs text-zinc-500 mb-1">
-                        <span className="uppercase font-mono text-[10px] tracking-wide text-[#FF7900] font-semibold">
-                          {product.category}
-                        </span>
+                        <a
+                          href={productCategoryHref}
+                          onClick={(e) => {
+                            if (!e.metaKey && !e.ctrlKey && !e.shiftKey && !e.altKey && e.button === 0) {
+                              e.preventDefault();
+                              if (productCategorySeo) {
+                                handleCategorySelect(productCategorySeo.catalogCategory as ProductCategory);
+                              }
+                            }
+                          }}
+                          className="uppercase font-mono text-[10px] tracking-wide text-[#FF7900] hover:underline font-semibold"
+                        >
+                          {productCategorySeo ? productCategorySeo.name : product.category}
+                        </a>
                         <div className="flex items-center gap-1 text-amber-500">
                           <Star className="w-3.5 h-3.5 fill-current" />
                           <span className="font-semibold text-zinc-700 text-[11px]">{product.rating}</span>
@@ -892,7 +996,7 @@ export const ProductCatalogView: React.FC<ProductCatalogViewProps> = ({
 
                       <h3 className="font-display font-bold text-sm sm:text-base text-[#0B1530] group-hover:text-[#FF7900] transition-colors line-clamp-1">
                         <a
-                          href={getProductPath(product.slug || product.id)}
+                          href={productHref}
                           onClick={(e) => {
                             if (!e.metaKey && !e.ctrlKey && !e.shiftKey && !e.altKey && e.button === 0) {
                               e.preventDefault();
@@ -901,7 +1005,7 @@ export const ProductCatalogView: React.FC<ProductCatalogViewProps> = ({
                           }}
                           className="hover:text-[#FF7900] transition-colors"
                         >
-                          {product.name}
+                          {productDisplayTitle}
                         </a>
                       </h3>
 
@@ -1006,6 +1110,106 @@ export const ProductCatalogView: React.FC<ProductCatalogViewProps> = ({
             })}
           </div>
         )}
+
+        {/* Verified Category Specifications Guide & Internal Cross-Links */}
+        <section
+          aria-label={activeCategorySeo ? `${activeCategorySeo.name} Buying Guide` : 'Custom Printing Categories and Bulk Ordering'}
+          className="bg-white rounded-2xl border border-slate-200/90 p-5 sm:p-7 shadow-xs space-y-5"
+        >
+          <div className="space-y-1.5">
+            <h2 className="font-display text-lg sm:text-xl font-bold text-[#0B1530] tracking-tight">
+              {activeCategorySeo
+                ? activeCategorySeo.guideHeading
+                : 'Factory-Direct Custom Printing & Corporate Merchandise Across India'}
+            </h2>
+            <p className="text-xs sm:text-sm text-zinc-600 leading-relaxed max-w-3xl">
+              {activeCategorySeo
+                ? activeCategorySeo.intro
+                : 'TeqqnoWorld supplies custom printed polo T-shirts, cotton caps, 325 ml ceramic mugs, 300 GSM visiting cards, rollup standees, promo tables, promotional umbrellas, and canopy kiosks with transparent INR slab pricing and 18% GST tax invoices.'}
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {(activeCategorySeo
+              ? activeCategorySeo.highlights
+              : [
+                  {
+                    title: 'Custom Polo T-Shirts & Cotton Caps',
+                    detail: '230 GSM pure cotton plain & tipping polos, 220 GSM Mars COOLMAX, 230 GSM Fine Matty polos, and 6-colour cotton flexi caps.',
+                  },
+                  {
+                    title: 'Ceramic Mugs & 300 GSM Visiting Cards',
+                    detail: '325 ml glossy white promotional mugs (MOQ 5) and double-sided 92 × 52 mm smooth art paper visiting cards from 100 pcs.',
+                  },
+                  {
+                    title: 'Event Displays & Outdoor Signage',
+                    detail: '3×6 ft rollup standees, portable promo tables, 5×7 ft promotional umbrellas, and 4×4 ft or 8×8 ft canopy kiosks from 1 unit.',
+                  },
+                ]
+            ).map((item) => (
+              <div
+                key={item.title}
+                className="rounded-xl bg-[#FAF9FD] border border-slate-200/80 p-4 space-y-1"
+              >
+                <h3 className="font-display font-bold text-sm text-[#0B1530]">
+                  {item.title}
+                </h3>
+                <p className="text-xs text-zinc-600 leading-relaxed">
+                  {item.detail}
+                </p>
+              </div>
+            ))}
+          </div>
+
+          <div className="pt-4 border-t border-slate-100 flex flex-wrap items-center gap-2 text-xs">
+            <span className="font-semibold text-zinc-500 mr-1">
+              {activeCategorySeo ? 'Explore Other Categories:' : 'Quick Category Links:'}
+            </span>
+            {SEO_CATEGORIES.filter((c) => c.slug !== activeCategorySeo?.slug).map((cat) => (
+              <a
+                key={cat.slug}
+                href={`/category/${cat.slug}`}
+                onClick={(e) => {
+                  if (!e.metaKey && !e.ctrlKey && !e.shiftKey && !e.altKey && e.button === 0) {
+                    e.preventDefault();
+                    handleCategorySelect(cat.catalogCategory as ProductCategory);
+                  }
+                }}
+                className="px-3 py-1.5 rounded-lg bg-slate-50 hover:bg-orange-50 text-zinc-700 hover:text-[#FF7900] border border-slate-200/90 hover:border-[#FF7900]/40 transition-colors font-medium"
+              >
+                {cat.name}
+              </a>
+            ))}
+            <a
+              href="/bulk"
+              onClick={(e) => {
+                if (!e.metaKey && !e.ctrlKey && !e.shiftKey && !e.altKey && e.button === 0) {
+                  e.preventDefault();
+                  onNavigateRoute?.('bulk');
+                }
+              }}
+              className="px-3 py-1.5 rounded-lg bg-[#0B1530] hover:bg-[#14234a] text-white transition-colors font-medium"
+            >
+              Bulk Corporate Quote
+            </a>
+            <a
+              href="/quote-calculator"
+              onClick={(e) => {
+                if (!e.metaKey && !e.ctrlKey && !e.shiftKey && !e.altKey && e.button === 0) {
+                  e.preventDefault();
+                  if (onOpenQuoteCalculator) {
+                    onOpenQuoteCalculator();
+                  } else {
+                    onNavigateRoute?.('quote-calculator');
+                  }
+                }
+              }}
+              className="px-3 py-1.5 rounded-lg bg-orange-50 hover:bg-[#FF7900] text-[#FF7900] hover:text-white border border-orange-200 transition-colors font-medium"
+            >
+              Bulk Quote Calculator
+            </a>
+          </div>
+        </section>
 
       </div>
     </div>

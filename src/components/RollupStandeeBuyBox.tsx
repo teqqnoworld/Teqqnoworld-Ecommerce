@@ -5,6 +5,8 @@ import { Product, ProductColor, CustomArtwork } from '../types';
 import { ProductAssuranceCards } from './ProductAssuranceCards';
 import { ProductMockupCanvas } from './ProductMockupCanvas';
 import { compressImageFile } from '../utils/imageCompressor';
+import { BUSINESS_CONFIG } from '../config/business';
+import { getProductH1 } from '../config/seoRoutes';
 
 interface RollupStandeeBuyBoxProps {
   product: Product;
@@ -64,7 +66,7 @@ export const RollupStandeeBuyBox: React.FC<RollupStandeeBuyBoxProps> = ({
     { minQty: 11, maxQty: 20, label: '11–20 pcs', price: 1399 },
   ];
 
-  const whatsappUrl = `https://wa.me/918309394934?text=${encodeURIComponent(
+  const whatsappUrl = `https://wa.me/${BUSINESS_CONFIG.contact.whatsappDigits}?text=${encodeURIComponent(
     `Hello TeqqnoWorld! I'd like a custom bulk quote for *Rollup Standee* (3 ft × 6 ft, Black ONLY).\nQuantity: ${quantity} units\nEstimated Price: ₹${totalPrice.toLocaleString('en-IN')}.\nPlease share quotation and printing details.`
   )}`;
 
@@ -125,7 +127,7 @@ export const RollupStandeeBuyBox: React.FC<RollupStandeeBuyBoxProps> = ({
         </div>
 
         <h1 className="font-display text-2xl sm:text-3xl font-bold text-[#0B0B0D] tracking-tight leading-snug">
-          Rollup Standee
+          {getProductH1(product.id, product.name)}
         </h1>
         <p className="text-xs sm:text-sm text-zinc-600 mt-1 leading-relaxed">
           Retractable Roll-up Banner Stand · 3 ft Width × 6 ft Height (36 × 72 inches) · Carry Bag Included
@@ -160,8 +162,8 @@ export const RollupStandeeBuyBox: React.FC<RollupStandeeBuyBoxProps> = ({
                 <Star key={i} className="w-3.5 h-3.5 fill-current" />
               ))}
             </div>
-            <span className="font-bold text-zinc-800 ml-1">4.9</span>
-            <span className="text-zinc-500">(56 Reviews)</span>
+            <span className="font-bold text-zinc-800 ml-1">{product.rating}</span>
+            <span className="text-zinc-500">({product.reviewCount} Reviews)</span>
           </div>
           <span className="text-zinc-300">|</span>
           <span className="text-emerald-700 font-semibold font-mono text-[11px]">

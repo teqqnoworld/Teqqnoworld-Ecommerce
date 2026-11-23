@@ -6,6 +6,7 @@ import {
 } from './productFeed.ts';
 import {
   CANONICAL_ORIGIN,
+  DEFAULT_OG_IMAGE_ALT,
   DEFAULT_OG_IMAGE_URL,
   PRIVATE_NOINDEX_PATHS,
   PRODUCT_ID_TO_CANONICAL_SLUG,
@@ -20,7 +21,16 @@ import {
   buildProductSeoDescription,
   buildProductSeoTitle,
   findCategoryBySlugOrAlias,
+  getProductH1,
+  getProductSocialImageUrl,
 } from '../src/config/seoRoutes.ts';
+import {
+  JSONLD_SCRIPT_ID,
+  buildPageStructuredData,
+  serializeJsonLd,
+  type JsonLdDocument,
+  type StructuredDataProductInput,
+} from '../src/config/structuredData.ts';
 
 // ==============================================================================
 // TEQQNOWORLD PHASE 1 SERVER-SIDE SEO ENGINE
@@ -48,6 +58,7 @@ export interface ResolvedSeoPage {
   imageAlt: string;
   isPrivateNoindex: boolean;
   noscriptHtml: string;
+  structuredData: JsonLdDocument | null;
 }
 
 function escapeHtmlAttr(value: string): string {
@@ -84,6 +95,18 @@ function extractProductSlug(productUrl: string): string {
   }
 }
 
+function feedItemToStructuredProduct(item: ProductFeedItem): StructuredDataProductInput {
+  return {
+    id: item.item_id,
+    slug: extractProductSlug(item.url),
+    name: item.title,
+    description: item.description,
+    category: item.product_category,
+    basePrice: parsePriceAmount(item.price),
+    imageUrl: item.image_url,
+  };
+}
+
 export function isNonHtmlRoutePath(pathname: string): boolean {
   if (
     pathname.startsWith('/api/') ||
@@ -116,7 +139,7 @@ function buildCrawlableNoscript(params: {
     .map((p) => {
       const slug = extractProductSlug(p.url);
       if (!slug) return '';
-      return `<li><a href="/product/${escapeHtmlAttr(slug)}">${escapeHtmlAttr(p.title)} (${escapeHtmlAttr(p.price)})</a></li>`;
+      return `<li><a href="/product/${escapeHtmlAttr(slug)}">${escapeHtmlAttr(getProductH1(p.item_id, p.title))} (${escapeHtmlAttr(p.price)})</a></li>`;
     })
     .filter(Boolean)
     .join('');
@@ -163,11 +186,15 @@ export async function resolveSeoPageContext(
       imageAlt: 'TeqqnoWorld',
       isPrivateNoindex: true,
       noscriptHtml: '',
+      structuredData: buildPageStructuredData({ kind: 'private-or-error' }),
     };
   }
 
   // Load live active products (merges mockData + Supabase)
   const activeProducts = await buildDynamicProductFeed(options);
+  const structuredProducts = activeProducts
+    .map(feedItemToStructuredProduct)
+    .filter((p) => Boolean(p.slug));
 
   // 2. Homepage
   if (normalizedPath === '/') {
@@ -179,13 +206,14 @@ export async function resolveSeoPageContext(
       robots: INDEX_ROBOTS,
       ogType: 'website',
       imageUrl: DEFAULT_OG_IMAGE_URL,
-      imageAlt: 'TeqqnoWorld Custom Corporate Polo T-Shirt & Branded Merchandise',
+      imageAlt: DEFAULT_OG_IMAGE_ALT,
       isPrivateNoindex: false,
       noscriptHtml: buildCrawlableNoscript({
         h1: SEO_HOME_META.h1,
         summary: SEO_HOME_META.description,
         products: activeProducts,
       }),
+      structuredData: buildPageStructuredData({ kind: 'home' }),
     };
   }
 
@@ -206,6 +234,10 @@ export async function resolveSeoPageContext(
         summary: SEO_CATALOG_META.description,
         products: activeProducts,
       }),
+      structuredData: buildPageStructuredData({
+        kind: 'catalog',
+        products: structuredProducts,
+      }),
     };
   }
 
@@ -225,6 +257,13 @@ export async function resolveSeoPageContext(
         h1: SEO_BULK_META.h1,
         summary: SEO_BULK_META.description,
       }),
+      structuredData: buildPageStructuredData({
+        kind: 'static',
+        path: '/bulk',
+        title: SEO_BULK_META.title,
+        description: SEO_BULK_META.description,
+        h1: SEO_BULK_META.h1,
+      }),
     };
   }
 
@@ -243,6 +282,13 @@ export async function resolveSeoPageContext(
         h1: SEO_QUOTE_CALCULATOR_META.h1,
         summary: SEO_QUOTE_CALCULATOR_META.description,
       }),
+      structuredData: buildPageStructuredData({
+        kind: 'static',
+        path: '/quote-calculator',
+        title: SEO_QUOTE_CALCULATOR_META.title,
+        description: SEO_QUOTE_CALCULATOR_META.description,
+        h1: SEO_QUOTE_CALCULATOR_META.h1,
+      }),
     };
   }
 
@@ -260,6 +306,13 @@ export async function resolveSeoPageContext(
       noscriptHtml: buildCrawlableNoscript({
         h1: SEO_BUNDLE_BUILDER_META.h1,
         summary: SEO_BUNDLE_BUILDER_META.description,
+      }),
+      structuredData: buildPageStructuredData({
+        kind: 'static',
+        path: '/bundle-builder',
+        title: SEO_BUNDLE_BUILDER_META.title,
+        description: SEO_BUNDLE_BUILDER_META.description,
+        h1: SEO_BUNDLE_BUILDER_META.h1,
       }),
     };
   }
@@ -284,6 +337,11 @@ export async function resolveSeoPageContext(
           summary: category.description,
           products: activeProducts,
         }),
+        structuredData: buildPageStructuredData({
+          kind: 'category',
+          category,
+          products: structuredProducts,
+        }),
       };
     }
   }
@@ -306,8 +364,10 @@ export async function resolveSeoPageContext(
     if (matchedProduct) {
       const canonicalSlug = extractProductSlug(matchedProduct.url);
       const priceNum = parsePriceAmount(matchedProduct.price);
+      const cleanProductH1 = getProductH1(matchedProduct.item_id, matchedProduct.title);
       const title = buildProductSeoTitle(matchedProduct.item_id, matchedProduct.title);
       const description = buildProductSeoDescription({
+        productId: matchedProduct.item_id,
         name: matchedProduct.title,
         description: matchedProduct.description,
         priceInr: priceNum,
@@ -320,13 +380,19 @@ export async function resolveSeoPageContext(
         canonicalUrl: buildCanonicalUrl(`/product/${canonicalSlug}`),
         robots: INDEX_ROBOTS,
         ogType: 'product',
-        imageUrl: matchedProduct.image_url || DEFAULT_OG_IMAGE_URL,
-        imageAlt: matchedProduct.title,
+        imageUrl: getProductSocialImageUrl(matchedProduct.item_id, matchedProduct.image_url),
+        imageAlt: cleanProductH1,
         isPrivateNoindex: false,
         noscriptHtml: buildCrawlableNoscript({
-          h1: matchedProduct.title,
+          h1: cleanProductH1,
           summary: `${matchedProduct.price} — ${matchedProduct.description}`,
           products: activeProducts.filter((p) => p.item_id !== matchedProduct.item_id).slice(0, 6),
+        }),
+        structuredData: buildPageStructuredData({
+          kind: 'product',
+          product: feedItemToStructuredProduct(matchedProduct),
+          title,
+          metaDescription: description,
         }),
       };
     }
@@ -349,6 +415,13 @@ export async function resolveSeoPageContext(
         h1: legalPage.h1,
         summary: legalPage.description,
       }),
+      structuredData: buildPageStructuredData({
+        kind: 'static',
+        path: legalPage.path,
+        title: legalPage.title,
+        description: legalPage.description,
+        h1: legalPage.h1,
+      }),
     };
   }
 
@@ -369,6 +442,7 @@ export async function resolveSeoPageContext(
       summary: 'The page you requested does not exist on TeqqnoWorld. Explore our active product catalog below.',
       products: activeProducts.slice(0, 6),
     }),
+    structuredData: buildPageStructuredData({ kind: 'private-or-error' }),
   };
 }
 
@@ -434,6 +508,28 @@ export function injectSeoIntoHtml(rawHtml: string, page: ResolvedSeoPage): strin
     /<meta\s+name="twitter:image"\s+content="[^"]*"\s*\/?>/i,
     `<meta name="twitter:image" content="${safeImage}" />`
   );
+  html = html.replace(
+    /<meta\s+name="twitter:image:alt"\s+content="[^"]*"\s*\/?>/i,
+    `<meta name="twitter:image:alt" content="${safeImageAlt}" />`
+  );
+
+  // Inject or remove the single unified JSON-LD script block
+  const jsonLdTag = page.structuredData
+    ? `<script id="${JSONLD_SCRIPT_ID}" type="application/ld+json">${serializeJsonLd(page.structuredData)}</script>`
+    : '';
+  const jsonLdRegex = /<script\b[^>]*type="application\/ld\+json"[^>]*>[\s\S]*?<\/script>/gi;
+  if (jsonLdRegex.test(html)) {
+    let replacedFirst = false;
+    html = html.replace(jsonLdRegex, () => {
+      if (!replacedFirst) {
+        replacedFirst = true;
+        return jsonLdTag;
+      }
+      return '';
+    });
+  } else if (jsonLdTag) {
+    html = html.replace(/<\/head>/i, `    ${jsonLdTag}\n  </head>`);
+  }
 
   if (html.includes('<!--SEO_NOSCRIPT_PLACEHOLDER-->')) {
     html = html.replace('<!--SEO_NOSCRIPT_PLACEHOLDER-->', page.noscriptHtml);

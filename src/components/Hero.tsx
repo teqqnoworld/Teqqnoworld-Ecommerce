@@ -53,21 +53,33 @@ export const Hero: React.FC<HeroProps> = ({
 
               {/* CTA Buttons - Full width on mobile for thumb ergonomics, row on tablet/desktop */}
               <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 sm:gap-4 pt-1 sm:pt-2">
-                <button
-                  onClick={onExploreCatalog}
+                <a
+                  href="/catalog"
+                  onClick={(e) => {
+                    if (!e.metaKey && !e.ctrlKey && !e.shiftKey && !e.altKey && e.button === 0) {
+                      e.preventDefault();
+                      onExploreCatalog();
+                    }
+                  }}
                   className="w-full sm:w-auto bg-[#FF7A00] hover:bg-[#e06c00] text-white font-display font-semibold text-sm sm:text-base px-6 py-3.5 rounded-xl shadow-lg shadow-[#FF7A00]/25 transition-all hover:-translate-y-0.5 active:translate-y-0 flex items-center justify-center gap-2 group cursor-pointer min-h-[48px]"
                 >
                   <span>Shop Products</span>
                   <ArrowRight className="w-4 h-4 group-hover:translate-x-1.5 transition-transform duration-300" />
-                </button>
+                </a>
 
-                <button
-                  onClick={onStartCustomizing}
+                <a
+                  href="/product/customized-100-pure-cotton-polo-t-shirt"
+                  onClick={(e) => {
+                    if (!e.metaKey && !e.ctrlKey && !e.shiftKey && !e.altKey && e.button === 0) {
+                      e.preventDefault();
+                      onStartCustomizing();
+                    }
+                  }}
                   className="w-full sm:w-auto bg-[#202127] hover:bg-[#282a32] text-white border border-[#3A3B45] hover:border-[#FF7A00]/40 font-display font-medium text-sm sm:text-base px-6 py-3.5 rounded-xl transition-all flex items-center justify-center gap-2 group cursor-pointer min-h-[48px]"
                 >
                   <Sparkles className="w-4 h-4 text-[#FF7A00] group-hover:rotate-45 group-hover:scale-125 transition-all duration-300 animate-icon-pulse-glow" />
                   <span>Customize With Your Logo</span>
-                </button>
+                </a>
 
                 {onBookAppointment && (
                   <button

@@ -27,13 +27,19 @@ export const CtaBanner: React.FC<CtaBannerProps> = ({ onExploreCatalog }) => {
         </p>
 
         <div className="flex flex-wrap items-center justify-center gap-4 pt-3">
-          <button
-            onClick={onExploreCatalog}
+          <a
+            href="/catalog"
+            onClick={(e) => {
+              if (!e.metaKey && !e.ctrlKey && !e.shiftKey && !e.altKey && e.button === 0) {
+                e.preventDefault();
+                onExploreCatalog();
+              }
+            }}
             className="bg-[#FF7A00] hover:bg-[#e06c00] text-white font-display font-semibold text-xs sm:text-sm px-6 py-3.5 rounded-xl shadow-lg shadow-[#FF7A00]/25 transition-all hover:-translate-y-0.5 active:translate-y-0 flex items-center gap-2 group cursor-pointer"
           >
             <span>Explore Products</span>
             <ArrowRight className="w-4 h-4 group-hover:translate-x-1.5 transition-transform duration-300" />
-          </button>
+          </a>
 
           <a
             href={getWhatsAppLink('Hi TeqqnoWorld, I want to discuss custom merchandise for my company.')}

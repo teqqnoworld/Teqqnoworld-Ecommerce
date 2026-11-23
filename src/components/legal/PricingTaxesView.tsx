@@ -1,6 +1,7 @@
 import React from 'react';
 import { LegalLayout, MerchantPlaceholderNotice } from './LegalLayout';
 import { BUSINESS_DETAILS } from '../../data/legalData';
+import { BUSINESS_CONFIG } from '../../config/business';
 import { Percent, FileText, CheckCircle2, Calculator, ShieldCheck } from 'lucide-react';
 
 interface LegalViewProps {
@@ -31,10 +32,11 @@ export const PricingTaxesView: React.FC<LegalViewProps> = ({ onNavigate }) => {
         
         {/* Merchant Review Box */}
         <MerchantPlaceholderNotice
-          title="Merchant Action Checklist — GST & Tax Registration Verification"
+          title="GST & Tax Registration Details"
           items={[
             `Official Company GSTIN: ${BUSINESS_DETAILS.gstinPlaceholder}`,
-            `Confirm State of Registration: Karnataka (State Code 29)`,
+            `State of Registration: ${BUSINESS_CONFIG.legal.gstState} (State Code ${BUSINESS_CONFIG.legal.gstStateCode})`,
+            `Principal Place of Business (GST): ${BUSINESS_CONFIG.legal.gstPrincipalPlaceOfBusiness}`,
             `Confirm e-invoicing compliance eligibility (for turnover > statutory limits)`,
           ]}
         />
@@ -154,7 +156,7 @@ export const PricingTaxesView: React.FC<LegalViewProps> = ({ onNavigate }) => {
           <p className="mb-2">Tax is computed according to the Place of Supply rules under the Integrated Goods and Services Tax Act, 2017:</p>
           <ul className="list-disc pl-5 space-y-1.5 text-xs sm:text-sm text-slate-600 mb-3">
             <li>
-              <strong>Intra-State Deliveries (Within Karnataka):</strong> Charged as <strong>9% CGST + 9% SGST</strong>.
+              <strong>Intra-State Deliveries (Within Telangana — State Code 36):</strong> Charged as <strong>9% CGST + 9% SGST</strong>.
             </li>
             <li>
               <strong>Inter-State Deliveries (All Other Indian States & UTs):</strong> Charged as <strong>18% IGST</strong>.
@@ -183,7 +185,12 @@ export const PricingTaxesView: React.FC<LegalViewProps> = ({ onNavigate }) => {
             7. Accounts & Tax Invoicing Helpdesk
           </h2>
           <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 text-xs space-y-1.5">
-            <p><strong>Accounts & Billing Inquiries:</strong> <a href={`mailto:${BUSINESS_DETAILS.supportEmail}`} className="text-[#FF7A00] underline">{BUSINESS_DETAILS.supportEmail}</a></p>
+            <p>
+              <strong>Accounts & Billing Inquiries:</strong>{' '}
+              <a href={BUSINESS_CONFIG.contact.secondaryMailtoLink} className="text-[#FF7A00] underline">{BUSINESS_CONFIG.contact.secondaryEmail}</a>
+              {' / '}
+              <a href={`mailto:${BUSINESS_DETAILS.supportEmail}`} className="text-[#FF7A00] underline">{BUSINESS_DETAILS.supportEmail}</a>
+            </p>
             <p><strong>Tax Invoice Corrections:</strong> Provide Order Number and revised GSTIN within 7 days of invoice generation.</p>
             <p><strong>Desk Hours:</strong> {BUSINESS_DETAILS.supportHours}</p>
           </div>

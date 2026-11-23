@@ -13,9 +13,11 @@ import {
 } from 'lucide-react';
 import { WhatsAppIcon } from './WhatsAppIcon';
 import { Product, ProductColor, CustomArtwork } from '../types';
+import { BUSINESS_CONFIG } from '../config/business';
 import { ProductAssuranceCards } from './ProductAssuranceCards';
 import { ProductMockupCanvas } from './ProductMockupCanvas';
 import { compressImageFile } from '../utils/imageCompressor';
+import { getProductH1 } from '../config/seoRoutes';
 
 interface MugBuyBoxProps {
   product: Product;
@@ -177,7 +179,7 @@ export const MugBuyBox: React.FC<MugBuyBoxProps> = ({
         </div>
 
         <h1 className="font-display text-2xl sm:text-3xl font-bold text-[#0B0B0D] tracking-tight leading-snug">
-          Promotional Ceramic Mug
+          {getProductH1(product.id, product.name)}
         </h1>
         <p className="text-xs sm:text-sm text-zinc-600 mt-1 leading-relaxed">
           Custom Printed Ceramic Coffee Mug · ~325 ml (11 oz) · 8.5" × 3" Printable Area
@@ -211,8 +213,8 @@ export const MugBuyBox: React.FC<MugBuyBoxProps> = ({
                 <Star key={i} className="w-3.5 h-3.5 fill-current" />
               ))}
             </div>
-            <span className="font-bold text-zinc-800 ml-1">4.9</span>
-            <span className="text-zinc-500">(94 Reviews)</span>
+            <span className="font-bold text-zinc-800 ml-1">{product.rating}</span>
+            <span className="text-zinc-500">({product.reviewCount} Reviews)</span>
           </div>
           <span className="text-zinc-300">|</span>
           <span className="text-emerald-700 font-semibold font-mono text-[11px]">
@@ -577,7 +579,7 @@ export const MugBuyBox: React.FC<MugBuyBoxProps> = ({
       <div className="space-y-3">
         {quantity > 100 ? (
           <a
-            href={`https://wa.me/918309394934?text=${encodeURIComponent(
+            href={`https://wa.me/${BUSINESS_CONFIG.contact.whatsappDigits}?text=${encodeURIComponent(
               `Hi TeqqnoWorld, I want a custom quote for Promotional Ceramic Mug (White ONLY, Quantity: ${quantity} pcs). Please share bulk rates and delivery schedule.`
             )}`}
             target="_blank"
@@ -615,7 +617,7 @@ export const MugBuyBox: React.FC<MugBuyBoxProps> = ({
 
         {/* WhatsApp Instant Quote Button */}
         <a
-          href={`https://wa.me/918309394934?text=${encodeURIComponent(
+          href={`https://wa.me/${BUSINESS_CONFIG.contact.whatsappDigits}?text=${encodeURIComponent(
             `Hi TeqqnoWorld, I want a quote for Promotional Ceramic Mug (White ONLY, Quantity: ${quantity} pcs, Custom Logo: ${frontArtwork?.dataUrl ? 'Provided' : 'Will Share'}). Please share pricing and delivery schedule.`
           )}`}
           target="_blank"

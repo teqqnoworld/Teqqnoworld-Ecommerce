@@ -4,6 +4,7 @@ import { Clock, Sparkles, Tag, X, CheckCircle2, ArrowRight, ShieldCheck } from '
 import { WhatsAppIcon } from './WhatsAppIcon';
 import { formatRemainingCountdown } from '../services/aisensyService';
 import { getDirectClientWhatsAppUrl } from '../utils/whatsapp';
+import { BUSINESS_CONFIG } from '../config/business';
 
 interface CheckoutRecoveryOfferModalProps {
   isOpen: boolean;
@@ -172,7 +173,7 @@ export const CheckoutRecoveryOfferModal: React.FC<CheckoutRecoveryOfferModalProp
                   {customerPhone && (
                     <a
                       href={getDirectClientWhatsAppUrl({
-                        phone: '918309394934',
+                        phone: BUSINESS_CONFIG.contact.whatsappDigits,
                         name: customerName,
                         type: 'abandoned',
                         cartTotal: subtotal,

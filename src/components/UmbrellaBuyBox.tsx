@@ -5,6 +5,8 @@ import { Product, ProductColor, CustomArtwork } from '../types';
 import { ProductAssuranceCards } from './ProductAssuranceCards';
 import { ProductMockupCanvas } from './ProductMockupCanvas';
 import { compressImageFile } from '../utils/imageCompressor';
+import { BUSINESS_CONFIG } from '../config/business';
+import { getProductH1 } from '../config/seoRoutes';
 
 interface UmbrellaBuyBoxProps {
   product: Product;
@@ -114,7 +116,7 @@ export const UmbrellaBuyBox: React.FC<UmbrellaBuyBoxProps> = ({
         </div>
 
         <h1 className="font-display text-2xl sm:text-3xl font-bold text-[#0B0B0D] tracking-tight leading-snug">
-          5 Feet Promotional Umbrella
+          {getProductH1(product.id, product.name)}
         </h1>
         <p className="text-xs sm:text-sm text-zinc-600 mt-1 leading-relaxed">
           Custom Printed Promotional Umbrella with Stand (5 ft Width × 7 ft Height)
@@ -174,7 +176,7 @@ export const UmbrellaBuyBox: React.FC<UmbrellaBuyBoxProps> = ({
           )}
         </div>
         <div className="text-[11px] font-mono text-zinc-600 font-medium">
-          ₹{unitPrice.toLocaleString('en-IN')}/piece · Inclusive of All Taxes
+          ₹{unitPrice.toLocaleString('en-IN')}/piece · GST 18% Extra on Invoice
         </div>
       </div>
 
@@ -202,7 +204,7 @@ export const UmbrellaBuyBox: React.FC<UmbrellaBuyBoxProps> = ({
         <div className="bg-zinc-50 rounded-xl border border-zinc-200 overflow-hidden divide-y divide-zinc-200 text-xs">
           <div className="grid grid-cols-2 p-2.5 bg-white">
             <span className="text-zinc-500 font-medium">Umbrella Width</span>
-            <span className="font-bold text-zinc-900 font-mono">6 ft (72 inches)</span>
+            <span className="font-bold text-zinc-900 font-mono">5 ft (60 inches)</span>
           </div>
           <div className="grid grid-cols-2 p-2.5">
             <span className="text-zinc-500 font-medium">Overall Height</span>
@@ -288,7 +290,7 @@ export const UmbrellaBuyBox: React.FC<UmbrellaBuyBoxProps> = ({
                   <div className="w-10 h-10 rounded-lg bg-zinc-50 border border-zinc-200/80 flex items-center justify-center p-0.5 group-hover:scale-105 transition-transform overflow-hidden">
                     <img 
                       src={color.imageFront || '/assets/umbrella/red-dimensions.webp'} 
-                      alt={color.name}
+                      alt={`5 Feet Promotional Umbrella – ${color.name} Variant`}
                       width={40}
                       height={40}
                       loading="lazy"
@@ -511,7 +513,7 @@ export const UmbrellaBuyBox: React.FC<UmbrellaBuyBoxProps> = ({
       <div className="space-y-3 pt-2 border-t border-[#E5E5EA]">
         {quantity > 20 ? (
           <a
-            href={`https://wa.me/918309394934?text=${encodeURIComponent(`Hi TeqqnoWorld, I need a bulk quote for 5 Feet Promotional Umbrella (Colour: ${selectedColor.name}, Quantity: ${quantity} units). Please share custom enterprise pricing.`)}`}
+            href={`https://wa.me/${BUSINESS_CONFIG.contact.whatsappDigits}?text=${encodeURIComponent(`Hi TeqqnoWorld, I need a bulk quote for 5 Feet Promotional Umbrella (Colour: ${selectedColor.name}, Quantity: ${quantity} units). Please share custom enterprise pricing.`)}`}
             target="_blank"
             rel="noopener noreferrer"
             className="w-full bg-[#FF7A00] hover:bg-[#e66e00] text-white font-display font-bold text-sm sm:text-base py-4 px-6 rounded-xl shadow-lg transition-all flex items-center justify-center gap-2 cursor-pointer"
@@ -532,7 +534,7 @@ export const UmbrellaBuyBox: React.FC<UmbrellaBuyBoxProps> = ({
         )}
 
         <a
-          href={`https://wa.me/918309394934?text=${encodeURIComponent(`Hi TeqqnoWorld, I want a quote for 5 Feet Promotional Umbrella (Colour: ${selectedColor.name}, Quantity: ${quantity} units). Please share pricing and delivery schedule.`)}`}
+          href={`https://wa.me/${BUSINESS_CONFIG.contact.whatsappDigits}?text=${encodeURIComponent(`Hi TeqqnoWorld, I want a quote for 5 Feet Promotional Umbrella (Colour: ${selectedColor.name}, Quantity: ${quantity} units). Please share pricing and delivery schedule.`)}`}
           target="_blank"
           rel="noopener noreferrer"
           className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-display font-bold text-sm py-3.5 px-6 rounded-xl shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer"

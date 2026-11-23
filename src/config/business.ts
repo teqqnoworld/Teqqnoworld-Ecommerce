@@ -49,9 +49,12 @@ export const BUSINESS_CONFIG = {
     whatsappDigits: '919124560673',
     whatsappLink: 'https://wa.me/919124560673',
 
-    // Official Email Address
+    // Official Email Addresses (both active & verified)
     email: 'teqqnoworld@gmail.com',
+    secondaryEmail: 'info@teqqnoworld.com',
+    emails: ['info@teqqnoworld.com', 'teqqnoworld@gmail.com'],
     mailtoLink: 'mailto:teqqnoworld@gmail.com',
+    secondaryMailtoLink: 'mailto:info@teqqnoworld.com',
 
     // Web & Domain
     websiteUrl: 'https://teqqnoworld.com',
@@ -83,6 +86,10 @@ export const BUSINESS_CONFIG = {
     grievanceOfficerPlaceholder: 'Nodal Grievance Officer, TeqqnoWorld, Bachupally, Hyderabad',
     cinPlaceholder: '[CIN: Subject to MCA Certificate of Incorporation]',
     gstinPlaceholder: '[GSTIN: Subject to Certificate of Registration - State: Telangana (36)]',
+    gstState: 'Telangana',
+    gstStateCode: '36',
+    gstPrincipalPlaceOfBusiness:
+      '5th Floor, Plot No-14, Ameenpur Road, Behind HDFC Bank, Suraksha Colony, Hyderabad, Rangareddy, Telangana – 502032.',
     legalEntityPlaceholder: 'TeqqnoWorld',
     reportingWindowPlaceholder: '48 Hours from physical delivery timestamp as confirmed by courier partner',
     refundSlaPlaceholder: '5 to 7 Working Days post quality audit and bank authorization',

@@ -10,6 +10,7 @@ import { WhatsAppIcon } from './WhatsAppIcon';
 import { ProductColor, CustomArtwork, PrintMethod } from '../types';
 import { ProductMockupCanvas } from './ProductMockupCanvas';
 import { getPlainPoloProductColors } from '../data/plainPoloImages';
+import { BUSINESS_CONFIG } from '../config/business';
 import { COTTON_FLEXI_CAP_VARIANTS } from '../data/capImages';
 import { RequestQuoteModal } from './RequestQuoteModal';
 import { compressImageFile } from '../utils/imageCompressor';
@@ -482,7 +483,7 @@ export const MockupEngineSection: React.FC<MockupEngineSectionProps> = ({
     const text = encodeURIComponent(
       `Hello TeqqnoWorld! I just created a custom mockup of the ${activeConfig.name} in ${activeColor.name} (${printPlacement}) on your website. I would like to get a bulk quote and production proof.`
     );
-    window.open(`https://api.whatsapp.com/send?phone=918309394934&text=${text}`, '_blank');
+    window.open(`https://api.whatsapp.com/send?phone=${BUSINESS_CONFIG.contact.whatsappDigits}&text=${text}`, '_blank');
   };
 
   // Download proof simulation

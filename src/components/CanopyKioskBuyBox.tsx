@@ -10,10 +10,12 @@ import {
 } from 'lucide-react';
 import { WhatsAppIcon } from './WhatsAppIcon';
 import { Product, ProductColor, CustomArtwork } from '../types';
+import { BUSINESS_CONFIG } from '../config/business';
 import { ProductAssuranceCards } from './ProductAssuranceCards';
 import { ProductMockupCanvas } from './ProductMockupCanvas';
 import { compressImageFile } from '../utils/imageCompressor';
 import { calculateProductPrice, formatCurrencyINR } from '../data/pricingRules';
+import { getProductH1 } from '../config/seoRoutes';
 
 export interface CanopyKioskBuyBoxProps {
   product: Product;
@@ -72,7 +74,7 @@ export const CanopyKioskBuyBox: React.FC<CanopyKioskBuyBoxProps> = ({
   const pricingResult = calculateProductPrice('prod-canopy-kiosk', quantity, selectedSize);
   const { unitPrice, totalPrice, isQuoteRequired, activeSlab, nextTierUpsell, slabs } = pricingResult;
 
-  const whatsappUrl = `https://wa.me/918309394934?text=${encodeURIComponent(
+  const whatsappUrl = `https://wa.me/${BUSINESS_CONFIG.contact.whatsappDigits}?text=${encodeURIComponent(
     `Hello TeqqnoWorld! I would like a quote for *Promotional Canopy Kiosk* (Size: ${selectedSize}, Navy Blue ONLY, Height: 7 ft, Quantity: ${quantity} units).\nTotal: ${isQuoteRequired ? 'Bulk Quote Needed' : formatCurrencyINR(totalPrice)}.\nPlease share quotation and delivery timeline.`
   )}`;
 
@@ -137,14 +139,14 @@ export const CanopyKioskBuyBox: React.FC<CanopyKioskBuyBoxProps> = ({
                 <Star key={i} className="w-3.5 h-3.5 fill-current" />
               ))}
             </div>
-            <span className="font-bold text-zinc-900">4.9</span>
+            <span className="font-bold text-zinc-900">{product.rating}</span>
             <span className="text-zinc-400">·</span>
-            <span className="text-zinc-500 font-mono">(42 Verified Reviews)</span>
+            <span className="text-zinc-500 font-mono">({product.reviewCount} Reviews)</span>
           </div>
         </div>
 
         <h1 className="font-display font-extrabold text-2xl sm:text-3xl text-[#0B0B0D] tracking-tight">
-          {product.name}
+          {getProductH1(product.id, product.name)}
         </h1>
 
         <p className="text-xs sm:text-sm text-zinc-600 leading-relaxed">

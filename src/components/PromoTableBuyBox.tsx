@@ -5,6 +5,8 @@ import { Product, ProductColor, CustomArtwork } from '../types';
 import { ProductAssuranceCards } from './ProductAssuranceCards';
 import { ProductMockupCanvas } from './ProductMockupCanvas';
 import { compressImageFile } from '../utils/imageCompressor';
+import { BUSINESS_CONFIG } from '../config/business';
+import { getProductH1 } from '../config/seoRoutes';
 
 interface PromoTableBuyBoxProps {
   product: Product;
@@ -112,7 +114,7 @@ export const PromoTableBuyBox: React.FC<PromoTableBuyBoxProps> = ({
         </div>
 
         <h1 className="font-display text-2xl sm:text-3xl font-bold text-[#0B0B0D] tracking-tight leading-snug">
-          Promo Table
+          {getProductH1(product.id, product.name)}
         </h1>
         <p className="text-xs sm:text-sm text-zinc-600 mt-1 leading-relaxed">
           Portable Promotional Display Counter with Overhead Branding Panel
@@ -145,8 +147,8 @@ export const PromoTableBuyBox: React.FC<PromoTableBuyBoxProps> = ({
                 <Star key={i} className="w-3.5 h-3.5 fill-current" />
               ))}
             </div>
-            <span className="font-bold text-zinc-800 ml-1">4.9</span>
-            <span className="text-zinc-500">(48 Reviews)</span>
+            <span className="font-bold text-zinc-800 ml-1">{product.rating}</span>
+            <span className="text-zinc-500">({product.reviewCount} Reviews)</span>
           </div>
           <span className="text-zinc-300">|</span>
           <span className="text-emerald-700 font-semibold font-mono text-[11px]">
@@ -444,7 +446,7 @@ export const PromoTableBuyBox: React.FC<PromoTableBuyBoxProps> = ({
       <div className="space-y-3 pt-2 border-t border-[#E5E5EA]">
         {quantity > 10 ? (
           <a
-            href={`https://wa.me/918309394934?text=${encodeURIComponent(`Hi TeqqnoWorld, I want a custom quote for Promo Table (Quantity: ${quantity} units). Please share pricing and delivery schedule.`)}`}
+            href={`https://wa.me/${BUSINESS_CONFIG.contact.whatsappDigits}?text=${encodeURIComponent(`Hi TeqqnoWorld, I want a custom quote for Promo Table (Quantity: ${quantity} units). Please share pricing and delivery schedule.`)}`}
             target="_blank"
             rel="noopener noreferrer"
             className="w-full bg-[#FF7A00] hover:bg-[#e06c00] text-white font-display font-extrabold text-sm sm:text-base py-4 px-6 rounded-xl shadow-lg transition-all flex items-center justify-center gap-2 cursor-pointer"
@@ -465,7 +467,7 @@ export const PromoTableBuyBox: React.FC<PromoTableBuyBoxProps> = ({
         )}
 
         <a
-          href={`https://wa.me/918309394934?text=${encodeURIComponent(`Hi TeqqnoWorld, I want a quote for Promo Table (Quantity: ${quantity} units). Please share pricing and delivery schedule.`)}`}
+          href={`https://wa.me/${BUSINESS_CONFIG.contact.whatsappDigits}?text=${encodeURIComponent(`Hi TeqqnoWorld, I want a quote for Promo Table (Quantity: ${quantity} units). Please share pricing and delivery schedule.`)}`}
           target="_blank"
           rel="noopener noreferrer"
           className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-display font-bold text-sm py-3.5 px-6 rounded-xl shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer"

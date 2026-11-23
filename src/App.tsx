@@ -56,6 +56,7 @@ import { doesOrderBelongToUser, isLegacyMockOrder } from './components/customer/
 import { ShieldCheck, Sparkles, Home, LayoutGrid, ShoppingBag, Package, ArrowRight } from 'lucide-react';
 import { WhatsAppIcon } from './components/WhatsAppIcon';
 import {
+  DEFAULT_OG_IMAGE_ALT,
   SEO_BULK_META,
   SEO_BUNDLE_BUILDER_META,
   SEO_CATALOG_META,
@@ -68,9 +69,15 @@ import {
   findCategoryByCatalogKey,
   findCategoryBySlugOrAlias,
   getCategoryPath,
+  getProductH1,
   getProductPath,
+  getProductSocialImageUrl,
 } from './config/seoRoutes';
 import { applyDocumentSeo } from './utils/seoManager';
+import {
+  buildPageStructuredData,
+  type StructuredDataProductInput,
+} from './config/structuredData';
 
 interface ResolvedClientRoute {
   tab: string;
@@ -679,28 +686,53 @@ export default function App() {
     };
   }, []);
 
-  // Dynamically synchronize <title>, meta description, canonical, robots, OpenGraph, and Twitter tags
+  // Dynamically synchronize <title>, meta description, canonical, robots, OpenGraph, Twitter, and JSON-LD
   useEffect(() => {
     const noindexRobots = 'noindex, nofollow';
+    const toStructuredProduct = (p: Product): StructuredDataProductInput => ({
+      id: p.id,
+      slug: p.slug,
+      name: p.name,
+      description: p.description,
+      category: p.category,
+      productType: p.productType,
+      basePrice: p.basePrice,
+      moq: p.moq,
+      imageUrl: p.colors?.[0]?.imageFront,
+    });
 
     if (currentTab === 'product-detail' && selectedProduct) {
+      const cleanProductH1 = getProductH1(selectedProduct.id, selectedProduct.name);
+      const productTitle = buildProductSeoTitle(selectedProduct.id, selectedProduct.name);
+      const productDescription = buildProductSeoDescription({
+        productId: selectedProduct.id,
+        name: selectedProduct.name,
+        description: selectedProduct.shortDesc || selectedProduct.description,
+        priceInr: selectedProduct.basePrice,
+        moq: selectedProduct.moq,
+      });
       applyDocumentSeo({
-        title: buildProductSeoTitle(selectedProduct.id, selectedProduct.name),
-        description: buildProductSeoDescription({
-          name: selectedProduct.name,
-          description: selectedProduct.shortDesc || selectedProduct.description,
-          priceInr: selectedProduct.basePrice,
-          moq: selectedProduct.moq,
-        }),
+        title: productTitle,
+        description: productDescription,
         canonicalPath: getProductPath(selectedProduct.slug),
         ogType: 'product',
-        imageUrl: selectedProduct.colors?.[0]?.imageFront,
-        imageAlt: selectedProduct.name,
+        imageUrl: getProductSocialImageUrl(
+          selectedProduct.id,
+          selectedProduct.colors?.[0]?.imageFront
+        ),
+        imageAlt: cleanProductH1,
+        structuredData: buildPageStructuredData({
+          kind: 'product',
+          product: toStructuredProduct(selectedProduct),
+          title: productTitle,
+          metaDescription: productDescription,
+        }),
       });
       return;
     }
 
     if (currentTab === 'catalog') {
+      const structuredCatalogProducts = PRODUCTS.map(toStructuredProduct);
       const matchedCat =
         catalogCategory && catalogCategory !== 'all'
           ? findCategoryByCatalogKey(catalogCategory)
@@ -712,6 +744,11 @@ export default function App() {
           canonicalPath: `/category/${matchedCat.slug}`,
           imageUrl: matchedCat.image,
           imageAlt: matchedCat.h1,
+          structuredData: buildPageStructuredData({
+            kind: 'category',
+            category: matchedCat,
+            products: structuredCatalogProducts,
+          }),
         });
       } else {
         applyDocumentSeo({
@@ -719,6 +756,10 @@ export default function App() {
           description: SEO_CATALOG_META.description,
           canonicalPath: '/catalog',
           imageAlt: SEO_CATALOG_META.h1,
+          structuredData: buildPageStructuredData({
+            kind: 'catalog',
+            products: structuredCatalogProducts,
+          }),
         });
       }
       return;
@@ -730,6 +771,13 @@ export default function App() {
         description: SEO_BULK_META.description,
         canonicalPath: '/bulk',
         imageAlt: SEO_BULK_META.h1,
+        structuredData: buildPageStructuredData({
+          kind: 'static',
+          path: '/bulk',
+          title: SEO_BULK_META.title,
+          description: SEO_BULK_META.description,
+          h1: SEO_BULK_META.h1,
+        }),
       });
       return;
     }
@@ -740,6 +788,13 @@ export default function App() {
         description: SEO_QUOTE_CALCULATOR_META.description,
         canonicalPath: '/quote-calculator',
         imageAlt: SEO_QUOTE_CALCULATOR_META.h1,
+        structuredData: buildPageStructuredData({
+          kind: 'static',
+          path: '/quote-calculator',
+          title: SEO_QUOTE_CALCULATOR_META.title,
+          description: SEO_QUOTE_CALCULATOR_META.description,
+          h1: SEO_QUOTE_CALCULATOR_META.h1,
+        }),
       });
       return;
     }
@@ -750,6 +805,13 @@ export default function App() {
         description: SEO_BUNDLE_BUILDER_META.description,
         canonicalPath: '/bundle-builder',
         imageAlt: SEO_BUNDLE_BUILDER_META.h1,
+        structuredData: buildPageStructuredData({
+          kind: 'static',
+          path: '/bundle-builder',
+          title: SEO_BUNDLE_BUILDER_META.title,
+          description: SEO_BUNDLE_BUILDER_META.description,
+          h1: SEO_BUNDLE_BUILDER_META.h1,
+        }),
       });
       return;
     }
@@ -763,6 +825,13 @@ export default function App() {
         description: legalMeta.description,
         canonicalPath: legalMeta.path,
         imageAlt: legalMeta.h1,
+        structuredData: buildPageStructuredData({
+          kind: 'static',
+          path: legalMeta.path,
+          title: legalMeta.title,
+          description: legalMeta.description,
+          h1: legalMeta.h1,
+        }),
       });
       return;
     }
@@ -786,6 +855,8 @@ export default function App() {
         description: 'TeqqnoWorld account and order management portal.',
         canonicalPath: `/${currentTab}`,
         robots: noindexRobots,
+        imageAlt: 'TeqqnoWorld',
+        structuredData: buildPageStructuredData({ kind: 'private-or-error' }),
       });
       return;
     }
@@ -798,6 +869,8 @@ export default function App() {
         canonicalPath:
           typeof window !== 'undefined' ? window.location.pathname || '/404' : '/404',
         robots: noindexRobots,
+        imageAlt: 'TeqqnoWorld',
+        structuredData: buildPageStructuredData({ kind: 'private-or-error' }),
       });
       return;
     }
@@ -807,7 +880,8 @@ export default function App() {
       title: SEO_HOME_META.title,
       description: SEO_HOME_META.description,
       canonicalPath: '/',
-      imageAlt: SEO_HOME_META.h1,
+      imageAlt: DEFAULT_OG_IMAGE_ALT,
+      structuredData: buildPageStructuredData({ kind: 'home' }),
     });
   }, [currentTab, selectedProduct, catalogCategory]);
 
@@ -1244,6 +1318,8 @@ export default function App() {
               setCatalogCategory(cat);
               pushCleanUrl(getCategoryPath(cat));
             }}
+            onNavigateHome={() => handleNavigate('home')}
+            onNavigateRoute={handleNavigate}
             onSelectProduct={handleSelectProduct}
             onCustomizeProduct={handleCustomizeProduct}
             onOpenQuoteCalculator={() => setIsQuoteCalculatorOpen(true)}
@@ -1258,6 +1334,9 @@ export default function App() {
           <ProductDetailView
             product={selectedProduct}
             onBack={() => handleNavigate('catalog')}
+            onNavigateHome={() => handleNavigate('home')}
+            onSelectCategory={handleSelectCategory}
+            onSelectProduct={handleSelectProduct}
             onCustomize={handleCustomizeProduct}
             onAddToCart={handleAddToCart}
             onRequestQuote={() => handleNavigate('bulk')}

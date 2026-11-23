@@ -10,6 +10,8 @@ import {
 import { WhatsAppIcon } from './WhatsAppIcon';
 import { Product, VisitingCardDesignState } from '../types';
 import { ProductAssuranceCards } from './ProductAssuranceCards';
+import { BUSINESS_CONFIG } from '../config/business';
+import { getProductH1 } from '../config/seoRoutes';
 
 interface VisitingCardBuyBoxProps {
   product: Product;
@@ -61,7 +63,7 @@ export const VisitingCardBuyBox: React.FC<VisitingCardBuyBoxProps> = ({
   const hasArtworks = Boolean(design.frontDataUrl || design.backDataUrl);
   const activePreviewUrl = previewSide === 'front' ? design.frontDataUrl : design.backDataUrl;
 
-  const whatsappUrl = `https://wa.me/918309394934?text=${encodeURIComponent(
+  const whatsappUrl = `https://wa.me/${BUSINESS_CONFIG.contact.whatsappDigits}?text=${encodeURIComponent(
     `Hello TeqqnoWorld! I'd like a custom bulk quotation for *Premium 300 GSM Visiting Cards* (92 × 52 MM, Both Side Digital Print, White Base Paper).\nQuantity: ${quantity} pieces\nEstimated Price: ${isQuoteRequired ? 'Bulk Quote Needed' : `₹${totalPrice.toLocaleString('en-IN')}`}.\nPlease share quotation and printing details.`
   )}`;
 
@@ -72,7 +74,7 @@ export const VisitingCardBuyBox: React.FC<VisitingCardBuyBoxProps> = ({
       <div>
         <div className="flex flex-wrap items-center gap-2 mb-2">
           <span className="text-[11px] font-mono uppercase tracking-wider font-bold text-[#FF7A00] bg-[#FF7A00]/10 px-2.5 py-0.5 rounded-md">
-            Corporate Gifts & Promotional Products
+            Visiting Cards &amp; Printing
           </span>
           <span className="text-[11px] font-mono font-bold text-zinc-900 bg-zinc-100 px-2.5 py-0.5 rounded-md border border-zinc-200">
             WHITE Paper ONLY
@@ -83,7 +85,7 @@ export const VisitingCardBuyBox: React.FC<VisitingCardBuyBoxProps> = ({
         </div>
 
         <h1 className="font-display text-2xl sm:text-3xl font-bold text-[#0B0B0D] tracking-tight leading-snug">
-          Premium 300 GSM Visiting Card
+          {getProductH1(product.id, product.name)}
         </h1>
         <p className="text-xs sm:text-sm text-zinc-600 mt-1 leading-relaxed">
           Premium quality 300 GSM visiting cards printed on smooth art paper with vibrant digital printing, sharp text and professional finishing. Ideal for business owners, professionals, startups and corporate branding.
@@ -118,8 +120,8 @@ export const VisitingCardBuyBox: React.FC<VisitingCardBuyBoxProps> = ({
                 <Star key={i} className="w-3.5 h-3.5 fill-current" />
               ))}
             </div>
-            <span className="font-bold text-zinc-800 ml-1">4.9</span>
-            <span className="text-zinc-500">(320 Reviews)</span>
+            <span className="font-bold text-zinc-800 ml-1">{product.rating}</span>
+            <span className="text-zinc-500">({product.reviewCount} Reviews)</span>
           </div>
           <span className="text-zinc-300">|</span>
           <span className="text-emerald-700 font-semibold font-mono text-[11px]">
@@ -309,7 +311,7 @@ export const VisitingCardBuyBox: React.FC<VisitingCardBuyBoxProps> = ({
               {activePreviewUrl ? (
                 <img
                   src={activePreviewUrl}
-                  alt={`Visiting card ${previewSide} preview`}
+                  alt={`Premium 300 GSM Visiting Card – ${previewSide === 'front' ? 'Front' : 'Back'} Side Design Preview`}
                   className="w-full h-full object-contain"
                 />
               ) : (
