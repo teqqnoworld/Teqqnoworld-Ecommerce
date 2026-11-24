@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Plus, Minus, MessageSquare, Sparkles, HelpCircle } from 'lucide-react';
 import { FAQ_LIST } from '../data/mockData';
 import { getWhatsAppLink } from '../config/business';
+import { getResponsiveImageProps } from '../utils/responsiveImage';
 
 export const FaqSection: React.FC = () => {
   // First item open by default as shown in the reference image blueprint
@@ -33,7 +34,7 @@ export const FaqSection: React.FC = () => {
           {/* Eyebrow Badge */}
           <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-[#FFEFE5] border border-orange-200/70 shadow-2xs">
             <span className="w-2 h-2 rounded-full bg-[#FF7A00] animate-pulse" />
-            <span className="text-[11px] sm:text-xs font-bold tracking-wider text-[#FF7A00] uppercase font-mono">
+            <span className="text-[11px] sm:text-xs font-bold tracking-wider text-[#B85000] uppercase font-mono">
               FREQUENTLY ASKED QUESTIONS
             </span>
           </div>
@@ -65,10 +66,10 @@ export const FaqSection: React.FC = () => {
               {/* Main Illustration Asset */}
               <div className="relative rounded-3xl overflow-hidden bg-transparent">
                 <img
-                  src="/assets/faq_illustration.webp"
+                  {...getResponsiveImageProps('/assets/faq_illustration.webp', '(max-width: 640px) 90vw, 440px')}
                   alt="TeqqnoWorld Customer Support and Production Team ready to assist with orders"
-                  width={500}
-                  height={400}
+                  width={480}
+                  height={387}
                   loading="lazy"
                   decoding="async"
                   className="w-full h-auto object-contain transition-transform duration-500 hover:scale-[1.02] drop-shadow-sm"
@@ -122,7 +123,7 @@ export const FaqSection: React.FC = () => {
                   href={getWhatsAppLink('Hi TeqqnoWorld, I have a question about custom merchandise')} 
                   target="_blank" 
                   rel="noopener noreferrer" 
-                  className="font-bold text-[#FF7A00] hover:underline inline-flex items-center gap-1"
+                  className="font-bold text-[#B85000] hover:underline inline-flex items-center gap-1"
                 >
                   Chat with our specialists &rarr;
                 </a>
@@ -158,8 +159,8 @@ export const FaqSection: React.FC = () => {
                       <span
                         className={`w-7 h-7 sm:w-8 sm:h-8 rounded-full flex items-center justify-center font-display font-bold text-xs shrink-0 transition-colors ${
                           isOpen
-                            ? 'bg-[#FFE2CC] text-[#FF7A00]'
-                            : 'bg-[#FFF0E2] text-[#FF7A00] group-hover:bg-[#FFE2CC]'
+                            ? 'bg-[#FFE2CC] text-[#B85000]'
+                            : 'bg-[#FFF0E2] text-[#B85000] group-hover:bg-[#FFE2CC]'
                         }`}
                       >
                         {numStr}

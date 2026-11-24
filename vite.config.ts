@@ -26,26 +26,41 @@ export default defineConfig(() => {
       rollupOptions: {
         output: {
           manualChunks(id) {
+            if (id.includes('preload-helper')) {
+              return 'preload-helper';
+            }
             if (id.includes('node_modules')) {
-              if (id.includes('react') || id.includes('react-dom')) {
+              const normalized = id.replace(/\\/g, '/');
+              if (
+                normalized.includes('/node_modules/react/') ||
+                normalized.includes('/node_modules/react-dom/') ||
+                normalized.includes('/node_modules/scheduler/')
+              ) {
                 return 'vendor-react';
               }
-              if (id.includes('three')) {
+              if (normalized.includes('/node_modules/three/')) {
                 return 'vendor-three';
               }
-              if (id.includes('lucide-react')) {
+              if (normalized.includes('/node_modules/lucide-react/')) {
                 return 'vendor-icons';
               }
-              if (id.includes('motion')) {
+              if (
+                normalized.includes('/node_modules/motion/') ||
+                normalized.includes('/node_modules/framer-motion/') ||
+                normalized.includes('/node_modules/motion-dom/') ||
+                normalized.includes('/node_modules/motion-utils/')
+              ) {
                 return 'vendor-motion';
               }
-              if (id.includes('@supabase')) {
+              if (normalized.includes('/node_modules/@supabase/')) {
                 return 'vendor-supabase';
               }
-              if (id.includes('jspdf') || id.includes('jspdf-autotable')) {
+              if (
+                normalized.includes('/node_modules/jspdf/') ||
+                normalized.includes('/node_modules/jspdf-autotable/')
+              ) {
                 return 'vendor-pdf';
               }
-              return 'vendor-core';
             }
           },
         },

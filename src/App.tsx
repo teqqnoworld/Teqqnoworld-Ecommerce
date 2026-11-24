@@ -1,10 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, Suspense, lazy } from 'react';
 import { AnnouncementBar } from './components/AnnouncementBar';
 import { Navbar } from './components/Navbar';
 import { Hero } from './components/Hero';
 import { CategoriesSection } from './components/CategoriesSection';
 import { FeaturedProducts } from './components/FeaturedProducts';
-import { MockupEngineSection } from './components/MockupEngineSection';
 import { WorkflowSection } from './components/WorkflowSection';
 import { BulkEnquirySection } from './components/BulkEnquirySection';
 import { AdvantageSection } from './components/AdvantageSection';
@@ -12,42 +11,155 @@ import { ClientReviewsSection } from './components/ClientReviewsSection';
 import { FaqSection } from './components/FaqSection';
 import { CtaBanner } from './components/CtaBanner';
 import { Footer } from './components/Footer';
-
-import { ProductCatalogView } from './components/ProductCatalogView';
-import { ProductDetailView } from './components/ProductDetailView';
-import { CartDrawer } from './components/CartDrawer';
-import { WishlistDrawer } from './components/WishlistDrawer';
-import { CheckoutView } from './components/CheckoutView';
-import { OrderConfirmationView } from './components/OrderConfirmationView';
-import { SearchModal } from './components/SearchModal';
-import { AccountModal } from './components/AccountModal';
-import { AuthModal } from './components/AuthModal';
-import { CustomerDashboard } from './components/CustomerDashboard';
 import { OrderProcessingStepsSection } from './components/OrderProcessingStepsSection';
 import { ClientLogosSection } from './components/ClientLogosSection';
-import { BulkQuotationCalculator } from './components/BulkQuotationCalculator';
-import { CorporateGiftBundleBuilder } from './components/CorporateGiftBundleBuilder';
-import { DownloadCatalogModal } from './components/DownloadCatalogModal';
-import { OrderTrackingModal } from './components/OrderTrackingModal';
-import { SupabaseDevModal } from './components/SupabaseDevModal';
-import { AdminHubView } from './components/AdminHubView';
 import { DelhiveryAreaModal } from './components/DelhiveryPincodeChecker';
-import { OrderActionView } from './components/OrderActionView';
 import { activateRecoveryCoupon } from './services/aisensyService';
 import { sendRegistrationEmails } from './services/emailService';
 import { supabase } from './lib/supabase';
-
-// Legal & Policy Views
-import { PrivacyPolicyView } from './components/legal/PrivacyPolicyView';
-import { TermsAndConditionsView } from './components/legal/TermsAndConditionsView';
-import { ShippingPolicyView } from './components/legal/ShippingPolicyView';
-import { CancellationRefundPolicyView } from './components/legal/CancellationRefundPolicyView';
-import { ReturnReplacementPolicyView } from './components/legal/ReturnReplacementPolicyView';
 import { BUSINESS_CONFIG, getWhatsAppLink } from './config/business';
-import { ContactUsView } from './components/legal/ContactUsView';
-import { PaymentPolicyView } from './components/legal/PaymentPolicyView';
-import { PricingTaxesView } from './components/legal/PricingTaxesView';
-import { CookiePolicyView } from './components/legal/CookiePolicyView';
+
+// Lazy-loaded heavy below-the-fold interactive section, routes, modals & legal pages
+const MockupEngineSection = lazy(() =>
+  import('./components/MockupEngineSection').then((m) => ({ default: m.MockupEngineSection }))
+);
+const ProductCatalogView = lazy(() =>
+  import('./components/ProductCatalogView').then((m) => ({ default: m.ProductCatalogView }))
+);
+const ProductDetailView = lazy(() =>
+  import('./components/ProductDetailView').then((m) => ({ default: m.ProductDetailView }))
+);
+const CartDrawer = lazy(() =>
+  import('./components/CartDrawer').then((m) => ({ default: m.CartDrawer }))
+);
+const WishlistDrawer = lazy(() =>
+  import('./components/WishlistDrawer').then((m) => ({ default: m.WishlistDrawer }))
+);
+const CheckoutView = lazy(() =>
+  import('./components/CheckoutView').then((m) => ({ default: m.CheckoutView }))
+);
+const OrderConfirmationView = lazy(() =>
+  import('./components/OrderConfirmationView').then((m) => ({ default: m.OrderConfirmationView }))
+);
+const SearchModal = lazy(() =>
+  import('./components/SearchModal').then((m) => ({ default: m.SearchModal }))
+);
+const AccountModal = lazy(() =>
+  import('./components/AccountModal').then((m) => ({ default: m.AccountModal }))
+);
+const AuthModal = lazy(() =>
+  import('./components/AuthModal').then((m) => ({ default: m.AuthModal }))
+);
+const CustomerDashboard = lazy(() =>
+  import('./components/CustomerDashboard').then((m) => ({ default: m.CustomerDashboard }))
+);
+const BulkQuotationCalculator = lazy(() =>
+  import('./components/BulkQuotationCalculator').then((m) => ({ default: m.BulkQuotationCalculator }))
+);
+const CorporateGiftBundleBuilder = lazy(() =>
+  import('./components/CorporateGiftBundleBuilder').then((m) => ({ default: m.CorporateGiftBundleBuilder }))
+);
+const DownloadCatalogModal = lazy(() =>
+  import('./components/DownloadCatalogModal').then((m) => ({ default: m.DownloadCatalogModal }))
+);
+const OrderTrackingModal = lazy(() =>
+  import('./components/OrderTrackingModal').then((m) => ({ default: m.OrderTrackingModal }))
+);
+const SupabaseDevModal = lazy(() =>
+  import('./components/SupabaseDevModal').then((m) => ({ default: m.SupabaseDevModal }))
+);
+const AdminHubView = lazy(() =>
+  import('./components/AdminHubView').then((m) => ({ default: m.AdminHubView }))
+);
+const OrderActionView = lazy(() =>
+  import('./components/OrderActionView').then((m) => ({ default: m.OrderActionView }))
+);
+
+// Legal & Policy Views (route-split)
+const PrivacyPolicyView = lazy(() =>
+  import('./components/legal/PrivacyPolicyView').then((m) => ({ default: m.PrivacyPolicyView }))
+);
+const TermsAndConditionsView = lazy(() =>
+  import('./components/legal/TermsAndConditionsView').then((m) => ({ default: m.TermsAndConditionsView }))
+);
+const ShippingPolicyView = lazy(() =>
+  import('./components/legal/ShippingPolicyView').then((m) => ({ default: m.ShippingPolicyView }))
+);
+const CancellationRefundPolicyView = lazy(() =>
+  import('./components/legal/CancellationRefundPolicyView').then((m) => ({ default: m.CancellationRefundPolicyView }))
+);
+const ReturnReplacementPolicyView = lazy(() =>
+  import('./components/legal/ReturnReplacementPolicyView').then((m) => ({ default: m.ReturnReplacementPolicyView }))
+);
+const ContactUsView = lazy(() =>
+  import('./components/legal/ContactUsView').then((m) => ({ default: m.ContactUsView }))
+);
+const PaymentPolicyView = lazy(() =>
+  import('./components/legal/PaymentPolicyView').then((m) => ({ default: m.PaymentPolicyView }))
+);
+const PricingTaxesView = lazy(() =>
+  import('./components/legal/PricingTaxesView').then((m) => ({ default: m.PricingTaxesView }))
+);
+const CookiePolicyView = lazy(() =>
+  import('./components/legal/CookiePolicyView').then((m) => ({ default: m.CookiePolicyView }))
+);
+
+const RouteLoadingFallback: React.FC = () => (
+  <div className="min-h-[55vh] flex items-center justify-center bg-[#F4F2FA] px-4 py-16">
+    <div className="flex flex-col items-center gap-3 text-center">
+      <div className="w-9 h-9 rounded-full border-3 border-zinc-200 border-t-[#FF7A00] animate-spin" aria-hidden="true" />
+      <p className="text-xs font-medium text-zinc-600">Loading TeqqnoWorld...</p>
+    </div>
+  </div>
+);
+
+const MockupSectionFallback: React.FC = () => (
+  <section aria-label="Live Product Mockup Studio" className="py-20 bg-[#111216] text-white border-b border-[#25262F]">
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div className="h-[520px] rounded-3xl bg-white/5 border border-white/10 flex items-center justify-center">
+        <div className="flex flex-col items-center gap-2.5 text-center">
+          <div className="w-8 h-8 rounded-full border-2 border-white/20 border-t-[#FF7A00] animate-spin" aria-hidden="true" />
+          <span className="text-xs text-zinc-300 font-medium">Loading Interactive Logo Studio...</span>
+        </div>
+      </div>
+    </div>
+  </section>
+);
+
+const DeferredMockupSection: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const hostRef = useRef<HTMLDivElement>(null);
+  const [shouldRender, setShouldRender] = useState(false);
+
+  useEffect(() => {
+    if (shouldRender) return;
+    const node = hostRef.current;
+    if (!node || typeof IntersectionObserver === 'undefined') {
+      setShouldRender(true);
+      return;
+    }
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((entry) => entry.isIntersecting)) {
+          setShouldRender(true);
+          observer.disconnect();
+        }
+      },
+      { rootMargin: '500px 0px' }
+    );
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, [shouldRender]);
+
+  if (!shouldRender) {
+    return (
+      <div ref={hostRef}>
+        <MockupSectionFallback />
+      </div>
+    );
+  }
+
+  return <Suspense fallback={<MockupSectionFallback />}>{children}</Suspense>;
+};
 
 import { PRODUCTS } from './data/mockData';
 import { calculateProductPrice } from './data/pricingRules';
@@ -1196,7 +1308,7 @@ export default function App() {
 
   if (currentTab === 'admin') {
     return (
-      <>
+      <Suspense fallback={<RouteLoadingFallback />}>
         <AdminHubView
           onBackToStore={() => handleNavigate('home')}
           onNavigateToOrderTracking={(orderNumber) => {
@@ -1205,17 +1317,19 @@ export default function App() {
             setIsTrackingModalOpen(true);
           }}
         />
-        <OrderTrackingModal
-          isOpen={isTrackingModalOpen}
-          onClose={() => setIsTrackingModalOpen(false)}
-          orders={orders}
-          initialOrderNumber={activeOrder?.orderNumber || ''}
-          onSelectProof={(order) => {
-            setActiveOrder(order);
-            handleNavigate('orders');
-          }}
-        />
-      </>
+        {isTrackingModalOpen && (
+          <OrderTrackingModal
+            isOpen={isTrackingModalOpen}
+            onClose={() => setIsTrackingModalOpen(false)}
+            orders={orders}
+            initialOrderNumber={activeOrder?.orderNumber || ''}
+            onSelectProof={(order) => {
+              setActiveOrder(order);
+              handleNavigate('orders');
+            }}
+          />
+        )}
+      </Suspense>
     );
   }
 
@@ -1280,11 +1394,13 @@ export default function App() {
               onToggleWishlist={handleToggleWishlist}
             />
 
-            {/* 4. See Your Logo On Our Products (Zero Obligation Mockup Engine) */}
-            <MockupEngineSection
-              onExploreProduct={handleCustomizeProduct}
-              onAddToCart={handleAddToCart}
-            />
+            {/* 4. See Your Logo On Our Products (Zero Obligation Mockup Engine — viewport-deferred) */}
+            <DeferredMockupSection>
+              <MockupEngineSection
+                onExploreProduct={handleCustomizeProduct}
+                onAddToCart={handleAddToCart}
+              />
+            </DeferredMockupSection>
 
             {/* 5. Transparent Production Flow (How It Works in 3 Simple Steps) */}
             <WorkflowSection />
@@ -1309,6 +1425,8 @@ export default function App() {
           </div>
         )}
 
+        {/* VIEW B+: ROUTE-SPLIT VIEWS */}
+        <Suspense fallback={<RouteLoadingFallback />}>
         {/* VIEW B: CATALOG / SHOP */}
         {currentTab === 'catalog' && (
           <ProductCatalogView
@@ -1563,6 +1681,7 @@ export default function App() {
         {(currentTab === '/cookie-policy' || currentTab === 'cookie-policy') && (
           <CookiePolicyView onNavigate={handleNavigate} />
         )}
+        </Suspense>
 
         {/* VIEW J: 404 PAGE NOT FOUND */}
         {currentTab === 'not-found' && (
@@ -1617,110 +1736,121 @@ export default function App() {
       )}
 
 
-      {/* 5. Cart Slide-Over Drawer */}
-      <CartDrawer
-        isOpen={isCartOpen}
-        onClose={() => setIsCartOpen(false)}
-        items={cartItems}
-        onUpdateQuantity={handleUpdateQuantity}
-        onRemoveItem={handleRemoveCartItem}
-        onProceedToCheckout={handleProceedToCheckout}
-        onOpenDeliveryCheck={() => setIsDeliveryCheckOpen(true)}
-      />
-
-      {/* 5.1 Wishlist Slide-Over Drawer */}
-      <WishlistDrawer
-        isOpen={isWishlistOpen}
-        onClose={() => setIsWishlistOpen(false)}
-        items={wishlistProducts}
-        onRemoveItem={handleToggleWishlist}
-        onClearAll={handleClearWishlist}
-        onSelectProduct={handleSelectProduct}
-        onCustomizeProduct={handleCustomizeProduct}
-        onQuickAddToCart={(product) => {
-          handleQuickAddProduct(product);
-          setWishlistIds(prev => prev.filter(id => id !== product.id));
-        }}
-        onExploreCatalog={() => handleNavigate('catalog')}
-      />
-
-      {/* 6. Real-Time Search Overlay */}
-      <SearchModal
-        isOpen={isSearchOpen}
-        onClose={() => setIsSearchOpen(false)}
-        onSelectProduct={handleSelectProduct}
-        onCustomizeProduct={handleCustomizeProduct}
-      />
-
-      {/* 7. Account & Order Lookup Modal */}
-      <AccountModal
-        isOpen={isAccountOpen}
-        onClose={() => setIsAccountOpen(false)}
-        orders={userScopedOrders}
-        onSelectOrder={(order) => {
-          setActiveOrder(order);
-          setCurrentTab('orders');
-        }}
-      />
-
-      {/* 8. Mobile Number OTP Authentication Modal */}
-      <AuthModal
-        isOpen={isAuthModalOpen}
-        onClose={() => setIsAuthModalOpen(false)}
-        onLoginSuccess={handleLoginSuccess}
-        destinationActionNote={authModalNote}
-      />
-
-      {/* 9. B2B Bulk Quotation Calculator Modal */}
-      {isQuoteCalculatorOpen && (
-        <div className="fixed inset-0 z-50 bg-black/75 backdrop-blur-xs flex items-start sm:items-center justify-center p-2 sm:p-4 md:p-6 overflow-y-auto">
-          <BulkQuotationCalculator
-            isModal={true}
-            onCloseModal={() => setIsQuoteCalculatorOpen(false)}
-            onAddToCart={handleAddToCart}
+      {/* 5–14. Lazy-Loaded Drawers & Modals (only download & mount when opened) */}
+      <Suspense fallback={null}>
+        {isCartOpen && (
+          <CartDrawer
+            isOpen={isCartOpen}
+            onClose={() => setIsCartOpen(false)}
+            items={cartItems}
+            onUpdateQuantity={handleUpdateQuantity}
+            onRemoveItem={handleRemoveCartItem}
+            onProceedToCheckout={handleProceedToCheckout}
+            onOpenDeliveryCheck={() => setIsDeliveryCheckOpen(true)}
           />
-        </div>
-      )}
+        )}
 
-      {/* 10. Corporate Gift Bundle Builder Modal */}
-      {isBundleBuilderOpen && (
-        <div className="fixed inset-0 z-50 bg-black/75 backdrop-blur-xs flex items-start sm:items-center justify-center p-2 sm:p-4 md:p-6 overflow-y-auto">
-          <CorporateGiftBundleBuilder
-            isModal={true}
-            onClose={() => setIsBundleBuilderOpen(false)}
-            onAddToCart={handleAddToCart}
+        {isWishlistOpen && (
+          <WishlistDrawer
+            isOpen={isWishlistOpen}
+            onClose={() => setIsWishlistOpen(false)}
+            items={wishlistProducts}
+            onRemoveItem={handleToggleWishlist}
+            onClearAll={handleClearWishlist}
+            onSelectProduct={handleSelectProduct}
+            onCustomizeProduct={handleCustomizeProduct}
+            onQuickAddToCart={(product) => {
+              handleQuickAddProduct(product);
+              setWishlistIds(prev => prev.filter(id => id !== product.id));
+            }}
+            onExploreCatalog={() => handleNavigate('catalog')}
           />
-        </div>
-      )}
+        )}
 
-      {/* 11. Downloadable Corporate Catalogues Modal */}
-      <DownloadCatalogModal
-        isOpen={isDownloadCatalogOpen}
-        onClose={() => setIsDownloadCatalogOpen(false)}
-      />
+        {isSearchOpen && (
+          <SearchModal
+            isOpen={isSearchOpen}
+            onClose={() => setIsSearchOpen(false)}
+            onSelectProduct={handleSelectProduct}
+            onCustomizeProduct={handleCustomizeProduct}
+          />
+        )}
 
-      {/* 12. Order Tracking & Consignment Milestone Modal */}
-      <OrderTrackingModal
-        isOpen={isTrackingModalOpen}
-        onClose={() => setIsTrackingModalOpen(false)}
-        orders={userScopedOrders}
-        onSelectProof={(order) => {
-          setActiveOrder(order);
-          setCurrentTab('orders');
-        }}
-      />
+        {isAccountOpen && (
+          <AccountModal
+            isOpen={isAccountOpen}
+            onClose={() => setIsAccountOpen(false)}
+            orders={userScopedOrders}
+            onSelectOrder={(order) => {
+              setActiveOrder(order);
+              setCurrentTab('orders');
+            }}
+          />
+        )}
 
-      {/* 13. Supabase Integration Console Modal */}
-      <SupabaseDevModal
-        isOpen={isSupabaseDevOpen}
-        onClose={() => setIsSupabaseDevOpen(false)}
-      />
+        {isAuthModalOpen && (
+          <AuthModal
+            isOpen={isAuthModalOpen}
+            onClose={() => setIsAuthModalOpen(false)}
+            onLoginSuccess={handleLoginSuccess}
+            destinationActionNote={authModalNote}
+          />
+        )}
+
+        {isQuoteCalculatorOpen && (
+          <div className="fixed inset-0 z-50 bg-black/75 backdrop-blur-xs flex items-start sm:items-center justify-center p-2 sm:p-4 md:p-6 overflow-y-auto">
+            <BulkQuotationCalculator
+              isModal={true}
+              onCloseModal={() => setIsQuoteCalculatorOpen(false)}
+              onAddToCart={handleAddToCart}
+            />
+          </div>
+        )}
+
+        {isBundleBuilderOpen && (
+          <div className="fixed inset-0 z-50 bg-black/75 backdrop-blur-xs flex items-start sm:items-center justify-center p-2 sm:p-4 md:p-6 overflow-y-auto">
+            <CorporateGiftBundleBuilder
+              isModal={true}
+              onClose={() => setIsBundleBuilderOpen(false)}
+              onAddToCart={handleAddToCart}
+            />
+          </div>
+        )}
+
+        {isDownloadCatalogOpen && (
+          <DownloadCatalogModal
+            isOpen={isDownloadCatalogOpen}
+            onClose={() => setIsDownloadCatalogOpen(false)}
+          />
+        )}
+
+        {isTrackingModalOpen && (
+          <OrderTrackingModal
+            isOpen={isTrackingModalOpen}
+            onClose={() => setIsTrackingModalOpen(false)}
+            orders={userScopedOrders}
+            onSelectProof={(order) => {
+              setActiveOrder(order);
+              setCurrentTab('orders');
+            }}
+          />
+        )}
+
+        {isSupabaseDevOpen && (
+          <SupabaseDevModal
+            isOpen={isSupabaseDevOpen}
+            onClose={() => setIsSupabaseDevOpen(false)}
+          />
+        )}
+      </Suspense>
 
       {/* 14. Delhivery Serviceability Checker Modal */}
-      <DelhiveryAreaModal
-        isOpen={isDeliveryCheckOpen}
-        onClose={() => setIsDeliveryCheckOpen(false)}
-      />
+      {isDeliveryCheckOpen && (
+        <DelhiveryAreaModal
+          isOpen={isDeliveryCheckOpen}
+          onClose={() => setIsDeliveryCheckOpen(false)}
+        />
+      )}
 
 
 

@@ -11,7 +11,7 @@ interface FooterProps {
 export const Footer: React.FC<FooterProps> = ({ onNavigate, onOpenSupabaseDev }) => {
   return (
 
-    <footer className="bg-[#111215] text-zinc-400 border-t border-[#2A2A30] text-xs">
+    <footer className="bg-[#111215] text-zinc-300 border-t border-[#2A2A30] text-xs">
       {/* 1. Pre-Footer 3-Column Trust Strip */}
       <div className="border-b border-[#2A2A30] py-6 bg-[#16171B]">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -24,7 +24,7 @@ export const Footer: React.FC<FooterProps> = ({ onNavigate, onOpenSupabaseDev })
               </div>
               <div>
                 <div className="font-display font-bold text-xs text-white group-hover:text-[#FF7A00] transition-colors">100% In-House QA Standards</div>
-                <div className="text-[11px] text-zinc-400 mt-0.5">Manual digital & physical color calibration</div>
+                <div className="text-[11px] text-zinc-300 mt-0.5">Manual digital & physical color calibration</div>
               </div>
             </div>
 
@@ -35,7 +35,7 @@ export const Footer: React.FC<FooterProps> = ({ onNavigate, onOpenSupabaseDev })
               </div>
               <div>
                 <div className="font-display font-bold text-xs text-white group-hover:text-emerald-400 transition-colors">RBI & PCI-DSS Gateway Compliant</div>
-                <div className="text-[11px] text-zinc-400 mt-0.5">Secure Razorpay + UPI + NetBanking integration</div>
+                <div className="text-[11px] text-zinc-300 mt-0.5">Secure Razorpay + UPI + NetBanking integration</div>
               </div>
             </div>
 
@@ -46,7 +46,7 @@ export const Footer: React.FC<FooterProps> = ({ onNavigate, onOpenSupabaseDev })
               </div>
               <div>
                 <div className="font-display font-bold text-xs text-white group-hover:text-purple-400 transition-colors">GST Invoicing (SAC 9989)</div>
-                <div className="text-[11px] text-zinc-400 mt-0.5">18% Input Tax Credit claim on all corporate orders</div>
+                <div className="text-[11px] text-zinc-300 mt-0.5">18% Input Tax Credit claim on all corporate orders</div>
               </div>
             </div>
 
@@ -107,10 +107,10 @@ export const Footer: React.FC<FooterProps> = ({ onNavigate, onOpenSupabaseDev })
 
           {/* Col 2 (2 cols): Product Categories */}
           <div className="lg:col-span-2 space-y-3">
-            <h4 className="font-display font-bold text-xs uppercase tracking-wider text-white">
+            <h2 className="font-display font-bold text-xs uppercase tracking-wider text-white">
               PRODUCTS
-            </h4>
-            <ul className="space-y-2 text-zinc-400 text-xs">
+            </h2>
+            <ul className="space-y-2 text-zinc-300 text-xs">
               <li>
                 <a
                   href="/category/custom-polo-t-shirts"
@@ -200,10 +200,10 @@ export const Footer: React.FC<FooterProps> = ({ onNavigate, onOpenSupabaseDev })
 
           {/* Col 3 (3 cols): Corporate Solutions & Tracking */}
           <div className="lg:col-span-3 space-y-3">
-            <h4 className="font-display font-bold text-xs uppercase tracking-wider text-white">
+            <h2 className="font-display font-bold text-xs uppercase tracking-wider text-white">
               CORPORATE SOLUTIONS
-            </h4>
-            <ul className="space-y-2 text-zinc-400 text-xs">
+            </h2>
+            <ul className="space-y-2 text-zinc-300 text-xs">
               <li>
                 <a
                   href="/orders"
@@ -323,11 +323,11 @@ export const Footer: React.FC<FooterProps> = ({ onNavigate, onOpenSupabaseDev })
 
           {/* Col 4 (3 cols): Dedicated Legal & Policies Column */}
           <div className="lg:col-span-3 space-y-3">
-            <h4 className="font-display font-bold text-xs uppercase tracking-wider text-white flex items-center gap-1.5">
+            <h2 className="font-display font-bold text-xs uppercase tracking-wider text-white flex items-center gap-1.5">
               <span className="text-[#FF7A00]">§</span>
-              <span>LEGAL & POLICIES</span>
-            </h4>
-            <ul className="space-y-1.5 text-zinc-400 text-xs">
+              <span>LEGAL &amp; POLICIES</span>
+            </h2>
+            <ul className="space-y-1.5 text-zinc-300 text-xs">
               {LEGAL_PAGES.map((page) => (
                 <li key={page.id}>
                   <a
@@ -355,19 +355,19 @@ export const Footer: React.FC<FooterProps> = ({ onNavigate, onOpenSupabaseDev })
         </div>
 
         {/* Bottom Copyright & Quick Legal Strip */}
-        <div className="pt-6 sm:pt-8 pb-2 md:pb-4 flex flex-col sm:flex-row items-center justify-between gap-4 text-[11px] text-zinc-500">
+        <div className="pt-6 sm:pt-8 pb-2 md:pb-4 flex flex-col sm:flex-row items-center justify-between gap-4 text-[11px] text-zinc-300">
           <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2">
             <span className="inline-flex items-center gap-1.5">
               <ShieldCheck className="w-3.5 h-3.5 text-[#FF7A00] animate-icon-pulse-glow shrink-0" />
               <span>© 2026 {BUSINESS_DETAILS.brandName}. All rights reserved.</span>
             </span>
-            <span className="text-zinc-700 hidden sm:inline">•</span>
-            <span className="inline-flex items-center gap-1.5 text-zinc-400">
+            <span className="text-zinc-600 hidden sm:inline" aria-hidden="true">•</span>
+            <span className="inline-flex items-center gap-1.5 text-zinc-300">
               <Truck className="w-3.5 h-3.5 text-emerald-400 animate-icon-drive shrink-0" />
               <span>Pan-India Delivery</span>
             </span>
           </div>
-          <div className="flex flex-wrap items-center justify-center gap-4 sm:gap-5 text-zinc-400">
+          <div className="flex flex-wrap items-center justify-center gap-4 sm:gap-5 text-zinc-300">
             <a
               href="/privacy-policy"
               onClick={(e) => {

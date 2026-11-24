@@ -274,8 +274,9 @@ export const BulkEnquirySection: React.FC<BulkEnquirySectionProps> = ({
                   {/* Customer Name & Company */}
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                     <div>
-                      <label className="block text-[11px] font-semibold text-zinc-700 mb-0.5">Your Full Name *</label>
+                      <label htmlFor="rfq-full-name" className="block text-[11px] font-semibold text-zinc-700 mb-0.5">Your Full Name *</label>
                       <input
+                        id="rfq-full-name"
                         type="text"
                         required
                         placeholder="e.g. Anand Verma"
@@ -285,8 +286,9 @@ export const BulkEnquirySection: React.FC<BulkEnquirySectionProps> = ({
                       />
                     </div>
                     <div>
-                      <label className="block text-[11px] font-semibold text-zinc-700 mb-0.5">Company Name</label>
+                      <label htmlFor="rfq-company-name" className="block text-[11px] font-semibold text-zinc-700 mb-0.5">Company Name</label>
                       <input
+                        id="rfq-company-name"
                         type="text"
                         placeholder="e.g. Infosys, Razorpay"
                         value={companyName}
@@ -299,8 +301,9 @@ export const BulkEnquirySection: React.FC<BulkEnquirySectionProps> = ({
                   {/* Email & Phone */}
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                     <div>
-                      <label className="block text-[11px] font-semibold text-zinc-700 mb-0.5">Contact Email *</label>
+                      <label htmlFor="rfq-email" className="block text-[11px] font-semibold text-zinc-700 mb-0.5">Contact Email *</label>
                       <input
+                        id="rfq-email"
                         type="email"
                         required
                         placeholder="procurement@corp.in"
@@ -311,8 +314,9 @@ export const BulkEnquirySection: React.FC<BulkEnquirySectionProps> = ({
                     </div>
 
                     <div>
-                      <label className="block text-[11px] font-semibold text-zinc-700 mb-0.5">Phone / WhatsApp *</label>
+                      <label htmlFor="rfq-phone" className="block text-[11px] font-semibold text-zinc-700 mb-0.5">Phone / WhatsApp *</label>
                       <input
+                        id="rfq-phone"
                         type="tel"
                         required
                         placeholder="+91 98765 43210"
@@ -325,8 +329,10 @@ export const BulkEnquirySection: React.FC<BulkEnquirySectionProps> = ({
 
                   {/* Merchandise Product Model */}
                   <div>
-                    <label className="block text-[11px] font-semibold text-zinc-700 mb-0.5">Select Merchandise Product</label>
+                    <label htmlFor="rfq-product-select" className="block text-[11px] font-semibold text-zinc-700 mb-0.5">Select Merchandise Product</label>
                     <select
+                      id="rfq-product-select"
+                      aria-label="Select Merchandise Product"
                       value={selectedProductId}
                       onChange={(e) => setSelectedProductId(e.target.value)}
                       className="w-full text-xs px-3 py-2 border border-zinc-200 rounded-xl outline-none focus:border-[#FF7A00] bg-zinc-50 min-h-[40px]"
@@ -341,13 +347,13 @@ export const BulkEnquirySection: React.FC<BulkEnquirySectionProps> = ({
 
                   {/* Brand Logo Upload to Supabase Storage */}
                   <div>
-                    <label className="block text-[11px] font-semibold text-zinc-700 mb-0.5 flex items-center justify-between">
+                    <div className="text-[11px] font-semibold text-zinc-700 mb-0.5 flex items-center justify-between">
                       <span className="flex items-center gap-1">
                         <Upload className="w-3 h-3 text-[#FF7A00]" />
                         <span>Upload Brand Logo (PNG, SVG, PDF)</span>
                       </span>
-                      <span className="text-[10px] text-zinc-400 font-mono">bucket: brand-logos</span>
-                    </label>
+                      <span className="text-[10px] text-zinc-600 font-mono">bucket: brand-logos</span>
+                    </div>
 
                     <div className="flex items-center gap-2 p-2 border border-dashed border-zinc-300 rounded-xl bg-zinc-50 hover:bg-orange-50/20 transition-colors">
                       {logoPreview ? (
@@ -363,7 +369,7 @@ export const BulkEnquirySection: React.FC<BulkEnquirySectionProps> = ({
                           />
                         </div>
                       ) : (
-                        <div className="w-8 h-8 rounded bg-zinc-100 flex items-center justify-center text-zinc-400 shrink-0">
+                        <div className="w-8 h-8 rounded bg-zinc-100 flex items-center justify-center text-zinc-600 shrink-0">
                           <Upload className="w-4 h-4" />
                         </div>
                       )}
@@ -371,13 +377,15 @@ export const BulkEnquirySection: React.FC<BulkEnquirySectionProps> = ({
                         <p className="text-[11px] font-medium text-zinc-700 truncate">
                           {logoFile ? logoFile.name : 'Attach insignia for free 3D proof'}
                         </p>
-                        <p className="text-[9px] text-zinc-400">Max 15MB • Storage RLS protected</p>
+                        <p className="text-[9px] text-zinc-600">Max 15MB • Storage RLS protected</p>
                       </div>
-                      <label className="bg-white hover:bg-zinc-100 border border-zinc-300 text-zinc-700 text-[11px] font-semibold px-2.5 py-1 rounded-lg cursor-pointer shrink-0 shadow-2xs">
+                      <label htmlFor="rfq-logo-upload" className="bg-white hover:bg-zinc-100 border border-zinc-300 text-zinc-700 text-[11px] font-semibold px-2.5 py-1 rounded-lg cursor-pointer shrink-0 shadow-2xs">
                         <span>{logoFile ? 'Change' : 'Attach'}</span>
                         <input
+                          id="rfq-logo-upload"
                           type="file"
                           accept=".png,.jpg,.jpeg,.svg,.pdf"
+                          aria-label="Upload Brand Logo"
                           onChange={handleLogoFileChange}
                           className="hidden"
                         />
@@ -388,18 +396,20 @@ export const BulkEnquirySection: React.FC<BulkEnquirySectionProps> = ({
                   {/* Quantity Slider */}
                   <div>
                     <div className="flex justify-between items-center text-[11px] font-semibold text-zinc-700 mb-1">
-                      <span>Target Quantity</span>
-                      <span className="font-mono font-bold text-[#FF7A00] text-xs bg-orange-50 px-2 py-0.5 rounded border border-orange-200">
+                      <label htmlFor="rfq-target-quantity">Target Quantity</label>
+                      <span className="font-mono font-bold text-[#B85000] text-xs bg-orange-50 px-2 py-0.5 rounded border border-orange-200">
                         {quantity} units
                       </span>
                     </div>
 
                     <input
+                      id="rfq-target-quantity"
                       type="range"
                       min="25"
                       max="3000"
                       step="25"
                       value={quantity}
+                      aria-label="Target order quantity in units"
                       onChange={(e) => setQuantity(parseInt(e.target.value))}
                       className="w-full accent-[#FF7A00] h-1.5 bg-zinc-200 rounded-lg cursor-pointer"
                     />

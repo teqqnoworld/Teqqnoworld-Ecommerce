@@ -1,5 +1,4 @@
-import React, { useEffect, useState } from 'react';
-import { motion, AnimatePresence } from 'motion/react';
+import React, { useEffect, useId, useState } from 'react';
 import {
   Truck,
   MapPin,
@@ -46,6 +45,7 @@ export const DelhiveryPincodeChecker: React.FC<DelhiveryPincodeCheckerProps> = (
   const [pinInput, setPinInput] = useState<string>(() => getSavedDelhiveryCheck()?.pincode || '');
   const [isChecking, setIsChecking] = useState(false);
   const [inputError, setInputError] = useState<string | null>(null);
+  const pinInputId = useId();
   const [isEditing, setIsEditing] = useState<boolean>(() => !getSavedDelhiveryCheck());
 
   useEffect(() => {
@@ -112,22 +112,17 @@ export const DelhiveryPincodeChecker: React.FC<DelhiveryPincodeCheckerProps> = (
               {/* Left Info + Animated Delivery Route */}
               <div className="lg:col-span-5 flex items-start gap-3.5">
                 <div className="relative w-12 h-12 rounded-xl bg-[#071B35] text-white flex items-center justify-center shrink-0 shadow-xs overflow-hidden">
-                  <motion.div
-                    animate={
+                  <div
+                    className={
                       isChecking
-                        ? { x: [-14, 18] }
+                        ? 'animate-tracking-truck'
                         : savedResult?.serviceable
-                        ? { x: [0, 3, 0] }
-                        : { x: 0 }
-                    }
-                    transition={
-                      isChecking
-                        ? { repeat: Infinity, duration: 0.9, ease: 'easeInOut' }
-                        : { duration: 1.8, ease: 'easeInOut' }
+                        ? 'transition-transform duration-500 translate-x-0.5'
+                        : 'transition-transform duration-300'
                     }
                   >
                     <Truck className="w-5 h-5 text-[#FF7A00]" />
-                  </motion.div>
+                  </div>
                 </div>
 
                 <div className="min-w-0">
@@ -135,12 +130,12 @@ export const DelhiveryPincodeChecker: React.FC<DelhiveryPincodeCheckerProps> = (
                     <h2 className="font-display font-bold text-sm sm:text-base text-[#071B35] tracking-tight">
                       Check Delhivery Delivery in Your Area
                     </h2>
-                    <span className="text-[11px] font-mono font-semibold text-[#FF7A00]">
+                    <span className="text-[11px] font-mono font-semibold text-[#B85000]">
                       Delhivery Express
                     </span>
                   </div>
-                  <p className="text-xs text-zinc-500 mt-0.5 leading-relaxed">
-                    Enter your 6-digit PIN code to verify courier availability & delivery time from our Hyderabad dispatch hub.
+                  <p className="text-xs text-zinc-600 mt-0.5 leading-relaxed">
+                    Enter your 6-digit PIN code to verify courier availability &amp; delivery time from our Hyderabad dispatch hub.
                   </p>
                 </div>
               </div>
@@ -149,8 +144,12 @@ export const DelhiveryPincodeChecker: React.FC<DelhiveryPincodeCheckerProps> = (
               <div className="lg:col-span-7 space-y-2.5">
                 <form onSubmit={handleSubmit} className="flex flex-col sm:flex-row gap-2.5">
                   <div className="relative flex-1">
-                    <MapPin className="w-4 h-4 text-[#FF7A00] absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                    <label htmlFor={pinInputId} className="sr-only">
+                      Enter 6-digit pincode to check Delhivery delivery availability
+                    </label>
+                    <MapPin className="w-4 h-4 text-[#FF7A00] absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" aria-hidden="true" />
                     <input
+                      id={pinInputId}
                       type="text"
                       inputMode="numeric"
                       maxLength={6}
@@ -162,7 +161,7 @@ export const DelhiveryPincodeChecker: React.FC<DelhiveryPincodeCheckerProps> = (
                       }}
                       placeholder="Enter 6-digit area pincode (e.g. 560001)"
                       aria-label="Enter 6-digit pincode to check Delhivery availability"
-                      className="w-full pl-10 pr-4 py-2.5 min-h-[44px] text-sm font-mono tabular-nums bg-[#FAF9FD] border border-zinc-300 rounded-xl focus:bg-white focus:border-[#FF7A00] focus:ring-2 focus:ring-[#FF7A00]/15 outline-none text-[#071B35] placeholder:font-sans placeholder:text-zinc-400"
+                      className="w-full pl-10 pr-4 py-2.5 min-h-[44px] text-sm font-mono tabular-nums bg-[#FAF9FD] border border-zinc-300 rounded-xl focus:bg-white focus:border-[#FF7A00] focus:ring-2 focus:ring-[#FF7A00]/15 outline-none text-[#071B35] placeholder:font-sans placeholder:text-zinc-500"
                     />
                   </div>
                   <button
@@ -186,17 +185,17 @@ export const DelhiveryPincodeChecker: React.FC<DelhiveryPincodeCheckerProps> = (
 
                 {/* Quick sample PIN shortcuts + inline error / result */}
                 <div className="flex flex-wrap items-center justify-between gap-2 text-[11px]">
-                  <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-zinc-500">
-                    <span className="font-medium text-zinc-400">Popular cities:</span>
+                  <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-zinc-600">
+                    <span className="font-medium text-zinc-600">Popular cities:</span>
                     {SAMPLE_PINS.map((item) => (
                       <button
                         key={item.pin}
                         type="button"
                         onClick={() => void runCheck(item.pin)}
-                        className="hover:text-[#FF7A00] font-medium transition-colors cursor-pointer whitespace-nowrap"
+                        className="hover:text-[#B85000] font-medium transition-colors cursor-pointer whitespace-nowrap"
                       >
                         {item.label}{' '}
-                        <span className="font-mono tabular-nums text-zinc-400">({item.pin})</span>
+                        <span className="font-mono tabular-nums text-zinc-600">({item.pin})</span>
                       </button>
                     ))}
                   </div>
@@ -209,69 +208,63 @@ export const DelhiveryPincodeChecker: React.FC<DelhiveryPincodeCheckerProps> = (
                   </p>
                 )}
 
-                <AnimatePresence mode="wait">
-                  {savedResult && !isChecking && (
-                    <motion.div
-                      key={`${savedResult.pincode}-${savedResult.serviceable}`}
-                      initial={{ opacity: 0, y: 6 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      exit={{ opacity: 0, y: -4 }}
-                      transition={{ duration: 0.22 }}
-                      className={`rounded-xl border px-3.5 py-2.5 flex flex-wrap items-center justify-between gap-2 text-xs ${
-                        savedResult.serviceable
-                          ? 'bg-emerald-50/80 border-emerald-200 text-emerald-950'
-                          : 'bg-red-50/80 border-red-200 text-red-900'
-                      }`}
-                    >
-                      <div className="flex items-start sm:items-center gap-2.5 min-w-0">
-                        {savedResult.serviceable ? (
-                          <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5 sm:mt-0" />
-                        ) : (
-                          <AlertCircle className="w-4 h-4 text-red-600 shrink-0 mt-0.5 sm:mt-0" />
-                        )}
-                        <div className="min-w-0">
-                          {savedResult.serviceable ? (
-                            <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
-                              <span className="font-bold text-emerald-900">
-                                Delhivery Available in {formatLocationLine(savedResult)}
-                              </span>
-                              <span className="text-emerald-700/70">·</span>
-                              <span className="font-mono font-semibold tabular-nums text-emerald-800">
-                                Est. Delivery: {savedResult.estimatedDays || '2–4 business days'}
-                              </span>
-                              <span className="text-emerald-700/70">·</span>
-                              <span className="text-emerald-700 font-medium">
-                                Prepaid & 50% Advance Eligible
-                              </span>
-                            </div>
-                          ) : (
-                            <div>
-                              <span className="font-bold">
-                                Delivery Not Available for {savedResult.pincode}
-                              </span>
-                              <span className="text-red-700 ml-1.5">
-                                — {savedResult.message || 'Check another nearby pincode.'}
-                              </span>
-                            </div>
-                          )}
-                        </div>
-                      </div>
-
-                      {!savedResult.serviceable && (
-                        <a
-                          href={getWhatsAppLink(
-                            `Hi TeqqnoWorld, I want to check custom corporate delivery availability for pincode ${savedResult.pincode}.`
-                          )}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-[11px] font-semibold text-[#071B35] hover:text-[#FF7A00] underline underline-offset-2 whitespace-nowrap shrink-0"
-                        >
-                          Ask Logistics Team →
-                        </a>
+                {savedResult && !isChecking && (
+                  <div
+                    key={`${savedResult.pincode}-${savedResult.serviceable}`}
+                    className={`rounded-xl border px-3.5 py-2.5 flex flex-wrap items-center justify-between gap-2 text-xs transition-all duration-200 ${
+                      savedResult.serviceable
+                        ? 'bg-emerald-50/80 border-emerald-200 text-emerald-950'
+                        : 'bg-red-50/80 border-red-200 text-red-900'
+                    }`}
+                  >
+                    <div className="flex items-start sm:items-center gap-2.5 min-w-0">
+                      {savedResult.serviceable ? (
+                        <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5 sm:mt-0" />
+                      ) : (
+                        <AlertCircle className="w-4 h-4 text-red-600 shrink-0 mt-0.5 sm:mt-0" />
                       )}
-                    </motion.div>
-                  )}
-                </AnimatePresence>
+                      <div className="min-w-0">
+                        {savedResult.serviceable ? (
+                          <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
+                            <span className="font-bold text-emerald-900">
+                              Delhivery Available in {formatLocationLine(savedResult)}
+                            </span>
+                            <span className="text-emerald-700/70">·</span>
+                            <span className="font-mono font-semibold tabular-nums text-emerald-800">
+                              Est. Delivery: {savedResult.estimatedDays || '2–4 business days'}
+                            </span>
+                            <span className="text-emerald-700/70">·</span>
+                            <span className="text-emerald-700 font-medium">
+                              Prepaid &amp; 50% Advance Eligible
+                            </span>
+                          </div>
+                        ) : (
+                          <div>
+                            <span className="font-bold">
+                              Delivery Not Available for {savedResult.pincode}
+                            </span>
+                            <span className="text-red-700 ml-1.5">
+                              — {savedResult.message || 'Check another nearby pincode.'}
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    {!savedResult.serviceable && (
+                      <a
+                        href={getWhatsAppLink(
+                          `Hi TeqqnoWorld, I want to check custom corporate delivery availability for pincode ${savedResult.pincode}.`
+                        )}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-[11px] font-semibold text-[#071B35] hover:text-[#B85000] underline underline-offset-2 whitespace-nowrap shrink-0"
+                      >
+                        Ask Logistics Team →
+                      </a>
+                    )}
+                  </div>
+                )}
               </div>
             </div>
           </div>
@@ -290,18 +283,15 @@ export const DelhiveryPincodeChecker: React.FC<DelhiveryPincodeCheckerProps> = (
       <div className="flex items-center justify-between gap-2">
         <div className="flex items-center gap-2 min-w-0">
           <div className="w-8 h-8 rounded-lg bg-[#071B35] text-white flex items-center justify-center shrink-0">
-            <motion.div
-              animate={isChecking ? { x: [-6, 6, -6] } : { x: 0 }}
-              transition={isChecking ? { repeat: Infinity, duration: 0.7 } : { duration: 0.2 }}
-            >
+            <div className={isChecking ? 'animate-tracking-truck' : ''}>
               <Truck className="w-4 h-4 text-[#FF7A00]" />
-            </motion.div>
+            </div>
           </div>
           <div className="min-w-0">
             <div className="font-display font-bold text-xs sm:text-sm text-[#071B35] truncate">
               Check Delhivery Area Availability
             </div>
-            <div className="text-[11px] text-zinc-500 truncate">
+            <div className="text-[11px] text-zinc-600 truncate">
               Dispatched from Hyderabad Hub (502032) via Delhivery Express
             </div>
           </div>
@@ -311,7 +301,7 @@ export const DelhiveryPincodeChecker: React.FC<DelhiveryPincodeCheckerProps> = (
           <button
             type="button"
             onClick={handleReset}
-            className="text-[11px] font-semibold text-[#FF7A00] hover:text-[#d96500] inline-flex items-center gap-1 whitespace-nowrap shrink-0 cursor-pointer"
+            className="text-[11px] font-semibold text-[#B85000] hover:text-[#964000] inline-flex items-center gap-1 whitespace-nowrap shrink-0 cursor-pointer"
           >
             <RotateCcw className="w-3 h-3" />
             <span>Change PIN</span>
@@ -323,8 +313,12 @@ export const DelhiveryPincodeChecker: React.FC<DelhiveryPincodeCheckerProps> = (
       {(isEditing || !savedResult || variant === 'modal') && (
         <form onSubmit={handleSubmit} className="flex items-stretch gap-2">
           <div className="relative flex-1">
-            <MapPin className="w-3.5 h-3.5 text-[#FF7A00] absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+            <label htmlFor={pinInputId} className="sr-only">
+              6-digit delivery pincode
+            </label>
+            <MapPin className="w-3.5 h-3.5 text-[#FF7A00] absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" aria-hidden="true" />
             <input
+              id={pinInputId}
               type="text"
               inputMode="numeric"
               maxLength={6}
@@ -336,7 +330,7 @@ export const DelhiveryPincodeChecker: React.FC<DelhiveryPincodeCheckerProps> = (
               }}
               placeholder="Enter 6-digit PIN"
               aria-label="6-digit delivery pincode"
-              className="w-full pl-8 pr-3 py-2 min-h-[42px] text-xs sm:text-sm font-mono tabular-nums bg-white border border-zinc-300 rounded-xl focus:border-[#FF7A00] focus:ring-2 focus:ring-[#FF7A00]/15 outline-none text-[#071B35] placeholder:font-sans placeholder:text-zinc-400"
+              className="w-full pl-8 pr-3 py-2 min-h-[42px] text-xs sm:text-sm font-mono tabular-nums bg-white border border-zinc-300 rounded-xl focus:border-[#FF7A00] focus:ring-2 focus:ring-[#FF7A00]/15 outline-none text-[#071B35] placeholder:font-sans placeholder:text-zinc-500"
             />
           </div>
           <button
@@ -357,16 +351,16 @@ export const DelhiveryPincodeChecker: React.FC<DelhiveryPincodeCheckerProps> = (
       )}
 
       {variant === 'modal' && (
-        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-zinc-500">
-          <span className="text-zinc-400 font-medium">Quick check:</span>
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-zinc-600">
+          <span className="text-zinc-600 font-medium">Quick check:</span>
           {SAMPLE_PINS.map((item) => (
             <button
               key={item.pin}
               type="button"
               onClick={() => void runCheck(item.pin)}
-              className="hover:text-[#FF7A00] font-medium transition-colors cursor-pointer"
+              className="hover:text-[#B85000] font-medium transition-colors cursor-pointer"
             >
-              {item.label} <span className="font-mono text-zinc-400">({item.pin})</span>
+              {item.label} <span className="font-mono text-zinc-600">({item.pin})</span>
             </button>
           ))}
         </div>
@@ -379,64 +373,53 @@ export const DelhiveryPincodeChecker: React.FC<DelhiveryPincodeCheckerProps> = (
         </div>
       )}
 
-      <AnimatePresence mode="wait">
-        {savedResult && !isChecking && (
-          <motion.div
-            key={`${savedResult.pincode}-${savedResult.serviceable}`}
-            initial={{ opacity: 0, y: 6 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -4 }}
-            transition={{ duration: 0.22 }}
-            className={`rounded-xl border p-3 text-xs space-y-2 ${
-              savedResult.serviceable
-                ? 'bg-white border-emerald-200 text-zinc-800'
-                : 'bg-red-50/70 border-red-200 text-red-900'
-            }`}
-          >
-            <div className="flex items-start gap-2.5">
-              {savedResult.serviceable ? (
-                <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
-              ) : (
-                <AlertCircle className="w-4 h-4 text-red-600 shrink-0 mt-0.5" />
-              )}
-              <div className="min-w-0 flex-1 space-y-1">
-                <div className="font-bold text-[#071B35]">
-                  {savedResult.serviceable
-                    ? `Delhivery Serviceable · ${formatLocationLine(savedResult)} (${savedResult.pincode})`
-                    : `Not Serviceable at ${savedResult.pincode}`}
-                </div>
-                {savedResult.serviceable ? (
-                  <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-zinc-600">
-                    <span className="inline-flex items-center gap-1 font-mono font-semibold text-emerald-700">
-                      <Clock className="w-3 h-3" />
-                      Delivery in {savedResult.estimatedDays || '2–4 business days'}
-                    </span>
-                    <span className="inline-flex items-center gap-1 text-zinc-600">
-                      <ShieldCheck className="w-3 h-3 text-[#FF7A00]" />
-                      Delhivery Prepaid Express
-                    </span>
-                  </div>
-                ) : (
-                  <p className="text-[11px] text-red-700 leading-relaxed">
-                    {savedResult.message || 'This pincode is outside Delhivery courier coverage.'}
-                  </p>
-                )}
-              </div>
-            </div>
-
-            {savedResult.serviceable && (
-              <div className="relative h-1.5 w-full bg-emerald-100 rounded-full overflow-hidden">
-                <motion.div
-                  initial={{ width: 0 }}
-                  animate={{ width: '100%' }}
-                  transition={{ duration: 0.65, ease: 'easeOut' }}
-                  className="h-full bg-gradient-to-r from-[#FF7A00] to-emerald-500 rounded-full"
-                />
-              </div>
+      {savedResult && !isChecking && (
+        <div
+          key={`${savedResult.pincode}-${savedResult.serviceable}`}
+          className={`rounded-xl border p-3 text-xs space-y-2 transition-all duration-200 ${
+            savedResult.serviceable
+              ? 'bg-white border-emerald-200 text-zinc-800'
+              : 'bg-red-50/70 border-red-200 text-red-900'
+          }`}
+        >
+          <div className="flex items-start gap-2.5">
+            {savedResult.serviceable ? (
+              <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
+            ) : (
+              <AlertCircle className="w-4 h-4 text-red-600 shrink-0 mt-0.5" />
             )}
-          </motion.div>
-        )}
-      </AnimatePresence>
+            <div className="min-w-0 flex-1 space-y-1">
+              <div className="font-bold text-[#071B35]">
+                {savedResult.serviceable
+                  ? `Delhivery Serviceable · ${formatLocationLine(savedResult)} (${savedResult.pincode})`
+                  : `Not Serviceable at ${savedResult.pincode}`}
+              </div>
+              {savedResult.serviceable ? (
+                <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-zinc-600">
+                  <span className="inline-flex items-center gap-1 font-mono font-semibold text-emerald-700">
+                    <Clock className="w-3 h-3" />
+                    Delivery in {savedResult.estimatedDays || '2–4 business days'}
+                  </span>
+                  <span className="inline-flex items-center gap-1 text-zinc-600">
+                    <ShieldCheck className="w-3 h-3 text-[#FF7A00]" />
+                    Delhivery Prepaid Express
+                  </span>
+                </div>
+              ) : (
+                <p className="text-[11px] text-red-700 leading-relaxed">
+                  {savedResult.message || 'This pincode is outside Delhivery courier coverage.'}
+                </p>
+              )}
+            </div>
+          </div>
+
+          {savedResult.serviceable && (
+            <div className="relative h-1.5 w-full bg-emerald-100 rounded-full overflow-hidden">
+              <div className="h-full w-full bg-gradient-to-r from-[#FF7A00] to-emerald-500 rounded-full transition-all duration-500" />
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 };
@@ -456,54 +439,48 @@ export const DelhiveryAreaModal: React.FC<DelhiveryAreaModalProps> = ({ isOpen, 
     return () => window.removeEventListener('keydown', handleKey);
   }, [isOpen, onClose]);
 
-  return (
-    <AnimatePresence>
-      {isOpen && (
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          onClick={onClose}
-          className="fixed inset-0 z-50 bg-black/65 backdrop-blur-xs flex items-center justify-center p-4"
-        >
-          <motion.div
-            initial={{ opacity: 0, scale: 0.96, y: 12 }}
-            animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.96, y: 8 }}
-            transition={{ duration: 0.2 }}
-            onClick={(e) => e.stopPropagation()}
-            className="w-full max-w-lg bg-white rounded-2xl border border-[#E5E5EA] shadow-2xl overflow-hidden"
-          >
-            <div className="bg-[#071B35] text-white px-5 py-4 flex items-center justify-between gap-3">
-              <div className="flex items-center gap-2.5">
-                <div className="w-9 h-9 rounded-xl bg-[#FF7A00] flex items-center justify-center shrink-0">
-                  <Truck className="w-5 h-5 text-white" />
-                </div>
-                <div>
-                  <h3 className="font-display font-bold text-sm sm:text-base">
-                    Delhivery Serviceability Check
-                  </h3>
-                  <p className="text-[11px] text-zinc-300">
-                    Pan-India Courier Coverage · 18,600+ PIN Codes
-                  </p>
-                </div>
-              </div>
-              <button
-                type="button"
-                onClick={onClose}
-                aria-label="Close delivery availability checker"
-                className="w-9 h-9 rounded-xl bg-white/10 hover:bg-white/20 text-white flex items-center justify-center transition-colors cursor-pointer"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
+  if (!isOpen) return null;
 
-            <div className="p-5">
-              <DelhiveryPincodeChecker variant="modal" />
+  return (
+    <div
+      onClick={onClose}
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="delhivery-modal-title"
+      className="fixed inset-0 z-50 bg-black/65 backdrop-blur-xs flex items-center justify-center p-4"
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        className="w-full max-w-lg bg-white rounded-2xl border border-[#E5E5EA] shadow-2xl overflow-hidden animate-admin-scale-in"
+      >
+        <div className="bg-[#071B35] text-white px-5 py-4 flex items-center justify-between gap-3">
+          <div className="flex items-center gap-2.5">
+            <div className="w-9 h-9 rounded-xl bg-[#FF7A00] flex items-center justify-center shrink-0">
+              <Truck className="w-5 h-5 text-white" />
             </div>
-          </motion.div>
-        </motion.div>
-      )}
-    </AnimatePresence>
+            <div>
+              <h2 id="delhivery-modal-title" className="font-display font-bold text-sm sm:text-base">
+                Delhivery Serviceability Check
+              </h2>
+              <p className="text-[11px] text-zinc-300">
+                Pan-India Courier Coverage · 18,600+ PIN Codes
+              </p>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="Close delivery availability checker"
+            className="w-9 h-9 rounded-xl bg-white/10 hover:bg-white/20 text-white flex items-center justify-center transition-colors cursor-pointer"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+
+        <div className="p-5">
+          <DelhiveryPincodeChecker variant="modal" />
+        </div>
+      </div>
+    </div>
   );
 };

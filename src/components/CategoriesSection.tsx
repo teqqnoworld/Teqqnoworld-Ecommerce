@@ -1,6 +1,7 @@
 import React from 'react';
 import { ArrowRight } from 'lucide-react';
 import { getCategoryPath } from '../config/seoRoutes';
+import { getResponsiveImageProps } from '../utils/responsiveImage';
 
 interface CategoriesSectionProps {
   onSelectCategory: (categoryId: string) => void;
@@ -54,7 +55,7 @@ export const CategoriesSection: React.FC<CategoriesSectionProps> = ({ onSelectCa
         {/* Section Header */}
         <div className="flex flex-col sm:flex-row sm:items-end justify-between mb-10 sm:mb-12 gap-4">
           <div>
-            <div className="text-xs font-mono font-bold uppercase tracking-wider text-[#FF7A00] mb-1.5">
+            <div className="text-xs font-mono font-bold uppercase tracking-wider text-[#B85000] mb-1.5">
               COMPREHENSIVE PRODUCT MATRIX
             </div>
             <h2 className="font-display text-3xl sm:text-4xl font-bold text-[#0B0B0D] tracking-tight">
@@ -73,7 +74,7 @@ export const CategoriesSection: React.FC<CategoriesSectionProps> = ({ onSelectCa
                 onSelectCategory('all');
               }
             }}
-            className="inline-flex items-center gap-1.5 text-xs font-bold text-[#FF7A00] hover:text-[#e06c00] transition-colors shrink-0 group cursor-pointer self-start sm:self-auto min-h-[36px]"
+            className="inline-flex items-center gap-1.5 text-xs font-bold text-[#B85000] hover:text-[#964000] transition-colors shrink-0 group cursor-pointer self-start sm:self-auto min-h-[36px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#FF7A00] rounded-lg px-1"
           >
             <span>View All Categories</span>
             <ArrowRight className="w-4 h-4 group-hover:translate-x-1.5 transition-transform duration-300" />
@@ -97,7 +98,7 @@ export const CategoriesSection: React.FC<CategoriesSectionProps> = ({ onSelectCa
                   onSelectCategory(cat.id);
                 }
               }}
-              className={`group flex flex-col items-center cursor-pointer transition-all duration-300 focus:outline-none rounded-2xl p-1
+              className={`group flex flex-col items-center cursor-pointer transition-all duration-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#FF7A00] rounded-2xl p-1
                 w-[calc(50%-0.75rem)] max-w-[170px]
                 sm:w-[calc(33.333%-1rem)] sm:max-w-[190px]
                 md:w-[calc(33.333%-1.5rem)] md:max-w-[210px]
@@ -109,10 +110,13 @@ export const CategoriesSection: React.FC<CategoriesSectionProps> = ({ onSelectCa
               {/* Circular Badge Container with Golden-Orange Border */}
               <div className="relative aspect-square w-full rounded-full transition-all duration-300 ease-out group-hover:scale-106 group-hover:-translate-y-2 drop-shadow-md group-hover:drop-shadow-2xl">
                 <img
-                  src={cat.image}
+                  {...getResponsiveImageProps(
+                    cat.image,
+                    '(max-width: 640px) 170px, (max-width: 1024px) 210px, 230px'
+                  )}
                   alt={cat.name}
-                  width={200}
-                  height={200}
+                  width={230}
+                  height={230}
                   loading="lazy"
                   decoding="async"
                   className="w-full h-full object-contain select-none pointer-events-none transition-transform duration-300"
@@ -124,13 +128,13 @@ export const CategoriesSection: React.FC<CategoriesSectionProps> = ({ onSelectCa
 
               {/* Category Name & Subtitle */}
               <div className="mt-3 text-center space-y-0.5 w-full">
-                <h3 className="font-display font-bold text-xs sm:text-sm md:text-base text-zinc-900 group-hover:text-[#FF7A00] transition-colors leading-tight line-clamp-1">
+                <h3 className="font-display font-bold text-xs sm:text-sm md:text-base text-zinc-900 group-hover:text-[#B85000] transition-colors leading-tight line-clamp-1">
                   {cat.name}
                 </h3>
-                <p className="text-[11px] sm:text-xs text-zinc-500 font-medium line-clamp-1">
+                <p className="text-[11px] sm:text-xs text-zinc-600 font-medium line-clamp-1">
                   {cat.subtitle}
                 </p>
-                <div className="pt-1 flex items-center justify-center gap-1 text-[11px] font-bold text-[#FF7A00] opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                <div className="pt-1 flex items-center justify-center gap-1 text-[11px] font-bold text-[#B85000] opacity-0 group-hover:opacity-100 transition-opacity duration-300">
                   <span>Explore</span>
                   <ArrowRight className="w-3 h-3 group-hover:translate-x-0.5 transition-transform" />
                 </div>

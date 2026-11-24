@@ -10,7 +10,7 @@ export const ClientReviewsSection: React.FC = () => {
         {/* Section Header */}
         <div className="flex flex-col md:flex-row md:items-end justify-between mb-10 gap-4">
           <div>
-            <div className="text-xs font-mono font-bold uppercase tracking-wider text-[#FF7A00] mb-1.5">
+            <div className="text-xs font-mono font-bold uppercase tracking-wider text-[#B85000] mb-1.5">
               PROVEN CLIENT SATISFACTION
             </div>
             <h2 className="font-display text-3xl font-bold text-[#0B0B0D] tracking-tight">
@@ -67,10 +67,10 @@ export const ClientReviewsSection: React.FC = () => {
                   {r.avatar}
                 </div>
                 <div>
-                  <h4 className="font-display font-bold text-xs text-[#0B0B0D]">
+                  <h3 className="font-display font-bold text-xs text-[#0B0B0D]">
                     {r.author}
-                  </h4>
-                  <p className="text-[11px] text-zinc-500">
+                  </h3>
+                  <p className="text-[11px] text-zinc-600">
                     {r.role}
                   </p>
                 </div>

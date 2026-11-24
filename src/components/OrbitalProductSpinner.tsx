@@ -386,8 +386,7 @@ export const OrbitalProductSpinner: React.FC<OrbitalProductSpinnerProps> = ({
   onSelectProduct,
   onStartCustomizing,
 }) => {
-  // Orbital Physics state
-  const [wheelAngle, setWheelAngle] = useState<number>(0);
+  // Orbital Physics state (angle mutated directly via DOM refs to avoid 60fps React re-renders)
   const [activeProductIndex, setActiveProductIndex] = useState<number>(0);
   const [isHoveredPod, setIsHoveredPod] = useState<boolean>(false);
   const [isDragging, setIsDragging] = useState<boolean>(false);
@@ -470,6 +469,12 @@ export const OrbitalProductSpinner: React.FC<OrbitalProductSpinnerProps> = ({
     mode: 'undecided',
   });
   const containerRef = useRef<HTMLDivElement>(null);
+  const spokesSvgRef = useRef<SVGSVGElement>(null);
+  const wheelRingRef = useRef<HTMLDivElement>(null);
+  const hubRingRef = useRef<HTMLDivElement>(null);
+  const podRefs = useRef<(HTMLDivElement | null)[]>([]);
+  const orbitRadiusRef = useRef<number>(orbitRadius);
+  orbitRadiusRef.current = orbitRadius;
   const animFrameRef = useRef<number>(0);
 
   // Sync refs with state
@@ -484,11 +489,48 @@ export const OrbitalProductSpinner: React.FC<OrbitalProductSpinnerProps> = ({
   const TOTAL_PODS = ORBITAL_PRODUCTS.length;
   const ANGLE_STEP = 360 / TOTAL_PODS; // 51.42857 degrees
 
-  // 60FPS Physics Engine loop with rotational inertia and friction decay
+  // Direct DOM transform updater (zero React re-renders per frame)
+  const applyWheelTransforms = (angle: number) => {
+    const r = orbitRadiusRef.current;
+    if (spokesSvgRef.current) {
+      spokesSvgRef.current.style.transform = `rotate(${angle}deg)`;
+    }
+    if (wheelRingRef.current) {
+      wheelRingRef.current.style.transform = `rotate(${angle}deg)`;
+    }
+    if (hubRingRef.current) {
+      hubRingRef.current.style.transform = `rotate(${-angle * 1.5}deg)`;
+    }
+    for (let i = 0; i < TOTAL_PODS; i++) {
+      const podEl = podRefs.current[i];
+      if (podEl) {
+        const podSlotAngle = i * ANGLE_STEP;
+        podEl.style.transform = `rotate(${podSlotAngle}deg) translate(${r}px) rotate(${-podSlotAngle - angle}deg)`;
+      }
+    }
+  };
+
+  // Re-apply transforms when responsive orbitRadius changes
   useEffect(() => {
+    applyWheelTransforms(wheelAngleRef.current);
+  }, [orbitRadius]);
+
+  // 60FPS Physics Engine loop with rotational inertia, friction decay, and offscreen pause
+  useEffect(() => {
+    const mediaQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
+    applyWheelTransforms(wheelAngleRef.current);
+    if (mediaQuery.matches) return;
+
     let lastTimestamp = performance.now();
+    let isRunning = false;
+    let isVisible = true;
 
     const loop = (timestamp: number) => {
+      if (!isVisible || document.hidden) {
+        isRunning = false;
+        return;
+      }
+
       const dt = Math.min((timestamp - lastTimestamp) / 16.666, 2.0); // normalize frame step
       lastTimestamp = timestamp;
 
@@ -511,14 +553,54 @@ export const OrbitalProductSpinner: React.FC<OrbitalProductSpinnerProps> = ({
         }
 
         wheelAngleRef.current = (wheelAngleRef.current + velocityRef.current * dt) % 360;
-        setWheelAngle(wheelAngleRef.current);
+        applyWheelTransforms(wheelAngleRef.current);
       }
 
       animFrameRef.current = requestAnimationFrame(loop);
     };
 
-    animFrameRef.current = requestAnimationFrame(loop);
-    return () => cancelAnimationFrame(animFrameRef.current);
+    const startLoop = () => {
+      if (isRunning || !isVisible || document.hidden) return;
+      isRunning = true;
+      lastTimestamp = performance.now();
+      animFrameRef.current = requestAnimationFrame(loop);
+    };
+
+    const stopLoop = () => {
+      if (isRunning) {
+        cancelAnimationFrame(animFrameRef.current);
+        isRunning = false;
+      }
+    };
+
+    const io =
+      typeof IntersectionObserver !== 'undefined' && wrapperRef.current
+        ? new IntersectionObserver(
+            ([entry]) => {
+              isVisible = Boolean(entry?.isIntersecting);
+              if (isVisible && !document.hidden) startLoop();
+              else stopLoop();
+            },
+            { threshold: 0 }
+          )
+        : null;
+
+    if (io && wrapperRef.current) {
+      io.observe(wrapperRef.current);
+    }
+
+    const handleVisibility = () => {
+      if (document.hidden) stopLoop();
+      else if (isVisible) startLoop();
+    };
+    document.addEventListener('visibilitychange', handleVisibility);
+
+    startLoop();
+    return () => {
+      stopLoop();
+      io?.disconnect();
+      document.removeEventListener('visibilitychange', handleVisibility);
+    };
   }, []);
 
   // -------------------------------------------------------------
@@ -556,7 +638,7 @@ export const OrbitalProductSpinner: React.FC<OrbitalProductSpinnerProps> = ({
     if (delta < -180) delta += 360;
 
     wheelAngleRef.current = (wheelAngleRef.current + delta) % 360;
-    setWheelAngle(wheelAngleRef.current);
+    applyWheelTransforms(wheelAngleRef.current);
 
     // Track angular velocity
     const instantaneousVelocity = (delta / dt) * 16.666;
@@ -705,10 +787,12 @@ export const OrbitalProductSpinner: React.FC<OrbitalProductSpinnerProps> = ({
           />
 
           {/* Precision SVG Radial Spokes & Dashed Energy Ring */}
-          <svg 
-            className="absolute inset-0 w-full h-full pointer-events-none overflow-visible"
+          <svg
+            ref={spokesSvgRef}
+            aria-hidden="true"
+            className="absolute inset-0 w-full h-full pointer-events-none overflow-visible will-change-transform"
             style={{
-              transform: `rotate(${wheelAngle}deg)`,
+              transform: `rotate(${wheelAngleRef.current}deg)`,
               transformOrigin: '50% 50%',
             }}
           >
@@ -756,10 +840,11 @@ export const OrbitalProductSpinner: React.FC<OrbitalProductSpinnerProps> = ({
           {/* ========================================================= */}
           {/* ROTATING ORBITAL WHEEL WITH 7 COUNTER-ROTATING PODS */}
           {/* ========================================================= */}
-          <div 
-            className="absolute inset-0 w-full h-full pointer-events-none"
+          <div
+            ref={wheelRingRef}
+            className="absolute inset-0 w-full h-full pointer-events-none will-change-transform"
             style={{
-              transform: `rotate(${wheelAngle}deg)`,
+              transform: `rotate(${wheelAngleRef.current}deg)`,
               transformOrigin: '50% 50%',
             }}
           >
@@ -770,12 +855,18 @@ export const OrbitalProductSpinner: React.FC<OrbitalProductSpinnerProps> = ({
               return (
                 <div
                   key={product.id}
-                  className="absolute pointer-events-auto cursor-pointer"
+                  ref={(el) => {
+                    podRefs.current[index] = el;
+                  }}
+                  role="button"
+                  tabIndex={0}
+                  aria-label={`Customize ${product.shortName} starting at ${product.price}`}
+                  className="absolute pointer-events-auto cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-[#FF7A00] rounded-full"
                   style={{
                     top: '50%',
                     left: '50%',
                     // Polar positioning around responsive orbit radius, followed by exact counter-rotation
-                    transform: `rotate(${podSlotAngle}deg) translate(${orbitRadius}px) rotate(${-podSlotAngle - wheelAngle}deg)`,
+                    transform: `rotate(${podSlotAngle}deg) translate(${orbitRadius}px) rotate(${-podSlotAngle - wheelAngleRef.current}deg)`,
                     transformOrigin: 'center center',
                     width: '0px',
                     height: '0px',
@@ -788,6 +879,12 @@ export const OrbitalProductSpinner: React.FC<OrbitalProductSpinnerProps> = ({
                     setIsHoveredPod(false);
                   }}
                   onClick={() => handlePodClick(product, index)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault();
+                      handlePodClick(product, index);
+                    }
+                  }}
                 >
                   {/* Visual Pod Box */}
                   <div 
@@ -839,10 +936,11 @@ export const OrbitalProductSpinner: React.FC<OrbitalProductSpinnerProps> = ({
             className={`absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 ${config.hubSizeClass} rounded-full bg-gradient-to-b from-[#1C1E26] via-[#121319] to-[#0A0B0E] border-2 border-[#FF7A00]/50 shadow-[0_0_45px_rgba(255,122,0,0.3),inset_0_2px_10px_rgba(255,255,255,0.08)] flex flex-col items-center justify-center p-2 sm:p-3 text-center z-20 group`}
           >
             {/* Outer Rotating Energy Ring */}
-            <div 
-              className="absolute inset-[-3px] sm:inset-[-4px] rounded-full border border-dashed border-[#FF7A00]/40 pointer-events-none"
+            <div
+              ref={hubRingRef}
+              className="absolute inset-[-3px] sm:inset-[-4px] rounded-full border border-dashed border-[#FF7A00]/40 pointer-events-none will-change-transform"
               style={{
-                transform: `rotate(${-wheelAngle * 1.5}deg)`,
+                transform: `rotate(${-wheelAngleRef.current * 1.5}deg)`,
               }}
             />
 
@@ -854,15 +952,15 @@ export const OrbitalProductSpinner: React.FC<OrbitalProductSpinnerProps> = ({
               <span className="text-[7px] sm:text-[8px] md:text-[9px] font-mono font-bold tracking-widest text-[#FF7A00] uppercase">
                 TEQQNOWORLD
               </span>
-              <span className="text-[6px] sm:text-[7px] tracking-wider text-zinc-400 font-medium">
+              <span className="text-[6px] sm:text-[7px] tracking-wider text-zinc-300 font-medium">
                 PRINTING • SOLUTIONS
               </span>
             </div>
 
-            {/* Hub Title */}
-            <h3 className="text-[10px] sm:text-xs md:text-sm font-bold text-white tracking-tight leading-tight">
-              3D Customize & Spin
-            </h3>
+            {/* Hub Title (non-heading paragraph to preserve sequential H1->H2 hierarchy) */}
+            <p className="text-[10px] sm:text-xs md:text-sm font-bold text-white tracking-tight leading-tight">
+              3D Customize &amp; Spin
+            </p>
 
             {/* Dynamic Active Product Price Pill */}
             <div className="mt-1 sm:mt-1.5 px-1.5 sm:px-2.5 py-0.5 rounded-full bg-[#FF7A00]/15 border border-[#FF7A00]/40 text-[#FF7A00] font-mono text-[8px] sm:text-[10px] md:text-[11px] font-bold shadow-xs truncate max-w-[100px] sm:max-w-[130px]">
@@ -873,6 +971,7 @@ export const OrbitalProductSpinner: React.FC<OrbitalProductSpinnerProps> = ({
             <button
               type="button"
               onClick={triggerFastSpin}
+              aria-label="Fast Spin product showcase wheel"
               className="mt-1 sm:mt-2 inline-flex items-center gap-0.5 sm:gap-1 px-2 py-0.5 sm:px-3 sm:py-1 rounded-full bg-[#FF7A00] hover:bg-[#E56E00] text-white text-[8px] sm:text-[9px] md:text-[10px] font-semibold tracking-wide shadow-md shadow-[#FF7A00]/30 transition-all hover:scale-105 active:scale-95 cursor-pointer z-30"
               title="Give the wheel an energetic fidget-spinner burst"
             >

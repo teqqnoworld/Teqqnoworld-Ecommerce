@@ -5888,6 +5888,9 @@ async function startServer() {
 
         if (seoPage.isPrivateNoindex || seoPage.statusCode === 404) {
           res.setHeader('X-Robots-Tag', 'noindex, nofollow');
+          res.setHeader('Cache-Control', 'private, no-store, no-cache, must-revalidate');
+        } else {
+          res.setHeader('Cache-Control', 'public, no-cache, must-revalidate');
         }
         res.status(seoPage.statusCode).setHeader('Content-Type', 'text/html; charset=utf-8');
         return res.send(finalHtml);
@@ -5911,9 +5914,37 @@ async function startServer() {
       console.log(`[TeqqnoWorld] Serving frontend from: ${path.basename(activeBuildDir)}/`);
     }
 
-    // Serve pre-built Vite bundle + static public assets (index: false so / also receives SEO meta)
-    app.use(express.static(activeBuildDir, { maxAge: '1d', index: false }));
-    app.use(express.static(publicDir, { maxAge: '7d', index: false }));
+    // Serve pre-generated optimized responsive image variants & favicons with 1-year immutable caching
+    app.use(
+      '/assets/opt',
+      express.static(path.join(publicDir, 'assets', 'opt'), {
+        maxAge: '1y',
+        immutable: true,
+        index: false,
+      })
+    );
+    // Serve pre-built Vite hashed assets with 1-year immutable caching
+    app.use(
+      '/assets',
+      express.static(path.join(activeBuildDir, 'assets'), {
+        maxAge: '1y',
+        immutable: true,
+        index: false,
+      })
+    );
+    // Serve remaining build artifacts & static public assets (images, feeds, icons) with 30-day caching
+    app.use(
+      express.static(activeBuildDir, {
+        maxAge: '30d',
+        index: false,
+      })
+    );
+    app.use(
+      express.static(publicDir, {
+        maxAge: '30d',
+        index: false,
+      })
+    );
 
     app.get('*', async (req: Request, res: Response) => {
       if (isNonHtmlRoutePath(req.path)) {
@@ -5928,11 +5959,15 @@ async function startServer() {
         const finalHtml = injectSeoIntoHtml(rawHtml, seoPage);
         if (seoPage.isPrivateNoindex || seoPage.statusCode === 404) {
           res.setHeader('X-Robots-Tag', 'noindex, nofollow');
+          res.setHeader('Cache-Control', 'private, no-store, no-cache, must-revalidate');
+        } else {
+          res.setHeader('Cache-Control', 'public, no-cache, must-revalidate');
         }
         res.status(seoPage.statusCode).setHeader('Content-Type', 'text/html; charset=utf-8');
         return res.send(finalHtml);
       } catch (err) {
         console.error('[TeqqnoWorld] Error serving SEO HTML:', err);
+        res.setHeader('Cache-Control', 'no-cache, must-revalidate');
         return res.sendFile(activeIndex);
       }
     });

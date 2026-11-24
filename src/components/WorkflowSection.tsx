@@ -67,7 +67,7 @@ export const WorkflowSection: React.FC = () => {
           {/* Eyebrow Badge */}
           <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-[#FFF3EB] border border-[#FFE2CC] shadow-2xs">
             <span className="w-2 h-2 rounded-full bg-[#FF7A00] animate-pulse" />
-            <span className="text-[11px] sm:text-xs font-mono font-bold uppercase tracking-widest text-[#FF7A00]">
+            <span className="text-[11px] sm:text-xs font-mono font-bold uppercase tracking-widest text-[#B85000]">
               TRANSPARENT PRODUCTION FLOW
             </span>
           </div>
@@ -205,7 +205,7 @@ export const WorkflowSection: React.FC = () => {
                         <div className="text-xs font-bold text-zinc-800 leading-tight">
                           Drop your logo file
                         </div>
-                        <div className="text-[10px] text-zinc-400 leading-tight mt-0.5">
+                        <div className="text-[10px] text-zinc-600 leading-tight mt-0.5">
                           Vector or high-res image
                         </div>
                       </div>
@@ -250,12 +250,12 @@ export const WorkflowSection: React.FC = () => {
               </div>
 
               {/* Footer Divider: Process Label & Directional Arrow */}
-              <div className="pt-4 mt-6 border-t border-zinc-100 flex items-center justify-between text-xs text-[#FF7A00] font-semibold">
+              <div className="pt-4 mt-6 border-t border-zinc-100 flex items-center justify-between text-xs text-[#B85000] font-semibold">
                 <div className="flex items-center gap-1.5">
-                  <Layers className="w-3.5 h-3.5 text-[#FF7A00]" />
+                  <Layers className="w-3.5 h-3.5 text-[#B85000]" />
                   <span>Product Selection · Logo Upload</span>
                 </div>
-                <ArrowRight className="w-4 h-4 text-zinc-400 group-hover:text-[#FF7A00] group-hover:translate-x-1.5 transition-all duration-300" />
+                <ArrowRight className="w-4 h-4 text-zinc-500 group-hover:text-[#B85000] group-hover:translate-x-1.5 transition-all duration-300" />
               </div>
 
             </div>
@@ -307,7 +307,7 @@ export const WorkflowSection: React.FC = () => {
                       <span className="font-semibold text-zinc-700">Chest Logo: 3.5" x 2.2"</span>
                     </div>
 
-                    <span className="font-mono text-zinc-400 font-bold bg-white px-1.5 py-0.5 rounded border border-zinc-200/70">
+                    <span className="font-mono text-zinc-600 font-bold bg-white px-1.5 py-0.5 rounded border border-zinc-200/70">
                       Scale 1:1
                     </span>
                   </div>
@@ -352,8 +352,8 @@ export const WorkflowSection: React.FC = () => {
                         <div className="text-xs font-bold text-zinc-900 leading-tight">
                           Digital Proof Approved
                         </div>
-                        <div className="text-[10px] text-zinc-400 leading-tight mt-0.5">
-                          Exact position & colors verified
+                        <div className="text-[10px] text-zinc-600 leading-tight mt-0.5">
+                          Exact position &amp; colors verified
                         </div>
                       </div>
                     </div>
@@ -446,8 +446,8 @@ export const WorkflowSection: React.FC = () => {
                         <div className="text-xs font-bold text-zinc-900 leading-tight">
                           Custom Sealed Package
                         </div>
-                        <div className="text-[10px] text-zinc-400 leading-tight mt-0.5">
-                          Individually poly-packed & boxed
+                        <div className="text-[10px] text-zinc-600 leading-tight mt-0.5">
+                          Individually poly-packed &amp; boxed
                         </div>
                       </div>
                     </div>
@@ -486,12 +486,12 @@ export const WorkflowSection: React.FC = () => {
               </div>
 
               {/* Footer Divider: Process Label & Completion Icon */}
-              <div className="pt-4 mt-6 border-t border-zinc-100 flex items-center justify-between text-xs text-[#FF7A00] font-semibold">
+              <div className="pt-4 mt-6 border-t border-zinc-100 flex items-center justify-between text-xs text-[#B85000] font-semibold">
                 <div className="flex items-center gap-1.5">
-                  <Truck className="w-3.5 h-3.5 text-[#FF7A00]" />
+                  <Truck className="w-3.5 h-3.5 text-[#B85000]" />
                   <span>Production · Quality Check · Dispatch</span>
                 </div>
-                <CheckCircle2 className="w-4 h-4 text-zinc-400 group-hover:text-emerald-600 transition-colors" />
+                <CheckCircle2 className="w-4 h-4 text-zinc-500 group-hover:text-emerald-600 transition-colors" />
               </div>
 
             </div>

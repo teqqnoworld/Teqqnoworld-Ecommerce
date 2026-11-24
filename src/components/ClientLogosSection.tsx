@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Building2, CheckCircle2 } from 'lucide-react';
+import { getResponsiveImageProps } from '../utils/responsiveImage';
 
 interface ClientLogo {
   id: string;
@@ -110,22 +111,22 @@ export const ClientLogosSection: React.FC = () => {
           </h2>
 
           {/* Subtitle */}
-          <p className="mt-3 text-xs sm:text-sm md:text-base text-zinc-400 font-normal leading-relaxed max-w-2xl mx-auto">
+          <p className="mt-3 text-xs sm:text-sm md:text-base text-zinc-300 font-normal leading-relaxed max-w-2xl mx-auto">
             Supporting businesses with custom-branded merchandise, corporate apparel and promotional printing solutions.
           </p>
 
           {/* Reassurance points */}
-          <div className="mt-4 flex flex-wrap items-center justify-center gap-4 text-[11px] sm:text-xs text-zinc-400">
+          <div className="mt-4 flex flex-wrap items-center justify-center gap-4 text-[11px] sm:text-xs text-zinc-300">
             <span className="flex items-center gap-1.5">
               <CheckCircle2 className="w-3.5 h-3.5 text-[#FF7A00]" />
               Pantone-Accurate Printing
             </span>
-            <span className="text-zinc-600">•</span>
+            <span className="text-zinc-500" aria-hidden="true">•</span>
             <span className="flex items-center gap-1.5">
               <CheckCircle2 className="w-3.5 h-3.5 text-[#FF7A00]" />
               Zero MOQ Setup Fees
             </span>
-            <span className="text-zinc-600">•</span>
+            <span className="text-zinc-500" aria-hidden="true">•</span>
             <span className="flex items-center gap-1.5">
               <CheckCircle2 className="w-3.5 h-3.5 text-[#FF7A00]" />
               GST Input Credit Ready
@@ -169,7 +170,7 @@ export const ClientLogosSection: React.FC = () => {
                   style={{ background: 'transparent', backgroundColor: 'transparent' }}
                 >
                   <img
-                    src={logo.image}
+                    {...getResponsiveImageProps(logo.image, '(max-width: 640px) 64px, 96px')}
                     alt={`${logo.name} Brand Logo`}
                     width={96}
                     height={96}
@@ -185,7 +186,7 @@ export const ClientLogosSection: React.FC = () => {
                 </div>
 
                 {/* Brand Name Label */}
-                <span className="mt-2.5 text-[11px] sm:text-xs font-semibold text-zinc-400 group-hover:text-white transition-colors duration-200 tracking-wide text-center truncate max-w-[150px]">
+                <span className="mt-2.5 text-[11px] sm:text-xs font-semibold text-zinc-300 group-hover:text-white transition-colors duration-200 tracking-wide text-center truncate max-w-[150px]">
                   {logo.name}
                 </span>
 
@@ -203,7 +204,7 @@ export const ClientLogosSection: React.FC = () => {
 
       {/* Bottom Subtle Trust Bar */}
       <div className="max-w-4xl mx-auto mt-8 sm:mt-10 px-4 text-center">
-        <p className="text-[11px] sm:text-xs text-zinc-500">
+        <p className="text-[11px] sm:text-xs text-zinc-300">
           From fast-growing regional enterprises to national retail and logistics networks, we deliver brand-compliant corporate gear built to exacting standards.
         </p>
       </div>

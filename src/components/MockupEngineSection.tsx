@@ -534,18 +534,20 @@ export const MockupEngineSection: React.FC<MockupEngineSectionProps> = ({
               {/* Step 1: Upload Your Logo / Artwork */}
               <div>
                 <div className="flex items-center justify-between mb-2">
-                  <label className="text-xs font-bold font-display text-zinc-900 flex items-center gap-2">
+                  <label htmlFor="mockup-logo-upload" className="text-xs font-bold font-display text-zinc-900 flex items-center gap-2">
                     <span className="w-5 h-5 rounded-full bg-[#FF7A00] text-white flex items-center justify-center text-[11px] font-bold">1</span>
                     <span>Upload Your Logo / Artwork</span>
                   </label>
-                  <span className="text-[11px] font-mono text-zinc-400">PNG, SVG, JPG, PDF</span>
+                  <span className="text-[11px] font-mono text-zinc-600">PNG, SVG, JPG, PDF</span>
                 </div>
 
                 <input
+                  id="mockup-logo-upload"
                   type="file"
                   ref={fileInputRef}
                   onChange={handleFileInputChange}
                   accept=".png,.jpg,.jpeg,.svg,.pdf"
+                  aria-label="Upload your company logo or artwork"
                   className="hidden"
                 />
 
@@ -616,7 +618,8 @@ export const MockupEngineSection: React.FC<MockupEngineSectionProps> = ({
                       <button
                         type="button"
                         onClick={handleRemoveLogo}
-                        className="text-zinc-400 hover:text-red-500 p-1.5 rounded-lg hover:bg-red-50 transition-colors"
+                        className="text-zinc-500 hover:text-red-600 p-1.5 rounded-lg hover:bg-red-50 transition-colors"
+                        aria-label="Remove uploaded logo"
                         title="Remove Logo"
                       >
                         <Trash2 className="w-4 h-4" />
@@ -681,7 +684,7 @@ export const MockupEngineSection: React.FC<MockupEngineSectionProps> = ({
                     {/* Control 1: Resize / Scale */}
                     <div className="space-y-1">
                       <div className="flex items-center justify-between text-[11px]">
-                        <span className="text-zinc-600 font-medium">Logo Size:</span>
+                        <label htmlFor="mockup-logo-size" className="text-zinc-700 font-medium">Logo Size:</label>
                         <span className="font-mono font-bold text-zinc-900 bg-white px-2 py-0.5 rounded border border-zinc-200 shadow-2xs">
                           {Math.round(activeTransform.scale * 100)}%
                         </span>
@@ -691,23 +694,27 @@ export const MockupEngineSection: React.FC<MockupEngineSectionProps> = ({
                           type="button"
                           onClick={() => updateActiveTransform({ scale: Math.max(0.4, Number((activeTransform.scale - 0.1).toFixed(2))) })}
                           className="w-7 h-7 rounded-lg bg-white border border-zinc-200 hover:bg-zinc-100 flex items-center justify-center text-zinc-700 shadow-2xs cursor-pointer shrink-0"
+                          aria-label="Decrease logo size"
                           title="Decrease Size"
                         >
                           <Minus className="w-3 h-3" />
                         </button>
                         <input
+                          id="mockup-logo-size"
                           type="range"
                           min="0.4"
                           max="2.2"
                           step="0.05"
                           value={activeTransform.scale}
                           onChange={(e) => updateActiveTransform({ scale: parseFloat(e.target.value) })}
+                          aria-label="Logo size percentage"
                           className="w-full accent-[#FF7A00] cursor-pointer"
                         />
                         <button
                           type="button"
                           onClick={() => updateActiveTransform({ scale: Math.min(2.2, Number((activeTransform.scale + 0.1).toFixed(2))) })}
                           className="w-7 h-7 rounded-lg bg-white border border-zinc-200 hover:bg-zinc-100 flex items-center justify-center text-zinc-700 shadow-2xs cursor-pointer shrink-0"
+                          aria-label="Increase logo size"
                           title="Increase Size"
                         >
                           <Plus className="w-3 h-3" />
@@ -718,7 +725,7 @@ export const MockupEngineSection: React.FC<MockupEngineSectionProps> = ({
                     {/* Control 2: Rotation */}
                     <div className="space-y-1">
                       <div className="flex items-center justify-between text-[11px]">
-                        <span className="text-zinc-600 font-medium">Rotation Angle:</span>
+                        <label htmlFor="mockup-logo-rotation" className="text-zinc-700 font-medium">Rotation Angle:</label>
                         <span className="font-mono font-bold text-zinc-900 bg-white px-2 py-0.5 rounded border border-zinc-200 shadow-2xs">
                           {activeTransform.rotation}°
                         </span>
@@ -728,23 +735,27 @@ export const MockupEngineSection: React.FC<MockupEngineSectionProps> = ({
                           type="button"
                           onClick={() => updateActiveTransform({ rotation: (activeTransform.rotation - 15 + 360) % 360 })}
                           className="w-7 h-7 rounded-lg bg-white border border-zinc-200 hover:bg-zinc-100 flex items-center justify-center text-zinc-700 shadow-2xs cursor-pointer shrink-0"
+                          aria-label="Rotate logo left 15 degrees"
                           title="Rotate Left 15°"
                         >
                           <RotateCcw className="w-3 h-3" />
                         </button>
                         <input
+                          id="mockup-logo-rotation"
                           type="range"
                           min="0"
                           max="360"
                           step="1"
                           value={activeTransform.rotation < 0 ? activeTransform.rotation + 360 : activeTransform.rotation}
                           onChange={(e) => updateActiveTransform({ rotation: parseInt(e.target.value) })}
+                          aria-label="Logo rotation angle in degrees"
                           className="w-full accent-[#FF7A00] cursor-pointer"
                         />
                         <button
                           type="button"
                           onClick={() => updateActiveTransform({ rotation: (activeTransform.rotation + 15) % 360 })}
                           className="w-7 h-7 rounded-lg bg-white border border-zinc-200 hover:bg-zinc-100 flex items-center justify-center text-zinc-700 shadow-2xs cursor-pointer shrink-0"
+                          aria-label="Rotate logo right 15 degrees"
                           title="Rotate Right 15°"
                         >
                           <RotateCw className="w-3 h-3" />
@@ -756,8 +767,8 @@ export const MockupEngineSection: React.FC<MockupEngineSectionProps> = ({
                   /* Control 3: Move & Nudge within printable zone */
                   <div className="space-y-2 pt-1">
                     <div className="flex items-center justify-between text-[11px]">
-                      <span className="text-zinc-600 font-medium">Fine-tune Position:</span>
-                      <span className="font-mono text-zinc-500 text-[10px]">
+                      <span className="text-zinc-700 font-medium">Fine-tune Position:</span>
+                      <span className="font-mono text-zinc-600 text-[10px]">
                         X: {activeTransform.x}%, Y: {activeTransform.y}%
                       </span>
                     </div>
@@ -770,6 +781,7 @@ export const MockupEngineSection: React.FC<MockupEngineSectionProps> = ({
                           type="button"
                           onClick={() => updateActiveTransform({ y: Math.max(-35, activeTransform.y - 4) })}
                           className="w-7 h-7 rounded bg-zinc-100 hover:bg-zinc-200 flex items-center justify-center text-zinc-700 text-xs font-bold cursor-pointer"
+                          aria-label="Nudge logo up"
                           title="Nudge Up"
                         >
                           ▲
@@ -779,6 +791,7 @@ export const MockupEngineSection: React.FC<MockupEngineSectionProps> = ({
                           type="button"
                           onClick={() => updateActiveTransform({ x: Math.max(-35, activeTransform.x - 4) })}
                           className="w-7 h-7 rounded bg-zinc-100 hover:bg-zinc-200 flex items-center justify-center text-zinc-700 text-xs font-bold cursor-pointer"
+                          aria-label="Nudge logo left"
                           title="Nudge Left"
                         >
                           ◀
@@ -786,7 +799,8 @@ export const MockupEngineSection: React.FC<MockupEngineSectionProps> = ({
                         <button
                           type="button"
                           onClick={() => updateActiveTransform({ x: 0, y: 0 })}
-                          className="w-7 h-7 rounded bg-[#FF7A00]/10 hover:bg-[#FF7A00]/20 text-[#FF7A00] flex items-center justify-center text-[10px] font-bold cursor-pointer"
+                          className="w-7 h-7 rounded bg-[#FF7A00]/10 hover:bg-[#FF7A00]/20 text-[#B85000] flex items-center justify-center text-[10px] font-bold cursor-pointer"
+                          aria-label="Center logo"
                           title="Center Logo"
                         >
                           ●
@@ -795,6 +809,7 @@ export const MockupEngineSection: React.FC<MockupEngineSectionProps> = ({
                           type="button"
                           onClick={() => updateActiveTransform({ x: Math.min(35, activeTransform.x + 4) })}
                           className="w-7 h-7 rounded bg-zinc-100 hover:bg-zinc-200 flex items-center justify-center text-zinc-700 text-xs font-bold cursor-pointer"
+                          aria-label="Nudge logo right"
                           title="Nudge Right"
                         >
                           ▶
@@ -804,6 +819,7 @@ export const MockupEngineSection: React.FC<MockupEngineSectionProps> = ({
                           type="button"
                           onClick={() => updateActiveTransform({ y: Math.min(35, activeTransform.y + 4) })}
                           className="w-7 h-7 rounded bg-zinc-100 hover:bg-zinc-200 flex items-center justify-center text-zinc-700 text-xs font-bold cursor-pointer"
+                          aria-label="Nudge logo down"
                           title="Nudge Down"
                         >
                           ▼
@@ -826,11 +842,11 @@ export const MockupEngineSection: React.FC<MockupEngineSectionProps> = ({
               {/* Step 2: Choose Merchandise (EXACTLY 5 OPTIONS) */}
               <div>
                 <div className="flex items-center justify-between mb-2">
-                  <label className="text-xs font-bold font-display text-zinc-900 flex items-center gap-2">
+                  <div className="text-xs font-bold font-display text-zinc-900 flex items-center gap-2">
                     <span className="w-5 h-5 rounded-full bg-[#FF7A00] text-white flex items-center justify-center text-[11px] font-bold">2</span>
                     <span>Choose Merchandise</span>
-                  </label>
-                  <span className="text-[11px] font-bold text-[#FF7A00]">
+                  </div>
+                  <span className="text-[11px] font-bold text-[#B85000]">
                     {activeConfig.name}
                   </span>
                 </div>
@@ -853,7 +869,7 @@ export const MockupEngineSection: React.FC<MockupEngineSectionProps> = ({
                       >
                         <div className="min-w-0 pr-1">
                           <div className="truncate font-display">{cfg.name}</div>
-                          <div className={`text-[10px] font-mono mt-0.5 font-normal ${isSelected ? 'text-[#FF7A00]' : 'text-zinc-500'}`}>
+                          <div className={`text-[10px] font-mono mt-0.5 font-normal ${isSelected ? 'text-[#FF7A00]' : 'text-zinc-600'}`}>
                             {cfg.priceDisplay.split(' ')[0]}
                           </div>
                         </div>
@@ -867,12 +883,12 @@ export const MockupEngineSection: React.FC<MockupEngineSectionProps> = ({
               {/* Step 3: Base Color Swatches & Placement */}
               <div>
                 <div className="flex items-center justify-between mb-2">
-                  <label className="text-xs font-bold text-zinc-900 flex items-center gap-2">
+                  <div className="text-xs font-bold text-zinc-900 flex items-center gap-2">
                     <span className="w-5 h-5 rounded-full bg-[#FF7A00] text-white flex items-center justify-center text-[11px] font-bold">3</span>
                     <span>Base Color:</span>
                     <span className="font-semibold text-zinc-700 font-sans">{activeColor.name}</span>
-                  </label>
-                  <span className="text-[11px] text-zinc-400 font-mono">
+                  </div>
+                  <span className="text-[11px] text-zinc-600 font-mono">
                     {activeConfig.colors.length} {activeConfig.colors.length === 1 ? 'Colour' : 'Colours'}
                   </span>
                 </div>
@@ -888,6 +904,8 @@ export const MockupEngineSection: React.FC<MockupEngineSectionProps> = ({
                         onClick={() => {
                           setColorPerMerch(prev => ({ ...prev, [activeMerch]: color }));
                         }}
+                        aria-label={`Select base color ${color.name}`}
+                        aria-pressed={isSelected}
                         title={color.name}
                         className={`w-7 h-7 rounded-full transition-all relative cursor-pointer border ${
                           isSelected
@@ -909,11 +927,13 @@ export const MockupEngineSection: React.FC<MockupEngineSectionProps> = ({
 
               {/* Print Placement Dropdown */}
               <div>
-                <label className="block text-xs font-bold text-zinc-900 mb-1.5">
+                <label htmlFor="mockup-print-placement" className="block text-xs font-bold text-zinc-900 mb-1.5">
                   Print Placement
                 </label>
                 <div className="relative">
                   <select
+                    id="mockup-print-placement"
+                    aria-label="Print Placement"
                     value={printPlacement}
                     onChange={(e) => {
                       const val = e.target.value;
@@ -932,7 +952,7 @@ export const MockupEngineSection: React.FC<MockupEngineSectionProps> = ({
                       </option>
                     ))}
                   </select>
-                  <ChevronDown className="w-4 h-4 text-zinc-500 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                  <ChevronDown className="w-4 h-4 text-zinc-600 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" aria-hidden="true" />
                 </div>
               </div>
 

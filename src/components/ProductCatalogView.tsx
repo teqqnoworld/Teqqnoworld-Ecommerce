@@ -565,9 +565,14 @@ export const ProductCatalogView: React.FC<ProductCatalogViewProps> = ({
           <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3 sm:gap-4">
             {/* Search Input */}
             <div className="relative flex-1">
-              <Search className="w-4 h-4 text-zinc-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+              <label htmlFor="catalog-search-input" className="sr-only">
+                Search custom printed products
+              </label>
+              <Search className="w-4 h-4 text-zinc-500 absolute left-3.5 top-1/2 -translate-y-1/2" aria-hidden="true" />
               <input
+                id="catalog-search-input"
                 type="text"
+                aria-label="Search custom printed products"
                 placeholder="Search products (e.g. polo, bottle, hoodie, embroidery)..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
@@ -576,7 +581,7 @@ export const ProductCatalogView: React.FC<ProductCatalogViewProps> = ({
               {searchTerm && (
                 <button
                   onClick={() => setSearchTerm('')}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-zinc-400 hover:text-zinc-600 px-2 py-1 min-h-[36px] flex items-center"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-zinc-600 hover:text-zinc-900 px-2 py-1 min-h-[36px] flex items-center"
                 >
                   Clear
                 </button>
@@ -602,7 +607,7 @@ export const ProductCatalogView: React.FC<ProductCatalogViewProps> = ({
                 onClick={() => setShowAdvancedFilters(!showAdvancedFilters)}
                 className={`flex items-center justify-center gap-1.5 px-3 py-2 text-xs rounded-xl border transition-colors cursor-pointer min-h-[44px] ${
                   showAdvancedFilters || activeFiltersCount > 0
-                    ? 'border-[#FF7A00] bg-orange-50/50 text-[#FF7A00] font-semibold'
+                    ? 'border-[#FF7A00] bg-orange-50/50 text-[#B85000] font-semibold'
                     : 'border-zinc-200 text-zinc-700 bg-white hover:bg-zinc-50'
                 }`}
               >
@@ -611,8 +616,9 @@ export const ProductCatalogView: React.FC<ProductCatalogViewProps> = ({
               </button>
 
               <div className="flex items-center gap-1.5 text-xs text-zinc-600 w-full sm:w-auto">
-                <SlidersHorizontal className="w-3.5 h-3.5 text-[#FF7A00] shrink-0 hidden sm:inline" />
+                <SlidersHorizontal className="w-3.5 h-3.5 text-[#FF7A00] shrink-0 hidden sm:inline" aria-hidden="true" />
                 <select
+                  aria-label="Sort products"
                   value={sortBy}
                   onChange={(e) => setSortBy(e.target.value as any)}
                   className="w-full sm:w-auto border border-zinc-200 rounded-xl px-2.5 py-2 text-xs text-zinc-800 bg-white focus:border-[#FF7A00] outline-none min-h-[44px]"
@@ -626,6 +632,7 @@ export const ProductCatalogView: React.FC<ProductCatalogViewProps> = ({
               </div>
 
               <select
+                aria-label="Filter by print method"
                 value={selectedPrintMethod}
                 onChange={(e) => setSelectedPrintMethod(e.target.value)}
                 className="w-full sm:w-auto border border-zinc-200 rounded-xl px-2.5 py-2 text-xs text-zinc-800 bg-white focus:border-[#FF7A00] outline-none min-h-[44px]"
@@ -654,10 +661,12 @@ export const ProductCatalogView: React.FC<ProductCatalogViewProps> = ({
               
               {/* Filter 1: Price Range */}
               <div>
-                <label className="block text-[11px] font-bold uppercase tracking-wider text-zinc-600 mb-1.5">
+                <label htmlFor="catalog-filter-price" className="block text-[11px] font-bold uppercase tracking-wider text-zinc-600 mb-1.5">
                   Price Per Unit
                 </label>
                 <select
+                  id="catalog-filter-price"
+                  aria-label="Filter by price per unit"
                   value={selectedPriceRange}
                   onChange={(e) => setSelectedPriceRange(e.target.value as any)}
                   className="w-full border border-zinc-300 rounded-lg p-2 text-xs bg-white outline-none focus:border-[#FF7A00]"
@@ -672,10 +681,12 @@ export const ProductCatalogView: React.FC<ProductCatalogViewProps> = ({
 
               {/* Filter 2: MOQ Bracket */}
               <div>
-                <label className="block text-[11px] font-bold uppercase tracking-wider text-zinc-600 mb-1.5">
+                <label htmlFor="catalog-filter-moq" className="block text-[11px] font-bold uppercase tracking-wider text-zinc-600 mb-1.5">
                   Minimum Order Qty (MOQ)
                 </label>
                 <select
+                  id="catalog-filter-moq"
+                  aria-label="Filter by minimum order quantity"
                   value={selectedMoqRange}
                   onChange={(e) => setSelectedMoqRange(e.target.value as any)}
                   className="w-full border border-zinc-300 rounded-lg p-2 text-xs bg-white outline-none focus:border-[#FF7A00]"
@@ -690,10 +701,12 @@ export const ProductCatalogView: React.FC<ProductCatalogViewProps> = ({
 
               {/* Filter 3: Dispatch SLA */}
               <div>
-                <label className="block text-[11px] font-bold uppercase tracking-wider text-zinc-600 mb-1.5">
+                <label htmlFor="catalog-filter-sla" className="block text-[11px] font-bold uppercase tracking-wider text-zinc-600 mb-1.5">
                   Production SLA Turnaround
                 </label>
                 <select
+                  id="catalog-filter-sla"
+                  aria-label="Filter by production SLA turnaround"
                   value={selectedDispatch}
                   onChange={(e) => setSelectedDispatch(e.target.value as any)}
                   className="w-full border border-zinc-300 rounded-lg p-2 text-xs bg-white outline-none focus:border-[#FF7A00]"

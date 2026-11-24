@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useId, useRef, useState } from 'react';
 import {
   Mic,
   Square,
@@ -74,6 +74,7 @@ export const VoiceInstructionsCard: React.FC<VoiceInstructionsCardProps> = ({
   compact = false,
   className = '',
 }) => {
+  const notesInputId = useId();
   const [isOpen, setIsOpen] = useState(defaultOpen || Boolean(voiceNoteUrl));
   const [isRecording, setIsRecording] = useState(false);
   const [recordingSeconds, setRecordingSeconds] = useState(0);
@@ -381,6 +382,7 @@ export const VoiceInstructionsCard: React.FC<VoiceInstructionsCardProps> = ({
       <button
         type="button"
         onClick={() => setIsOpen((prev) => !prev)}
+        aria-expanded={isOpen}
         className={`w-full text-left bg-white hover:bg-zinc-50 border rounded-xl transition-all flex items-center justify-between shadow-2xs cursor-pointer ${
           compact ? 'p-3' : 'p-3.5'
         } ${
@@ -516,6 +518,7 @@ export const VoiceInstructionsCard: React.FC<VoiceInstructionsCardProps> = ({
                     <input
                       type="file"
                       accept="audio/*,.mp3,.wav,.m4a,.webm,.ogg"
+                      aria-label="Upload audio voice instructions"
                       onChange={handleAudioFileUpload}
                       className="hidden"
                     />
@@ -587,10 +590,11 @@ export const VoiceInstructionsCard: React.FC<VoiceInstructionsCardProps> = ({
           {/* Written / Auto-Transcribed Notes */}
           {!hideTextArea && onTextNotesChange && (
             <div className="pt-1">
-              <label className="text-[11px] font-semibold text-zinc-700 block mb-1">
+              <label htmlFor={notesInputId} className="text-[11px] font-semibold text-zinc-700 block mb-1">
                 {notesLabel}
               </label>
               <textarea
+                id={notesInputId}
                 value={textNotes}
                 onChange={(e) => onTextNotesChange(e.target.value)}
                 placeholder={notesPlaceholder}

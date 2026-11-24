@@ -384,7 +384,7 @@ export const AdvantageSection: React.FC = () => {
           {/* Eyebrow Label */}
           <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-white/80 border border-orange-200/60 shadow-2xs">
             <span className="w-2 h-2 rounded-full bg-[#FF7A00] animate-pulse" />
-            <span className="text-[11px] sm:text-xs font-mono font-bold uppercase tracking-widest text-[#FF7A00]">
+            <span className="text-[11px] sm:text-xs font-mono font-bold uppercase tracking-widest text-[#B85000]">
               THE TEQQNOWORLD ADVANTAGE
             </span>
           </div>
@@ -478,10 +478,10 @@ export const AdvantageSection: React.FC = () => {
                         className={`px-3 py-1 rounded-full text-xs font-mono font-bold transition-all duration-300 shadow-2xs flex items-center gap-1 ${
                           isHovered
                             ? 'bg-[#FF7A00] text-white scale-105 shadow-md shadow-[#FF7A00]/25'
-                            : 'bg-orange-50 text-[#FF7A00] border border-orange-200/70'
+                            : 'bg-orange-50 text-[#B85000] border border-orange-200/70'
                         }`}
                       >
-                        <span className="text-[10px] opacity-75">STEP</span>
+                        <span className="text-[10px] opacity-85">STEP</span>
                         <span>{adv.stage}</span>
                       </div>
                     </div>
@@ -504,7 +504,7 @@ export const AdvantageSection: React.FC = () => {
                   </div>
 
                   {/* Card Bottom subtle quality indicator bar */}
-                  <div className="pt-5 mt-5 border-t border-zinc-100 flex items-center justify-between text-[11px] font-mono text-zinc-400">
+                  <div className="pt-5 mt-5 border-t border-zinc-100 flex items-center justify-between text-[11px] font-mono text-zinc-600">
                     <span className="capitalize">{adv.tag}</span>
                     <span
                       className={`inline-block w-2 h-2 rounded-full transition-all duration-300 ${
@@ -565,7 +565,7 @@ export const AdvantageSection: React.FC = () => {
                   </div>
                 </div>
 
-                <div className="pt-4 mt-4 border-t border-zinc-100 flex items-center justify-between text-[11px] font-mono text-zinc-400">
+                <div className="pt-4 mt-4 border-t border-zinc-100 flex items-center justify-between text-[11px] font-mono text-zinc-600">
                   <span>{adv.tag}</span>
                   <span className="w-2 h-2 rounded-full bg-[#FF7A00]" />
                 </div>

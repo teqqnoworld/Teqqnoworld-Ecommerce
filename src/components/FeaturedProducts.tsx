@@ -3,6 +3,7 @@ import { Star, Sparkles, ArrowRight, Heart } from 'lucide-react';
 import { BEST_SELLERS, BestSellerProduct } from '../data/mockData';
 import { Product } from '../types';
 import { getProductPath } from '../config/seoRoutes';
+import { getResponsiveImageProps } from '../utils/responsiveImage';
 
 interface FeaturedProductsProps {
   products: Product[];
@@ -115,13 +116,15 @@ export const FeaturedProducts: React.FC<FeaturedProductsProps> = ({
                   className="block w-full h-full cursor-pointer"
                 >
                   <img
-                    src={p.image}
+                    {...getResponsiveImageProps(
+                      p.image,
+                      '(max-width: 640px) 92vw, (max-width: 1024px) 46vw, 390px'
+                    )}
                     alt={p.name}
                     width={480}
                     height={270}
                     loading="lazy"
                     decoding="async"
-                    sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
                     className={`w-full h-full ${p.id === 'bs-promo-table' || p.id === 'bs-ceramic-mug' || p.id === 'bs-branding-umbrella' || p.id === 'bs-canopy-kiosk' || p.id === 'bs-rollup-standee' || p.id === 'bs-visiting-card-300gsm' ? 'object-contain bg-white' : 'object-cover object-center'} group-hover:scale-104 transition-transform duration-300`}
                   />
 

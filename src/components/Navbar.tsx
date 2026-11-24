@@ -104,7 +104,7 @@ export const Navbar: React.FC<NavbarProps> = ({
               <div className="font-display font-bold text-base xs:text-lg sm:text-xl xl:text-2xl tracking-tight text-[#0B0B0D] leading-none">
                 Teqqno<span className="text-[#FF7A00]">World</span>
               </div>
-              <div className="hidden sm:block text-[8px] xl:text-[9px] font-mono tracking-widest text-zinc-400 uppercase mt-0.5">
+              <div className="hidden sm:block text-[8px] xl:text-[9px] font-mono tracking-widest text-zinc-600 uppercase mt-0.5">
                 PRINTING • BRANDING • SOLUTIONS
               </div>
             </div>
@@ -134,7 +134,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                 </span>
               </div>
               <div className="flex items-center gap-1.5 shrink-0">
-                <kbd className="hidden xl:inline-flex items-center font-mono text-[10px] font-semibold text-zinc-400 bg-white border border-zinc-200 border-b-2 px-1.5 py-0.5 rounded-md shadow-2xs group-hover:border-[#FF7A00]/35 group-hover:text-[#FF7A00] transition-colors duration-200">
+                <kbd className="hidden xl:inline-flex items-center font-mono text-[10px] font-semibold text-zinc-600 bg-white border border-zinc-200 border-b-2 px-1.5 py-0.5 rounded-md shadow-2xs group-hover:border-[#FF7A00]/35 group-hover:text-[#B85000] transition-colors duration-200">
                   ⌘K
                 </kbd>
                 <span className="inline-flex items-center justify-center bg-[#0B0B0D] group-hover:bg-[#FF7A00] text-white text-[11px] font-semibold px-3 xl:px-3.5 h-7 xl:h-8 rounded-full shadow-xs transition-colors duration-200 whitespace-nowrap shrink-0">
@@ -228,8 +228,8 @@ export const Navbar: React.FC<NavbarProps> = ({
                 )}
               </div>
               <div className="hidden lg:flex flex-col text-left leading-none">
-                <span className="text-[10px] text-zinc-400 font-medium">Cart</span>
-                <span className="text-xs font-bold font-mono text-[#0B0B0D] group-hover:text-[#FF7A00] transition-colors">
+                <span className="text-[10px] text-zinc-600 font-medium">Cart</span>
+                <span className="text-xs font-bold font-mono text-[#0B0B0D] group-hover:text-[#B85000] transition-colors">
                   ₹{cartTotal.toLocaleString('en-IN')}.00
                 </span>
               </div>
@@ -242,6 +242,8 @@ export const Navbar: React.FC<NavbarProps> = ({
                   <button
                     onClick={() => setUserDropdownOpen(!userDropdownOpen)}
                     className="flex items-center gap-1.5 p-1 sm:p-1.5 rounded-xl hover:bg-zinc-100 transition-colors border border-zinc-200/90 text-left min-h-[38px] sm:min-h-[44px] cursor-pointer"
+                    aria-label="Account Menu"
+                    aria-expanded={userDropdownOpen}
                     title="Account Menu"
                   >
                     <div className="w-7 h-7 xs:w-8 xs:h-8 rounded-lg bg-[#FF7A00] text-white flex items-center justify-center font-bold text-xs shadow-xs">
@@ -251,9 +253,9 @@ export const Navbar: React.FC<NavbarProps> = ({
                       <span className="text-[11px] font-bold text-zinc-900 truncate max-w-[80px] lg:max-w-[100px]">
                         {user.name.split(' ')[0]}
                       </span>
-                      <span className="text-[9px] text-[#FF7A00] font-mono font-medium">B2B Portal</span>
+                      <span className="text-[9px] text-[#B85000] font-mono font-medium">B2B Portal</span>
                     </div>
-                    <ChevronDown className="w-3.5 h-3.5 text-zinc-400 hidden md:block" />
+                    <ChevronDown className="w-3.5 h-3.5 text-zinc-500 hidden md:block" />
                   </button>
 
                   {/* Account Dropdown Menu */}
@@ -326,6 +328,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                 <button
                   onClick={onOpenAccount}
                   className="flex items-center gap-1.5 px-2.5 sm:px-3 py-2 rounded-xl bg-zinc-100 hover:bg-zinc-200 border border-zinc-200 text-zinc-800 text-xs font-semibold transition-colors min-h-[38px] sm:min-h-[44px] cursor-pointer"
+                  aria-label="Sign In or Register"
                   title="Login / Register"
                 >
                   <User className="w-4 h-4 text-[#FF7A00]" />

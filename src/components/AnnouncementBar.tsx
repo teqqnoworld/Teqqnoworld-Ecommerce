@@ -38,7 +38,7 @@ export const AnnouncementBar: React.FC<AnnouncementBarProps> = ({ onTrackOrderCl
     }
   };
 
-  // Diwali Fuljhari Sparkler Canvas Simulation
+  // Diwali Fuljhari Sparkler Canvas Simulation (zero forced reflow, pauses when offscreen)
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -49,17 +49,38 @@ export const AnnouncementBar: React.FC<AnnouncementBarProps> = ({ onTrackOrderCl
     const mediaQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
     if (mediaQuery.matches) return;
 
-    let animationFrameId: number;
+    let animationFrameId = 0;
+    let startTimerId: number | null = null;
+    let isRunning = false;
+    let isVisible = true;
     let particles: SparkParticle[] = [];
-    let width = (canvas.width = canvas.parentElement?.offsetWidth || window.innerWidth);
-    let height = (canvas.height = canvas.parentElement?.offsetHeight || 38);
+    let width = 0;
+    let height = 38;
 
-    const handleResize = () => {
-      if (!canvas || !canvas.parentElement) return;
-      width = canvas.width = canvas.parentElement.offsetWidth;
-      height = canvas.height = canvas.parentElement.offsetHeight;
+    const parentEl = canvas.parentElement;
+
+    const applySize = (w: number, h: number) => {
+      const nextW = Math.max(1, Math.round(w));
+      const nextH = Math.max(1, Math.round(h));
+      if (nextW !== width || nextH !== height) {
+        width = canvas.width = nextW;
+        height = canvas.height = nextH;
+      }
     };
-    window.addEventListener('resize', handleResize);
+
+    const resizeObserver =
+      typeof ResizeObserver !== 'undefined' && parentEl
+        ? new ResizeObserver((entries) => {
+            const rect = entries[0]?.contentRect;
+            if (rect) {
+              applySize(rect.width, rect.height || 38);
+            }
+          })
+        : null;
+
+    if (resizeObserver && parentEl) {
+      resizeObserver.observe(parentEl);
+    }
 
     const sparkColors = [
       '#FFF4CC', // hot warm white
@@ -74,7 +95,7 @@ export const AnnouncementBar: React.FC<AnnouncementBarProps> = ({ onTrackOrderCl
     let emitterPhase = 0;
 
     const createSpark = (originX: number, originY: number, burst: boolean = false): SparkParticle => {
-      const angle = burst ? Math.random() * Math.PI * 2 : Math.random() * Math.PI * 2;
+      const angle = Math.random() * Math.PI * 2;
       const speed = burst ? Math.random() * 2.8 + 0.8 : Math.random() * 1.8 + 0.4;
       const maxLife = Math.random() * 25 + 15;
       return {
@@ -93,26 +114,29 @@ export const AnnouncementBar: React.FC<AnnouncementBarProps> = ({ onTrackOrderCl
     let frameCount = 0;
 
     const render = () => {
-      frameCount++;
-      ctx.clearRect(0, 0, width, height);
-
-      // Only animate if page is visible
-      if (document.hidden) {
-        animationFrameId = requestAnimationFrame(render);
+      if (!isVisible || document.hidden) {
+        isRunning = false;
         return;
       }
+
+      if (width === 0) {
+        applySize(window.innerWidth, 38);
+      }
+
+      frameCount++;
+      ctx.clearRect(0, 0, width, height);
 
       emitterPhase += 0.015;
 
       // Spawn periodic gentle sparkler bursts from 3 focal areas (like glowing Diwali fuljharis)
-      if (frameCount % 4 === 0 && particles.length < 50) {
+      if (frameCount % 4 === 0 && particles.length < 40) {
         // Emitter 1 (left-to-middle sweep)
         const e1X = ((Math.sin(emitterPhase) * 0.4 + 0.5) * width) % width;
         const e1Y = height * 0.45 + Math.cos(emitterPhase * 1.8) * (height * 0.25);
         particles.push(createSpark(e1X, e1Y));
 
         // Emitter 2 (periodic subtle edge sparks)
-        if (Math.random() > 0.4) {
+        if (Math.random() > 0.45) {
           const edgeX = Math.random() * width;
           const edgeY = Math.random() > 0.5 ? 2 : height - 2;
           particles.push(createSpark(edgeX, edgeY, false));
@@ -128,7 +152,8 @@ export const AnnouncementBar: React.FC<AnnouncementBarProps> = ({ onTrackOrderCl
         }
       }
 
-      // Update & Draw particles
+      // Update & Draw particles (avoid per-particle shadowBlur overhead for smooth mobile main thread)
+      ctx.lineCap = 'round';
       for (let i = particles.length - 1; i >= 0; i--) {
         const p = particles[i];
         p.history.push({ x: p.x, y: p.y });
@@ -147,14 +172,9 @@ export const AnnouncementBar: React.FC<AnnouncementBarProps> = ({ onTrackOrderCl
           continue;
         }
 
-        // Draw sparkler streak trail (authentic Diwali fuljhari look)
-        ctx.save();
         ctx.globalAlpha = Math.max(0, p.alpha);
         ctx.strokeStyle = p.color;
         ctx.lineWidth = p.size;
-        ctx.lineCap = 'round';
-        ctx.shadowColor = p.color;
-        ctx.shadowBlur = 5;
 
         ctx.beginPath();
         if (p.history.length > 1) {
@@ -170,18 +190,61 @@ export const AnnouncementBar: React.FC<AnnouncementBarProps> = ({ onTrackOrderCl
         ctx.beginPath();
         ctx.arc(p.x, p.y, Math.max(0.5, p.size * 0.4), 0, Math.PI * 2);
         ctx.fill();
-
-        ctx.restore();
       }
+      ctx.globalAlpha = 1;
 
       animationFrameId = requestAnimationFrame(render);
     };
 
-    animationFrameId = requestAnimationFrame(render);
+    const startLoop = () => {
+      if (isRunning || !isVisible || document.hidden) return;
+      isRunning = true;
+      animationFrameId = requestAnimationFrame(render);
+    };
+
+    const intersectionObserver =
+      typeof IntersectionObserver !== 'undefined' && parentEl
+        ? new IntersectionObserver(
+            ([entry]) => {
+              isVisible = Boolean(entry?.isIntersecting);
+              if (isVisible && !document.hidden) {
+                startLoop();
+              } else if (isRunning) {
+                cancelAnimationFrame(animationFrameId);
+                isRunning = false;
+              }
+            },
+            { threshold: 0 }
+          )
+        : null;
+
+    if (intersectionObserver && parentEl) {
+      intersectionObserver.observe(parentEl);
+    }
+
+    const handleVisibilityChange = () => {
+      if (document.hidden) {
+        if (isRunning) {
+          cancelAnimationFrame(animationFrameId);
+          isRunning = false;
+        }
+      } else if (isVisible) {
+        startLoop();
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    // Defer sparkler animation slightly so initial hydration & first paint stay unblocked
+    startTimerId = window.setTimeout(() => {
+      startLoop();
+    }, 350);
 
     return () => {
+      if (startTimerId !== null) window.clearTimeout(startTimerId);
       cancelAnimationFrame(animationFrameId);
-      window.removeEventListener('resize', handleResize);
+      resizeObserver?.disconnect();
+      intersectionObserver?.disconnect();
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
   }, []);
 
