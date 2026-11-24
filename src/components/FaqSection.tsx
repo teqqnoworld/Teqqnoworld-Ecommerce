@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Plus, Minus, MessageSquare, Sparkles, HelpCircle } from 'lucide-react';
 import { FAQ_LIST } from '../data/mockData';
 import { getWhatsAppLink } from '../config/business';
-import { getResponsiveImageProps } from '../utils/responsiveImage';
+import { getResponsivePictureSources } from '../utils/responsiveImage';
 
 export const FaqSection: React.FC = () => {
   // First item open by default as shown in the reference image blueprint
@@ -65,15 +65,30 @@ export const FaqSection: React.FC = () => {
 
               {/* Main Illustration Asset */}
               <div className="relative rounded-3xl overflow-hidden bg-transparent">
-                <img
-                  {...getResponsiveImageProps('/assets/faq_illustration.webp', '(max-width: 640px) 90vw, 440px')}
-                  alt="TeqqnoWorld Customer Support and Production Team ready to assist with orders"
-                  width={480}
-                  height={387}
-                  loading="lazy"
-                  decoding="async"
-                  className="w-full h-auto object-contain transition-transform duration-500 hover:scale-[1.02] drop-shadow-sm"
-                />
+                {(() => {
+                  const pic = getResponsivePictureSources('/assets/faq_illustration.webp', '(max-width: 640px) 90vw, 440px');
+                  return (
+                    <picture className="block w-full">
+                      {pic.avifSrcSet && (
+                        <source type="image/avif" srcSet={pic.avifSrcSet} sizes={pic.sizes} />
+                      )}
+                      {pic.webpSrcSet && (
+                        <source type="image/webp" srcSet={pic.webpSrcSet} sizes={pic.sizes} />
+                      )}
+                      <img
+                        src={pic.src}
+                        srcSet={pic.webpSrcSet}
+                        sizes={pic.sizes}
+                        alt="TeqqnoWorld Customer Support and Production Team ready to assist with orders"
+                        width={480}
+                        height={387}
+                        loading="lazy"
+                        decoding="async"
+                        className="w-full h-auto object-contain transition-transform duration-500 hover:scale-[1.02] drop-shadow-sm"
+                      />
+                    </picture>
+                  );
+                })()}
               </div>
 
               {/* Layered Micro-Animation: Floating Question Badge (Top Left) */}

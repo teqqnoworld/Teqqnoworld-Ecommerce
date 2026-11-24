@@ -5920,28 +5920,41 @@ async function startServer() {
       express.static(path.join(publicDir, 'assets', 'opt'), {
         maxAge: '1y',
         immutable: true,
+        etag: true,
         index: false,
       })
     );
-    // Serve pre-built Vite hashed assets with 1-year immutable caching
+    // Serve pre-built Vite fingerprinted JS/CSS bundles with 1-year immutable caching
     app.use(
       '/assets',
       express.static(path.join(activeBuildDir, 'assets'), {
         maxAge: '1y',
         immutable: true,
+        etag: true,
         index: false,
       })
     );
-    // Serve remaining build artifacts & static public assets (images, feeds, icons) with 30-day caching
+    // Serve public static image/font assets under /assets with 1-year caching (without immutable so revalidation stays possible)
+    app.use(
+      '/assets',
+      express.static(path.join(publicDir, 'assets'), {
+        maxAge: '1y',
+        etag: true,
+        index: false,
+      })
+    );
+    // Serve any remaining build/public files (never HTML/feeds/sitemap/robots) with safe short/revalidated caching
     app.use(
       express.static(activeBuildDir, {
         maxAge: '30d',
+        etag: true,
         index: false,
       })
     );
     app.use(
       express.static(publicDir, {
         maxAge: '30d',
+        etag: true,
         index: false,
       })
     );

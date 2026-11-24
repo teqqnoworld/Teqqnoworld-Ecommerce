@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Building2, CheckCircle2 } from 'lucide-react';
-import { getResponsiveImageProps } from '../utils/responsiveImage';
+import { getResponsivePictureSources } from '../utils/responsiveImage';
 
 interface ClientLogo {
   id: string;
@@ -156,6 +156,7 @@ export const ClientLogosSection: React.FC = () => {
         {/* Continuous Marquee Track */}
         <div className="animate-client-logos-marquee flex items-center py-4">
           {marqueeItems.map((logo, index) => {
+            const pic = getResponsivePictureSources(logo.image, '(max-width: 640px) 64px, 96px');
             return (
               <div
                 key={`${logo.id}-${index}`}
@@ -169,20 +170,30 @@ export const ClientLogosSection: React.FC = () => {
                   className="relative flex items-center justify-center bg-transparent transition-transform duration-300 ease-out group-hover:scale-108 h-16 w-16 sm:h-20 sm:w-20 md:h-24 md:w-24"
                   style={{ background: 'transparent', backgroundColor: 'transparent' }}
                 >
-                  <img
-                    {...getResponsiveImageProps(logo.image, '(max-width: 640px) 64px, 96px')}
-                    alt={`${logo.name} Brand Logo`}
-                    width={96}
-                    height={96}
-                    loading="lazy"
-                    decoding="async"
-                    className="max-h-full max-w-full object-contain select-none bg-transparent"
-                    style={{
-                      background: 'transparent',
-                      backgroundColor: 'transparent',
-                      mixBlendMode: 'normal',
-                    }}
-                  />
+                  <picture className="flex items-center justify-center max-h-full max-w-full">
+                    {pic.avifSrcSet && (
+                      <source type="image/avif" srcSet={pic.avifSrcSet} sizes={pic.sizes} />
+                    )}
+                    {pic.webpSrcSet && (
+                      <source type="image/webp" srcSet={pic.webpSrcSet} sizes={pic.sizes} />
+                    )}
+                    <img
+                      src={pic.src}
+                      srcSet={pic.webpSrcSet}
+                      sizes={pic.sizes}
+                      alt={`${logo.name} Brand Logo`}
+                      width={96}
+                      height={96}
+                      loading="lazy"
+                      decoding="async"
+                      className="max-h-full max-w-full object-contain select-none bg-transparent"
+                      style={{
+                        background: 'transparent',
+                        backgroundColor: 'transparent',
+                        mixBlendMode: 'normal',
+                      }}
+                    />
+                  </picture>
                 </div>
 
                 {/* Brand Name Label */}

@@ -619,11 +619,14 @@ export const OrderProcessingStepsSection: React.FC<OrderProcessingStepsSectionPr
 
       </div>
 
-      {/* Embedded CSS animation for traveling dotted pulse highlight */}
+      {/* Embedded CSS animation using GPU-composited opacity (avoids non-composited stroke-dashoffset repaints) */}
       <style>{`
         @keyframes dash {
-          to {
-            stroke-dashoffset: -1000;
+          0%, 100% {
+            opacity: 0.45;
+          }
+          50% {
+            opacity: 1;
           }
         }
         @media (prefers-reduced-motion: reduce) {

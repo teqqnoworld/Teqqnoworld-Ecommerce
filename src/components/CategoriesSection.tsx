@@ -1,7 +1,7 @@
 import React from 'react';
 import { ArrowRight } from 'lucide-react';
 import { getCategoryPath } from '../config/seoRoutes';
-import { getResponsiveImageProps } from '../utils/responsiveImage';
+import { getResponsivePictureSources } from '../utils/responsiveImage';
 
 interface CategoriesSectionProps {
   onSelectCategory: (categoryId: string) => void;
@@ -88,7 +88,12 @@ export const CategoriesSection: React.FC<CategoriesSectionProps> = ({ onSelectCa
             - Mobile (<md): 2 circles per row, 5th centered
         */}
         <div className="flex flex-wrap justify-center items-start gap-5 sm:gap-6 md:gap-7 lg:gap-6 xl:gap-8">
-          {CIRCULAR_CATEGORIES.map((cat, idx) => (
+          {CIRCULAR_CATEGORIES.map((cat, idx) => {
+            const pic = getResponsivePictureSources(
+              cat.image,
+              '(max-width: 640px) 162px, (max-width: 1024px) 202px, 222px'
+            );
+            return (
             <a
               key={cat.id}
               href={getCategoryPath(cat.id)}
@@ -109,18 +114,25 @@ export const CategoriesSection: React.FC<CategoriesSectionProps> = ({ onSelectCa
             >
               {/* Circular Badge Container with Golden-Orange Border */}
               <div className="relative aspect-square w-full rounded-full transition-all duration-300 ease-out group-hover:scale-106 group-hover:-translate-y-2 drop-shadow-md group-hover:drop-shadow-2xl">
-                <img
-                  {...getResponsiveImageProps(
-                    cat.image,
-                    '(max-width: 640px) 170px, (max-width: 1024px) 210px, 230px'
+                <picture className="block w-full h-full">
+                  {pic.avifSrcSet && (
+                    <source type="image/avif" srcSet={pic.avifSrcSet} sizes={pic.sizes} />
                   )}
-                  alt={cat.name}
-                  width={230}
-                  height={230}
-                  loading="lazy"
-                  decoding="async"
-                  className="w-full h-full object-contain select-none pointer-events-none transition-transform duration-300"
-                />
+                  {pic.webpSrcSet && (
+                    <source type="image/webp" srcSet={pic.webpSrcSet} sizes={pic.sizes} />
+                  )}
+                  <img
+                    src={pic.src}
+                    srcSet={pic.webpSrcSet}
+                    sizes={pic.sizes}
+                    alt={cat.name}
+                    width={222}
+                    height={222}
+                    loading="lazy"
+                    decoding="async"
+                    className="w-full h-full object-contain select-none pointer-events-none transition-transform duration-300"
+                  />
+                </picture>
                 
                 {/* Subtle orange ambient glow on hover */}
                 <div className="absolute inset-0 rounded-full bg-[#FF7A00]/0 group-hover:bg-[#FF7A00]/10 transition-colors duration-300 pointer-events-none" />
@@ -140,7 +152,8 @@ export const CategoriesSection: React.FC<CategoriesSectionProps> = ({ onSelectCa
                 </div>
               </div>
             </a>
-          ))}
+            );
+          })}
         </div>
 
       </div>

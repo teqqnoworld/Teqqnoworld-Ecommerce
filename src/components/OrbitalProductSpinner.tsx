@@ -595,8 +595,13 @@ export const OrbitalProductSpinner: React.FC<OrbitalProductSpinnerProps> = ({
     };
     document.addEventListener('visibilitychange', handleVisibility);
 
-    startLoop();
+    // Defer ambient spin startup briefly so initial mobile paint & hydration stay unblocked
+    const startTimerId = window.setTimeout(() => {
+      startLoop();
+    }, 450);
+
     return () => {
+      window.clearTimeout(startTimerId);
       stopLoop();
       io?.disconnect();
       document.removeEventListener('visibilitychange', handleVisibility);

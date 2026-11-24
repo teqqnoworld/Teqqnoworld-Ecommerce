@@ -3,7 +3,7 @@ import { Star, Sparkles, ArrowRight, Heart } from 'lucide-react';
 import { BEST_SELLERS, BestSellerProduct } from '../data/mockData';
 import { Product } from '../types';
 import { getProductPath } from '../config/seoRoutes';
-import { getResponsiveImageProps } from '../utils/responsiveImage';
+import { getResponsivePictureSources } from '../utils/responsiveImage';
 
 interface FeaturedProductsProps {
   products: Product[];
@@ -102,6 +102,10 @@ export const FeaturedProducts: React.FC<FeaturedProductsProps> = ({
                 handleCtaClick(p);
               }
             };
+            const pic = getResponsivePictureSources(
+              p.image,
+              '(max-width: 640px) calc(100vw - 32px), (max-width: 1024px) calc(50vw - 40px), 384px'
+            );
             return (
             <div
               key={p.id}
@@ -115,18 +119,25 @@ export const FeaturedProducts: React.FC<FeaturedProductsProps> = ({
                   aria-label={`View ${p.name}`}
                   className="block w-full h-full cursor-pointer"
                 >
-                  <img
-                    {...getResponsiveImageProps(
-                      p.image,
-                      '(max-width: 640px) 92vw, (max-width: 1024px) 46vw, 390px'
+                  <picture className="block w-full h-full">
+                    {pic.avifSrcSet && (
+                      <source type="image/avif" srcSet={pic.avifSrcSet} sizes={pic.sizes} />
                     )}
-                    alt={p.name}
-                    width={480}
-                    height={270}
-                    loading="lazy"
-                    decoding="async"
-                    className={`w-full h-full ${p.id === 'bs-promo-table' || p.id === 'bs-ceramic-mug' || p.id === 'bs-branding-umbrella' || p.id === 'bs-canopy-kiosk' || p.id === 'bs-rollup-standee' || p.id === 'bs-visiting-card-300gsm' ? 'object-contain bg-white' : 'object-cover object-center'} group-hover:scale-104 transition-transform duration-300`}
-                  />
+                    {pic.webpSrcSet && (
+                      <source type="image/webp" srcSet={pic.webpSrcSet} sizes={pic.sizes} />
+                    )}
+                    <img
+                      src={pic.src}
+                      srcSet={pic.webpSrcSet}
+                      sizes={pic.sizes}
+                      alt={p.name}
+                      width={480}
+                      height={270}
+                      loading="lazy"
+                      decoding="async"
+                      className={`w-full h-full ${p.id === 'bs-promo-table' || p.id === 'bs-ceramic-mug' || p.id === 'bs-branding-umbrella' || p.id === 'bs-canopy-kiosk' || p.id === 'bs-rollup-standee' || p.id === 'bs-visiting-card-300gsm' ? 'object-contain bg-white' : 'object-cover object-center'} group-hover:scale-104 transition-transform duration-300`}
+                    />
+                  </picture>
 
                   {/* Top Left Badges */}
                   <div className="absolute top-3 left-3 flex flex-wrap items-center gap-1.5 z-10 max-w-[calc(100%-64px)]">

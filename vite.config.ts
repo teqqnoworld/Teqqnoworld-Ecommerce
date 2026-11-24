@@ -41,25 +41,14 @@ export default defineConfig(() => {
               if (normalized.includes('/node_modules/three/')) {
                 return 'vendor-three';
               }
-              if (normalized.includes('/node_modules/lucide-react/')) {
-                return 'vendor-icons';
-              }
-              if (
-                normalized.includes('/node_modules/motion/') ||
-                normalized.includes('/node_modules/framer-motion/') ||
-                normalized.includes('/node_modules/motion-dom/') ||
-                normalized.includes('/node_modules/motion-utils/')
-              ) {
-                return 'vendor-motion';
-              }
-              if (normalized.includes('/node_modules/@supabase/')) {
-                return 'vendor-supabase';
-              }
               if (
                 normalized.includes('/node_modules/jspdf/') ||
                 normalized.includes('/node_modules/jspdf-autotable/')
               ) {
                 return 'vendor-pdf';
+              }
+              if (normalized.includes('/node_modules/@supabase/')) {
+                return 'vendor-supabase';
               }
             }
           },

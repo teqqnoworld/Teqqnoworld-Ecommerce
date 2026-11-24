@@ -534,7 +534,6 @@ export function injectSeoIntoHtml(rawHtml: string, page: ResolvedSeoPage): strin
   if (html.includes('<!--SEO_NOSCRIPT_PLACEHOLDER-->')) {
     html = html.replace('<!--SEO_NOSCRIPT_PLACEHOLDER-->', page.noscriptHtml);
   }
-
   return html;
 }
 

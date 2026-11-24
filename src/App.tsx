@@ -4,24 +4,31 @@ import { Navbar } from './components/Navbar';
 import { Hero } from './components/Hero';
 import { CategoriesSection } from './components/CategoriesSection';
 import { FeaturedProducts } from './components/FeaturedProducts';
-import { WorkflowSection } from './components/WorkflowSection';
-import { BulkEnquirySection } from './components/BulkEnquirySection';
-import { AdvantageSection } from './components/AdvantageSection';
 import { ClientReviewsSection } from './components/ClientReviewsSection';
-import { FaqSection } from './components/FaqSection';
 import { CtaBanner } from './components/CtaBanner';
 import { Footer } from './components/Footer';
-import { OrderProcessingStepsSection } from './components/OrderProcessingStepsSection';
 import { ClientLogosSection } from './components/ClientLogosSection';
 import { DelhiveryAreaModal } from './components/DelhiveryPincodeChecker';
-import { activateRecoveryCoupon } from './services/aisensyService';
-import { sendRegistrationEmails } from './services/emailService';
-import { supabase } from './lib/supabase';
 import { BUSINESS_CONFIG, getWhatsAppLink } from './config/business';
 
-// Lazy-loaded heavy below-the-fold interactive section, routes, modals & legal pages
+// Lazy-loaded heavy below-the-fold homepage sections, routes, modals & legal pages
 const MockupEngineSection = lazy(() =>
   import('./components/MockupEngineSection').then((m) => ({ default: m.MockupEngineSection }))
+);
+const WorkflowSection = lazy(() =>
+  import('./components/WorkflowSection').then((m) => ({ default: m.WorkflowSection }))
+);
+const OrderProcessingStepsSection = lazy(() =>
+  import('./components/OrderProcessingStepsSection').then((m) => ({ default: m.OrderProcessingStepsSection }))
+);
+const BulkEnquirySection = lazy(() =>
+  import('./components/BulkEnquirySection').then((m) => ({ default: m.BulkEnquirySection }))
+);
+const AdvantageSection = lazy(() =>
+  import('./components/AdvantageSection').then((m) => ({ default: m.AdvantageSection }))
+);
+const FaqSection = lazy(() =>
+  import('./components/FaqSection').then((m) => ({ default: m.FaqSection }))
 );
 const ProductCatalogView = lazy(() =>
   import('./components/ProductCatalogView').then((m) => ({ default: m.ProductCatalogView }))
@@ -126,7 +133,11 @@ const MockupSectionFallback: React.FC = () => (
   </section>
 );
 
-const DeferredMockupSection: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+const DeferredSection: React.FC<{
+  children: React.ReactNode;
+  fallback: React.ReactNode;
+  rootMargin?: string;
+}> = ({ children, fallback, rootMargin = '750px 0px' }) => {
   const hostRef = useRef<HTMLDivElement>(null);
   const [shouldRender, setShouldRender] = useState(false);
 
@@ -144,22 +155,28 @@ const DeferredMockupSection: React.FC<{ children: React.ReactNode }> = ({ childr
           observer.disconnect();
         }
       },
-      { rootMargin: '500px 0px' }
+      { rootMargin }
     );
     observer.observe(node);
     return () => observer.disconnect();
-  }, [shouldRender]);
+  }, [shouldRender, rootMargin]);
 
   if (!shouldRender) {
-    return (
-      <div ref={hostRef}>
-        <MockupSectionFallback />
-      </div>
-    );
+    return <div ref={hostRef}>{fallback}</div>;
   }
 
-  return <Suspense fallback={<MockupSectionFallback />}>{children}</Suspense>;
+  return <Suspense fallback={fallback}>{children}</Suspense>;
 };
+
+const BelowFoldPlaceholder: React.FC<{ heightClass?: string; dark?: boolean }> = ({
+  heightClass = 'min-h-[420px]',
+  dark = false,
+}) => (
+  <div
+    aria-hidden="true"
+    className={`${heightClass} ${dark ? 'bg-[#16171B] border-b border-[#2A2A30]' : 'bg-[#F4F2FA] border-b border-[#E5E5EA]'}`}
+  />
+);
 
 import { PRODUCTS } from './data/mockData';
 import { calculateProductPrice } from './data/pricingRules';
@@ -657,6 +674,7 @@ export default function App() {
 
     const resolveSession = async () => {
       try {
+        const { supabase } = await import('./lib/supabase');
         if (oauthCode) {
           await supabase.auth.exchangeCodeForSession(oauthCode);
         }
@@ -708,16 +726,20 @@ export default function App() {
         if (!alreadySent && createdMs > 0 && Date.now() - createdMs < 120 * 1000 && verifiedProfile.email) {
           localStorage.setItem(welcomeFlagKey, '1');
           const nameParts = fullName.trim().split(/\s+/);
-          sendRegistrationEmails({
-            userId: verifiedProfile.id,
-            firstName: nameParts[0] || fullName,
-            lastName: nameParts.slice(1).join(' ') || '',
-            fullName,
-            email: verifiedProfile.email,
-            phone: verifiedProfile.mobile || '',
-            accountType: verifiedProfile.accountType || 'individual',
-            registeredAt: new Date().toISOString(),
-          }).catch(() => {});
+          import('./services/emailService')
+            .then(({ sendRegistrationEmails }) =>
+              sendRegistrationEmails({
+                userId: verifiedProfile.id,
+                firstName: nameParts[0] || fullName,
+                lastName: nameParts.slice(1).join(' ') || '',
+                fullName,
+                email: verifiedProfile.email,
+                phone: verifiedProfile.mobile || '',
+                accountType: verifiedProfile.accountType || 'individual',
+                registeredAt: new Date().toISOString(),
+              })
+            )
+            .catch(() => {});
         }
 
         setUser(verifiedProfile);
@@ -774,11 +796,15 @@ export default function App() {
         setOrderActionParams(resolved.orderAction);
       }
       if (resolved.recoveryCoupon) {
-        activateRecoveryCoupon({
-          triggerReason: 'whatsapp_recovery_link',
-          validMinutes: 15,
-          autoApply: true,
-        });
+        import('./services/aisensyService')
+          .then(({ activateRecoveryCoupon }) =>
+            activateRecoveryCoupon({
+              triggerReason: 'whatsapp_recovery_link',
+              validMinutes: 15,
+              autoApply: true,
+            })
+          )
+          .catch(() => {});
       }
       if (resolved.openModal === 'catalogues') {
         setIsDownloadCatalogOpen(true);
@@ -1395,30 +1421,40 @@ export default function App() {
             />
 
             {/* 4. See Your Logo On Our Products (Zero Obligation Mockup Engine — viewport-deferred) */}
-            <DeferredMockupSection>
+            <DeferredSection fallback={<MockupSectionFallback />} rootMargin="550px 0px">
               <MockupEngineSection
                 onExploreProduct={handleCustomizeProduct}
                 onAddToCart={handleAddToCart}
               />
-            </DeferredMockupSection>
+            </DeferredSection>
 
-            {/* 5. Transparent Production Flow (How It Works in 3 Simple Steps) */}
-            <WorkflowSection />
+            {/* 5. Transparent Production Flow (How It Works in 3 Simple Steps — viewport-deferred) */}
+            <DeferredSection fallback={<BelowFoldPlaceholder heightClass="min-h-[540px]" />}>
+              <WorkflowSection />
+            </DeferredSection>
 
-            {/* 5.1 Animated Easy Steps for Order Processing (Exact Blueprint Reference) */}
-            <OrderProcessingStepsSection />
+            {/* 5.1 Animated Easy Steps for Order Processing (viewport-deferred) */}
+            <DeferredSection fallback={<BelowFoldPlaceholder heightClass="min-h-[480px]" />}>
+              <OrderProcessingStepsSection />
+            </DeferredSection>
 
-            {/* 6. Enterprise & Bulk Solutions (Equip Your Entire Organization...) */}
-            <BulkEnquirySection />
+            {/* 6. Enterprise & Bulk Solutions (viewport-deferred) */}
+            <DeferredSection fallback={<BelowFoldPlaceholder heightClass="min-h-[560px]" dark />}>
+              <BulkEnquirySection />
+            </DeferredSection>
 
-            {/* 7. The TeqqnoWorld Advantage (Built to Remove Corporate Merchandise Headaches) */}
-            <AdvantageSection />
+            {/* 7. The TeqqnoWorld Advantage (viewport-deferred) */}
+            <DeferredSection fallback={<BelowFoldPlaceholder heightClass="min-h-[520px]" />}>
+              <AdvantageSection />
+            </DeferredSection>
 
             {/* 8. Proven Client Satisfaction (What Our Customers Say) */}
             <ClientReviewsSection />
 
-            {/* 9. Got Questions? (Everything You Need To Know) */}
-            <FaqSection />
+            {/* 9. Got Questions? (Everything You Need To Know — viewport-deferred) */}
+            <DeferredSection fallback={<BelowFoldPlaceholder heightClass="min-h-[540px]" />}>
+              <FaqSection />
+            </DeferredSection>
 
             {/* 10. Elevate Your Corporate Presence (Final CTA Banner) */}
             <CtaBanner onExploreCatalog={() => handleNavigate('catalog')} />
