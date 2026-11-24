@@ -5915,15 +5915,71 @@ async function startServer() {
     }
 
     // Serve pre-generated optimized responsive image variants & favicons with 1-year immutable caching
+    const optDir = path.join(publicDir, 'assets', 'opt');
     app.use(
       '/assets/opt',
-      express.static(path.join(publicDir, 'assets', 'opt'), {
+      express.static(optDir, {
         maxAge: '1y',
         immutable: true,
         etag: true,
         index: false,
       })
     );
+    // Graceful fallback if a requested /assets/opt/<base>-w<width>.(avif|webp) variant is absent on disk
+    app.use('/assets/opt', (req: Request, res: Response, next) => {
+      const reqName = req.path.replace(/^\/+/, '');
+      const match = reqName.match(/^([A-Za-z0-9._-]+)-w(\d+)\.(avif|webp)$/i);
+      if (!match || reqName.includes('..')) {
+        return next();
+      }
+      const [, base, rawWidth] = match;
+      const requestedWidth = Number(rawWidth) || 0;
+
+      // 1. Prefer nearest existing optimized WebP variant in public/assets/opt/
+      try {
+        if (fs.existsSync(optDir)) {
+          const candidates = fs
+            .readdirSync(optDir)
+            .map((file) => {
+              const m = file.match(/^(.+)-w(\d+)\.webp$/i);
+              if (!m || m[1] !== base) return null;
+              return { file, width: Number(m[2]) };
+            })
+            .filter((item): item is { file: string; width: number } => Boolean(item))
+            .sort((a, b) => a.width - b.width);
+
+          if (candidates.length > 0) {
+            const picked =
+              candidates.find((c) => c.width >= requestedWidth) ||
+              candidates[candidates.length - 1];
+            res.setHeader('Cache-Control', 'public, max-age=86400');
+            res.type('image/webp');
+            return res.sendFile(path.join(optDir, picked.file));
+          }
+        }
+      } catch {
+        // fall through to original asset lookup
+      }
+
+      // 2. Fallback to original source image under public/assets/
+      const fallbackDirs = [
+        path.join(publicDir, 'assets', 'aistudio'),
+        path.join(publicDir, 'assets', 'products'),
+        path.join(publicDir, 'assets', 'promo-table'),
+        path.join(publicDir, 'assets'),
+      ];
+      for (const dir of fallbackDirs) {
+        for (const ext of ['.webp', '.png', '.jpg', '.jpeg']) {
+          const candidatePath = path.join(dir, `${base}${ext}`);
+          if (fs.existsSync(candidatePath)) {
+            res.setHeader('Cache-Control', 'public, max-age=86400');
+            return res.sendFile(candidatePath);
+          }
+        }
+      }
+
+      return next();
+    });
     // Serve pre-built Vite fingerprinted JS/CSS bundles with 1-year immutable caching
     app.use(
       '/assets',
@@ -5943,12 +5999,17 @@ async function startServer() {
         index: false,
       })
     );
-    // Serve any remaining build/public files (never HTML/feeds/sitemap/robots) with safe short/revalidated caching
+    // Serve any remaining build/public files (never cache .html for 30d so bundle hashes stay fresh)
     app.use(
       express.static(activeBuildDir, {
         maxAge: '30d',
         etag: true,
         index: false,
+        setHeaders: (res, filePath) => {
+          if (filePath.endsWith('.html')) {
+            res.setHeader('Cache-Control', 'public, no-cache, must-revalidate');
+          }
+        },
       })
     );
     app.use(
@@ -5956,6 +6017,11 @@ async function startServer() {
         maxAge: '30d',
         etag: true,
         index: false,
+        setHeaders: (res, filePath) => {
+          if (filePath.endsWith('.html')) {
+            res.setHeader('Cache-Control', 'public, no-cache, must-revalidate');
+          }
+        },
       })
     );
 
