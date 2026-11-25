@@ -1,0 +1,10 @@
+{
+  "version": 2,
+  "settings": {
+    "moderationMode": "auto_verified",
+    "allowGuestReviews": true,
+    "allowCustomerEdits": true,
+    "updatedAt": "2026-11-25T10:15:43.755Z"
+  },
+  "reviews": []
+}

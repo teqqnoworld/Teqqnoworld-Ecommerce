@@ -1458,13 +1458,14 @@ export const AdminReviewsPanel: React.FC<AdminReviewsPanelProps> = ({
       )}
 
       {/* Fullscreen Photo & Video Lightbox */}
-      {lightboxState && (
-        <ReviewPhotoLightbox
-          photos={lightboxState.photos}
-          initialIndex={lightboxState.index}
-          onClose={() => setLightboxState(null)}
-        />
-      )}
+      <ReviewPhotoLightbox
+        photos={lightboxState?.photos || []}
+        activeIndex={lightboxState ? lightboxState.index : null}
+        onNavigate={(nextIndex) =>
+          setLightboxState((prev) => (prev ? { ...prev, index: nextIndex } : null))
+        }
+        onClose={() => setLightboxState(null)}
+      />
     </div>
   );
 };

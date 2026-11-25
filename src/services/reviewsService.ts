@@ -341,10 +341,14 @@ export async function uploadReviewMediaFile(file: File): Promise<ReviewMediaItem
 
   if (isImage) {
     try {
-      const compressed = await compressImageFile(file, 1080, 0.82);
-      if (compressed?.blob) {
-        bodyBlob = compressed.blob;
-        uploadMime = compressed.blob.type || 'image/webp';
+      const compressed = await compressImageFile(file, {
+        maxWidth: 1080,
+        maxHeight: 1080,
+        quality: 0.82,
+      });
+      if (compressed?.file) {
+        bodyBlob = compressed.file;
+        uploadMime = compressed.file.type || 'image/webp';
       }
     } catch {
       // keep original image blob

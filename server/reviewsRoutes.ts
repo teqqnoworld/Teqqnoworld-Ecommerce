@@ -1228,7 +1228,7 @@ export function createReviewsRouter(deps: ReviewsRouterDependencies): Router {
       media: mediaBundle.media,
       moderationHistory: [
         ...(existing.moderationHistory || []),
-        { at: nowIso, action: 'edited_by_customer', actor: 'customer' },
+        { at: nowIso, action: 'edited_by_customer', actor: 'customer' as const },
       ].slice(-25),
       updatedAt: nowIso,
     };
@@ -1697,13 +1697,26 @@ export function getPublishedReviewAggregateForSeo(productId: string):
   const cleanId = String(productId || '').trim();
   if (!cleanId) return undefined;
   try {
-    const store = loadStore();
-    const published = store.reviews
-      .filter((r) => r.productId === cleanId && r.status === 'approved')
-      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+    const storeFile = path.join(resolveWritableDataDir(), 'teqqno-product-reviews.json');
+    if (!fs.existsSync(storeFile)) return undefined;
+    const parsed = JSON.parse(fs.readFileSync(storeFile, 'utf8'));
+    if (!parsed || !Array.isArray(parsed.reviews)) return undefined;
+
+    const published: StoredProductReview[] = parsed.reviews
+      .filter(
+        (r: any) =>
+          r &&
+          r.productId === cleanId &&
+          r.status === 'approved' &&
+          !String(r.customerEmail || '').endsWith('.example')
+      )
+      .sort(
+        (a: StoredProductReview, b: StoredProductReview) =>
+          new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+      );
     if (published.length === 0) return undefined;
 
-    const sum = published.reduce((acc, r) => acc + r.rating, 0);
+    const sum = published.reduce((acc, r) => acc + clampStar(r.rating, 5), 0);
     const avg = Number((sum / published.length).toFixed(1));
     if (!Number.isFinite(avg) || avg < 1 || avg > 5) return undefined;
 
@@ -1712,7 +1725,7 @@ export function getPublishedReviewAggregateForSeo(productId: string):
       reviewCount: published.length,
       reviews: published.slice(0, 5).map((r) => ({
         authorName: r.customerName,
-        ratingValue: r.rating,
+        ratingValue: clampStar(r.rating, 5),
         headline: r.title,
         reviewBody: r.comment,
         datePublished: r.createdAt,
