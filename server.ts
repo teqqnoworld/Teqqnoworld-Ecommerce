@@ -10,6 +10,7 @@ import { fileURLToPath } from 'url';
 import dotenv from 'dotenv';
 import { registerProductFeedRoutes } from './server/productFeed.ts';
 import { createReviewsRouter } from './server/reviewsRoutes.ts';
+import { createAffiliateRouter } from './server/affiliateRoutes.ts';
 import {
   injectSeoIntoHtml,
   isNonHtmlRoutePath,
@@ -5891,6 +5892,49 @@ app.use(
         subject: params.subject,
         text: `${params.heading}\n\n${params.bodyText}${params.note ? `\n\n${params.note}` : ''}`,
         html,
+      });
+    },
+  })
+);
+
+// ==============================================================================
+// 3Z-3. AFFILIATE PARTNER PROGRAM API
+// ==============================================================================
+app.use(
+  '/api',
+  createAffiliateRouter({
+    verifyAdminRequest: (req: Request) =>
+      verifySignedAdminToken(extractAdminBearerToken(req), 'session'),
+    getSupabaseAdminConfig: () => {
+      const cfg = getSupabaseAdminConfig();
+      return {
+        configured: Boolean(cfg.url && cfg.serviceRoleKey),
+        url: cfg.url,
+        serviceRoleKey: cfg.serviceRoleKey,
+      };
+    },
+    buildSupabaseAdminHeaders: (serviceRoleKey: string, extra?: Record<string, string>) => ({
+      ...buildSupabaseAdminHeaders(serviceRoleKey, true),
+      ...(extra || {}),
+    }),
+    getAdminEmails: () => getSmtpConfig().adminEmailList,
+    sendAffiliateEmail: async (params) => {
+      const cfg = getSmtpConfig();
+      const transporter = getSmtpTransporter();
+      if (!transporter) {
+        console.log('[Affiliate Email - Simulation Mode]', {
+          to: params.to,
+          subject: params.subject,
+        });
+        return;
+      }
+      await transporter.sendMail({
+        from: `"TeqqnoWorld Affiliate Program" <${cfg.smtpUser}>`,
+        to: params.to,
+        replyTo: cfg.smtpUser,
+        subject: params.subject,
+        text: params.text,
+        html: params.html,
       });
     },
   })

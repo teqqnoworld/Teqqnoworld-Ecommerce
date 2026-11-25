@@ -292,6 +292,20 @@ export const Footer: React.FC<FooterProps> = ({ onNavigate, onOpenSupabaseDev })
               </li>
               <li>
                 <a
+                  href="/affiliate-program"
+                  onClick={(e) => {
+                    if (!e.metaKey && !e.ctrlKey && !e.shiftKey && !e.altKey && e.button === 0) {
+                      e.preventDefault();
+                      onNavigate('affiliate-program');
+                    }
+                  }}
+                  className="hover:text-white transition-colors cursor-pointer text-left text-[#FF7A00] font-semibold inline-block"
+                >
+                  Affiliate Partner Program
+                </a>
+              </li>
+              <li>
+                <a
                   href="/pricing-and-taxes"
                   onClick={(e) => {
                     if (!e.metaKey && !e.ctrlKey && !e.shiftKey && !e.altKey && e.button === 0) {

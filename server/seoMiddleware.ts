@@ -10,6 +10,7 @@ import {
   DEFAULT_OG_IMAGE_URL,
   PRIVATE_NOINDEX_PATHS,
   PRODUCT_ID_TO_CANONICAL_SLUG,
+  SEO_AFFILIATE_PROGRAM_META,
   SEO_BULK_META,
   SEO_BUNDLE_BUILDER_META,
   SEO_CATALOG_META,
@@ -169,11 +170,13 @@ export async function resolveSeoPageContext(
   if (
     PRIVATE_NOINDEX_PATHS.includes(normalizedPath) ||
     normalizedPath.startsWith('/admin/') ||
-    normalizedPath.startsWith('/dashboard/')
+    normalizedPath.startsWith('/dashboard/') ||
+    normalizedPath.startsWith('/affiliate-dashboard/')
   ) {
     const labelMap: Record<string, string> = {
       '/admin': 'Admin Portal | TeqqnoWorld',
       '/dashboard': 'Customer Dashboard | TeqqnoWorld',
+      '/affiliate-dashboard': 'Affiliate Partner Dashboard | TeqqnoWorld',
       '/checkout': 'Checkout | TeqqnoWorld',
       '/orders': 'Orders & Tracking | TeqqnoWorld',
       '/order-action': 'Order Confirmation | TeqqnoWorld',
@@ -181,12 +184,29 @@ export async function resolveSeoPageContext(
     return {
       statusCode: 200,
       title: labelMap[normalizedPath] || 'Account | TeqqnoWorld',
-      description: 'TeqqnoWorld account and order management portal.',
+      description: 'TeqqnoWorld account, partner, and order management portal.',
       canonicalUrl: buildCanonicalUrl(normalizedPath),
       robots: NOINDEX_ROBOTS,
       ogType: 'website',
       imageUrl: DEFAULT_OG_IMAGE_URL,
       imageAlt: 'TeqqnoWorld',
+      isPrivateNoindex: true,
+      noscriptHtml: '',
+      structuredData: buildPageStructuredData({ kind: 'private-or-error' }),
+    };
+  }
+
+  // 1B. Public Affiliate Credential Verification Page (/affiliate/verify/:code)
+  if (normalizedPath.startsWith('/affiliate/verify/')) {
+    return {
+      statusCode: 200,
+      title: 'Affiliate Partner Credential Verification | TeqqnoWorld',
+      description: 'Verify an official TeqqnoWorld Affiliate Partner Certificate or Digital ID Card.',
+      canonicalUrl: buildCanonicalUrl(normalizedPath),
+      robots: NOINDEX_ROBOTS,
+      ogType: 'website',
+      imageUrl: DEFAULT_OG_IMAGE_URL,
+      imageAlt: 'TeqqnoWorld Affiliate Verification',
       isPrivateNoindex: true,
       noscriptHtml: '',
       structuredData: buildPageStructuredData({ kind: 'private-or-error' }),
@@ -316,6 +336,31 @@ export async function resolveSeoPageContext(
         title: SEO_BUNDLE_BUILDER_META.title,
         description: SEO_BUNDLE_BUILDER_META.description,
         h1: SEO_BUNDLE_BUILDER_META.h1,
+      }),
+    };
+  }
+
+  if (normalizedPath === '/affiliate-program') {
+    return {
+      statusCode: 200,
+      title: SEO_AFFILIATE_PROGRAM_META.title,
+      description: SEO_AFFILIATE_PROGRAM_META.description,
+      canonicalUrl: buildCanonicalUrl('/affiliate-program'),
+      robots: INDEX_ROBOTS,
+      ogType: 'website',
+      imageUrl: DEFAULT_OG_IMAGE_URL,
+      imageAlt: SEO_AFFILIATE_PROGRAM_META.h1,
+      isPrivateNoindex: false,
+      noscriptHtml: buildCrawlableNoscript({
+        h1: SEO_AFFILIATE_PROGRAM_META.h1,
+        summary: SEO_AFFILIATE_PROGRAM_META.description,
+      }),
+      structuredData: buildPageStructuredData({
+        kind: 'static',
+        path: '/affiliate-program',
+        title: SEO_AFFILIATE_PROGRAM_META.title,
+        description: SEO_AFFILIATE_PROGRAM_META.description,
+        h1: SEO_AFFILIATE_PROGRAM_META.h1,
       }),
     };
   }
@@ -550,6 +595,7 @@ function buildRobotsTxt(): string {
     'Allow: /feeds/',
     'Disallow: /admin',
     'Disallow: /dashboard',
+    'Disallow: /affiliate-dashboard',
     'Disallow: /checkout',
     'Disallow: /orders',
     'Disallow: /order-action',
@@ -601,6 +647,7 @@ async function buildSitemapXml(options: ProductFeedOptions): Promise<string> {
   // Core public pages
   pushUrl(buildCanonicalUrl('/'), 'daily', '1.0');
   pushUrl(buildCanonicalUrl('/catalog'), 'daily', '0.9');
+  pushUrl(buildCanonicalUrl('/affiliate-program'), 'weekly', '0.7');
 
   // Category landing pages
   for (const cat of SEO_CATEGORIES) {

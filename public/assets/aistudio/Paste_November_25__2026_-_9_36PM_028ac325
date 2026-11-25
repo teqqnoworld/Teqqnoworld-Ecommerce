@@ -1,0 +1,1722 @@
+# MASTER PROMPT: BUILD A COMPLETE PREMIUM AFFILIATE PARTNER PROGRAM FOR TEQQNOWORLD
+
+## 1. PROJECT CONTEXT
+
+You are working on the existing TeqqnoWorld e-commerce website.
+
+Website: https://teqqnoworld.com/
+
+Existing project:
+- Google AI Studio
+- GitHub repository: teqqnoworld-tech/Teqqnoworld-Ecommerce
+- Main branch: main
+- Hosting: Hostinger
+- Backend: Node.js + Express
+- Runtime: Node.js 24.x
+- Database: Supabase (already connected)
+- Existing Customer Authentication, Customer Dashboard, Admin Dashboard, Product Catalog, Cart, Checkout, and Order Management systems.
+
+Your task is to design and implement a complete, premium, production-oriented Affiliate Partner Program integrated into the existing TeqqnoWorld e-commerce platform.
+
+IMPORTANT: This is an existing live e-commerce project. Do not build a separate demo website or a standalone affiliate application.
+
+The Affiliate Program must work with the existing products, customers, authentication, orders, payments, database, and admin infrastructure.
+
+## 2. MOST IMPORTANT DEVELOPMENT RULES
+
+Before writing or modifying any code:
+
+1. Inspect the complete existing project structure.
+2. Understand the current frontend framework, backend architecture, routing, authentication, database schema, Supabase configuration, and existing order lifecycle.
+3. Identify the actual customer, product, order, order-item, payment, delivery, refund, and admin tables.
+4. Inspect existing API endpoints, middleware, database services, and UI components.
+5. Identify the existing design system, reusable components, typography, colors, spacing, and responsive breakpoints.
+6. Identify existing Customer Dashboard and Admin Dashboard architecture.
+7. Prepare a technical implementation plan with files to create, files to modify, database migrations, APIs, and integration dependencies.
+8. Reuse existing authentication, product, customer, and order infrastructure wherever possible.
+
+DO NOT:
+- Replace the existing website.
+- Rebuild existing authentication.
+- Create a duplicate customer system.
+- Create a duplicate product catalog.
+- Create a separate order management system.
+- Create a duplicate payment gateway.
+- Break existing customer or admin dashboard functionality.
+- Remove existing features.
+- Change unrelated website sections.
+- Replace existing database tables unnecessarily.
+- Hardcode database credentials, API secrets, OTPs, commission rates, or business rules.
+- Trust client-side commission calculations or eligibility checks.
+
+Implement the Affiliate Program as a modular extension of the existing application.
+
+If a required existing table or field has a different name, adapt to the actual schema rather than blindly creating duplicate tables.
+
+Use backward-compatible database migrations and preserve existing data.
+
+Do not claim that a feature is deployed, tested, or working unless it has actually been verified.
+
+## 3. BRANDING AND DESIGN SYSTEM
+
+Brand: TeqqnoWorld
+
+Use the existing brand identity:
+
+- Dark Navy
+- Orange (#FF7A00)
+- White
+
+Design requirements:
+
+- Premium, modern, professional e-commerce dashboard.
+- Clean typography and excellent visual hierarchy.
+- Premium cards, charts, tables, analytics, and data visualizations.
+- Smooth micro-interactions and subtle animations.
+- Professional loading states, empty states, error states, and success feedback.
+- Responsive layout for desktop, tablet, and mobile.
+- Excellent accessibility and keyboard navigation.
+- Consistent spacing and visual design with the existing website.
+
+Do not introduce a completely different design language.
+
+### Mobile Experience
+
+The Affiliate Dashboard must provide an app-like mobile experience.
+
+- Fixed bottom navigation.
+- Mobile-friendly cards.
+- Responsive charts.
+- Touch-friendly controls.
+- Collapsible filters.
+- Mobile-friendly tables or card-based alternatives.
+- Optimized certificate and ID card preview.
+- Responsive withdrawal and support interfaces.
+
+### Desktop Experience
+
+- Professional sidebar navigation.
+- Top navigation with notifications and profile.
+- Main analytics dashboard.
+- Responsive data tables and charts.
+- Organized settings and reports.
+
+All Affiliate Program interfaces must be in English.
+
+## 4. AFFILIATE PROGRAM ENTRY POINTS
+
+Add Affiliate Program access in:
+
+1. Website Footer.
+2. Existing Customer Dashboard.
+3. Website Header.
+
+Do not remove or rearrange unrelated existing navigation items unnecessarily.
+
+Create a dedicated Affiliate Program landing page explaining:
+
+- How the program works.
+- Eligibility requirements.
+- Benefits of becoming an Affiliate Partner.
+- How commissions are earned.
+- How payments work.
+- Affiliate application process.
+- Frequently asked questions.
+- Terms and Conditions.
+- Privacy and KYC information.
+
+Provide clear Apply Now and Login to Affiliate Dashboard actions depending on the customer's eligibility and account status.
+
+## 5. AFFILIATE ELIGIBILITY AND REGISTRATION
+
+Only existing TeqqnoWorld customers may apply.
+
+Eligibility requirements:
+
+- At least one qualifying TeqqnoWorld order.
+- Order must be Delivered.
+- Return Period must be completed.
+- Customer must be at least 18 years old.
+- Customer must have an eligible verified account.
+- Customer must not be suspended or blocked.
+- Customer must not already have an active Affiliate account.
+
+Verify all eligibility conditions on the server using the actual existing order database.
+
+Do not rely on frontend eligibility flags.
+
+### Registration Form
+
+Fields:
+
+- First Name
+- Last Name
+- Email
+- Mobile Number
+- Company Name (optional)
+
+Requirements:
+
+- Email OTP verification.
+- OTP expiry and resend cooldown.
+- Rate limiting.
+- Secure OTP verification.
+- Existing customer authentication integration.
+- Mandatory Terms and Conditions acceptance.
+- Mandatory Privacy Policy acceptance.
+- Mandatory KYC/Data Processing consent.
+
+Save:
+- Terms version.
+- Privacy Policy version.
+- Acceptance timestamp.
+- User ID.
+- Application timestamp.
+
+### Application Workflow
+
+Application statuses:
+
+- Draft
+- Email Verification Pending
+- Submitted
+- Under Review
+- KYC Pending
+- KYC Under Review
+- Approved
+- Rejected
+
+The customer must submit an application before proceeding to the KYC verification stage.
+
+### Application Rejection
+
+Admin must provide a rejection reason.
+
+When rejected:
+- Notify customer through Dashboard and Email.
+- Show the rejection reason.
+- Allow the customer to correct information and apply again.
+- Preserve all previous applications and review history.
+
+### Admin Application Notification
+
+Send an email notification to the configured Admin email when a new application is submitted.
+
+## 6. KYC VERIFICATION
+
+KYC is mandatory before Affiliate activation.
+
+Required information:
+
+- Aadhaar verification information.
+- PAN information.
+- Bank Account Holder Name.
+- Bank Account Number.
+- IFSC Code.
+- Required supporting documents.
+
+### Bank Verification
+
+Support:
+1. Penny Drop Verification.
+2. Admin document review.
+
+Do not claim bank verification success without actual verification from a supported service.
+
+### Aadhaar and PAN Security
+
+- Use masked Aadhaar wherever possible.
+- Prefer UIDAI-compliant secure offline verification where applicable.
+- Never store unnecessary Aadhaar data.
+- Encrypt sensitive information at rest.
+- Restrict access to authorized Admin roles.
+- Never expose full Aadhaar, PAN, bank account number, or KYC documents to Affiliate partners or public pages.
+- Mask sensitive values in the Admin UI.
+- Prevent sensitive KYC data from appearing in logs, analytics, or error messages.
+- Apply strict access control and audit logging.
+
+KYC verification must be performed by Admin.
+
+### Activation
+
+Affiliate Account becomes Active only after:
+
+1. Application approval.
+2. KYC verification.
+3. Bank verification.
+4. Admin final approval.
+
+Send an approval/activation email.
+
+Only Active Affiliates may promote products and generate valid referral attribution.
+
+## 7. AFFILIATE ID AND UNIQUE LINKS
+
+Automatically generate a unique Affiliate ID.
+
+Affiliate ID format must be configurable by Admin.
+
+Example:
+TW-AFF-000001
+
+Generate:
+- Unique Affiliate ID.
+- Unique Affiliate referral token.
+- Website-wide referral link.
+- Product-wise referral links.
+- QR code for each referral link.
+
+Do not allow Affiliates to manually change their Affiliate ID.
+
+### Website-Wide Referral Link
+
+Example structure:
+
+https://teqqnoworld.com/?ref=UNIQUE_AFFILIATE_TOKEN
+
+### Product-Wise Referral Link
+
+Example structure:
+
+https://teqqnoworld.com/product/example-product?ref=UNIQUE_AFFILIATE_TOKEN
+
+Adapt link generation to the existing website's actual clean product URLs.
+
+All referral links must be generated securely by the backend.
+
+Do not expose internal database IDs unnecessarily.
+
+### Link Rules
+
+- Only Active Affiliates can generate and use valid links.
+- Links must become invalid immediately when the Affiliate is suspended.
+- Links must become invalid after account closure.
+- Admin must be able to configure link expiry.
+- Admin must be able to pause the Affiliate Program.
+- Expired, suspended, disabled, or invalid links must not generate attribution.
+
+## 8. REFERRAL ATTRIBUTION SYSTEM
+
+Attribution Model: LAST CLICK ATTRIBUTION.
+
+Cookie Duration: 30 days.
+
+Important business rule:
+
+When a customer clicks an Affiliate's referral link, that Affiliate receives referral attribution.
+
+If the customer later clicks another Affiliate's referral link, the most recently clicked valid Affiliate receives the attribution.
+
+Example:
+
+- Customer clicks Affiliate A's link.
+- Later, customer clicks Affiliate B's link.
+- Affiliate B receives the referral credit.
+
+### Website-Wide Attribution
+
+After clicking a valid Affiliate referral link, the customer can purchase ANY eligible TeqqnoWorld product.
+
+The commission must not be limited to the specific product included in the original referral link.
+
+All eligible products purchased within the valid attribution window must be attributed to the last-click Affiliate.
+
+### Cookie and Tracking
+
+- Default cookie duration: 30 days.
+- Admin configurable.
+- Respect applicable cookie consent and privacy requirements.
+- Use secure, HTTP-only, SameSite cookies where compatible with the architecture.
+- Use server-side attribution validation.
+- Support authenticated customer attribution across devices where identity can be reliably established and privacy requirements permit it.
+- Do not promise cross-device tracking for unidentified visitors.
+- Do not overwrite a newer valid attribution with an older one.
+- Expired attribution must not generate commission.
+- Maintain an auditable attribution history.
+
+### Click Tracking
+
+Record:
+- Date.
+- Time.
+- Affiliate ID.
+- Referral token.
+- Landing Product/Page.
+- Device.
+- Browser.
+- Traffic Source.
+- Campaign information where available.
+- IP-derived fraud signals only when legally permitted and necessary.
+
+Avoid collecting unnecessary personal data.
+
+### Self-Referral Prevention
+
+Self-referrals must be blocked automatically.
+
+If an Affiliate attempts to purchase through their own referral link:
+
+- Do not award commission.
+- Flag the event for fraud monitoring.
+- Record the reason.
+- Notify Admin where appropriate.
+
+Use reliable authenticated customer identity checks.
+
+Do not rely only on IP address because multiple legitimate users can share the same IP.
+
+## 9. PRODUCT ELIGIBILITY AND COMMISSION SETTINGS
+
+Only products manually enabled by Admin are eligible for Affiliate commissions.
+
+By default, new products must not automatically become Affiliate-enabled.
+
+Admin must explicitly enable a product.
+
+### Product-Level Commission Settings
+
+For each product, Admin can configure:
+
+- Affiliate Enabled / Disabled.
+- Commission Percentage.
+- Commission Start Date.
+- Commission End Date (optional).
+- Special Campaign Commission (optional).
+- Commission configuration history.
+
+Commission type: Percentage.
+
+Commission rates are Admin-controlled.
+
+Affiliates cannot change commission rates.
+
+Default example: 5%, but do not hardcode this as a universal rate.
+
+Admin must be able to configure each product's commission independently.
+
+### Commission Snapshot
+
+When an eligible order is attributed:
+
+- Store the applicable commission percentage.
+- Store the eligible product price.
+- Store the discount.
+- Store the GST-inclusive discounted amount.
+- Store the calculated commission.
+- Store the product ID and order-item reference.
+- Store the Affiliate ID.
+
+A later Admin commission-rate change must not modify previously attributed orders or their commission calculations.
+
+## 10. COMMISSION CALCULATION
+
+Commission type: Percentage.
+
+Calculation basis:
+
+GST-inclusive discounted product price.
+
+Shipping charges are excluded.
+
+Example:
+
+Product price including GST: ₹1,000
+
+Discount: ₹100
+
+Eligible discounted amount: ₹900
+
+Commission rate: 5%
+
+Commission: ₹45
+
+Formula:
+
+Commission = GST-inclusive discounted eligible product amount × Commission Percentage / 100
+
+Important:
+
+- Use actual order-item prices and discounts from the existing order database.
+- Do not calculate using the current catalog price if the customer purchased at another price.
+- Do not include shipping charges.
+- Avoid double-counting GST or discounts.
+- Follow the actual order invoice and line-item representation.
+- Use server-side decimal-safe arithmetic, not floating-point calculations for financial balances.
+
+Commission must be recorded at the order-item level.
+
+## 11. COMMISSION STATUS AND RELEASE RULES
+
+Commission statuses:
+
+- Pending
+- On Hold
+- Available
+- Cancelled
+- Paid
+- Adjusted
+- Under Review
+
+### Commission Lifecycle
+
+When an eligible attributed order is created:
+
+1. Validate the referral attribution.
+2. Validate Affiliate status.
+3. Validate product eligibility.
+4. Snapshot commission rate.
+5. Create a Pending commission entry.
+
+When order becomes Delivered:
+- Commission remains Pending.
+
+When Return Period is completed:
+- Verify that no applicable cancellation or refund remains.
+- Verify that the Affiliate is eligible.
+- Verify that the commission is not under fraud investigation.
+- Release commission to Available only after all checks pass.
+
+### Fraud Hold
+
+If suspicious activity is detected:
+
+- Automatically place the relevant commission on Hold.
+- Do not release it to Available Balance.
+- Alert Admin.
+- Allow Admin to investigate.
+- Admin can Release or Cancel the commission with a recorded reason.
+
+Fraud alerts must not automatically accuse an Affiliate.
+
+Suspicious activity should be flagged for review.
+
+Confirmed fraudulent cases can be blocked automatically under clearly defined rules.
+
+### Order Cancellation
+
+If an order is cancelled:
+- Automatically cancel the associated Pending commission.
+
+### Full Refund
+
+If an order is fully refunded:
+- Automatically cancel all relevant unpaid commission entries.
+
+### Partial Refund
+
+If only one product is refunded:
+- Cancel only the commission for that refunded product.
+
+If a product is partially refunded:
+- Recalculate the commission proportionally based on the remaining eligible amount.
+
+Other non-refunded products must retain their eligible commission.
+
+### Already Paid Commission
+
+If a refund occurs after commission has already been paid:
+
+- Do not automatically create a negative Affiliate wallet balance.
+- Do not silently remove paid earnings.
+- Flag the transaction for Admin review.
+- Record any manual recovery or adjustment through an auditable financial ledger.
+
+## 12. COMMISSION NOTIFICATIONS
+
+Send notifications through Dashboard and Email.
+
+### Pending Commission Notification
+
+When a qualifying order is attributed:
+- Notify Affiliate about the new referred order.
+- Show masked order ID.
+- Show product name.
+- Show order date.
+- Show commission percentage.
+- Show estimated Pending Commission.
+
+### Available Commission Notification
+
+When commission becomes Available:
+- Send a separate notification.
+- Show released amount.
+- Show product/order reference.
+- Show updated Available Balance.
+
+If commission is held for fraud review, notify the Affiliate appropriately without revealing confidential fraud-detection signals.
+
+When Admin releases a held commission, send the Available Commission notification.
+
+## 13. AFFILIATE WALLET
+
+Create a separate Affiliate Wallet.
+
+Do not mix it with the existing Customer Wallet.
+
+Wallet balances:
+
+- Pending Balance.
+- Available Balance.
+- Processing Balance.
+- Total Withdrawn.
+
+### Wallet Ledger
+
+Create a complete, immutable transaction ledger.
+
+Record:
+- Transaction ID.
+- Date and time.
+- Transaction type.
+- Affiliate ID.
+- Order reference.
+- Product reference.
+- Commission amount.
+- Bonus amount.
+- Withdrawal amount.
+- Adjustment amount.
+- Status.
+- Description.
+- Admin reference where applicable.
+
+Do not permit ordinary editing or deletion of historical financial ledger entries.
+
+All balance changes must be performed through secure backend financial transactions.
+
+Use database transactions and appropriate concurrency protection to prevent double crediting, duplicate withdrawals, or race conditions.
+
+## 14. WITHDRAWAL SYSTEM
+
+Minimum Withdrawal: ₹100.
+
+Withdrawal Processing Time: 5–7 Working Days.
+
+Withdrawal method:
+Manual Admin processing.
+
+### Withdrawal Flow
+
+1. Affiliate submits withdrawal request.
+2. Backend verifies Available Balance.
+3. Backend verifies bank account verification.
+4. Funds move from Available to Processing.
+5. Admin reviews request.
+6. Admin manually transfers funds to the verified bank account.
+7. Admin marks request as Paid.
+8. Wallet ledger records the transaction.
+
+### Withdrawal Statuses
+
+- Pending
+- Processing
+- Paid
+- Rejected
+
+### Rejected Withdrawal
+
+If Admin rejects a withdrawal:
+- Restore the reserved funds to Available Balance.
+- Record the rejection reason.
+- Preserve the original withdrawal request.
+- Notify Affiliate.
+
+### Withdrawal History
+
+Affiliate must see:
+- Withdrawal date.
+- Amount.
+- Status.
+- Masked bank details.
+- Transaction/reference number where available.
+- Admin message or rejection reason.
+
+Admin can process withdrawal requests.
+
+Do not implement automatic payout APIs unless a real provider is explicitly configured and verified.
+
+## 15. MONTHLY SALES TARGET AND REWARD SYSTEM
+
+All Affiliates have one common membership level.
+
+Do not implement Bronze, Silver, Gold, Platinum, or Diamond membership tiers.
+
+Implement:
+
+1. Monthly Sales Target Bonus.
+2. Sales Ranking Rewards.
+
+### Sales Target
+
+Admin can configure:
+- Target period.
+- Target number of eligible orders or eligible sales value.
+- Target amount.
+- Cash bonus.
+- Gift rewards.
+- Product rewards.
+- Shopping vouchers.
+- Reward eligibility.
+- Start and end date.
+
+### Ranking Rewards
+
+Create:
+- Monthly Leaderboard.
+- Yearly Leaderboard.
+- All-Time Leaderboard.
+
+Admin can configure rewards for ranks.
+
+Possible rewards:
+- Cash Bonus.
+- TeqqnoWorld products.
+- Gifts.
+- Vouchers.
+- Special rewards.
+
+### Sales Eligibility
+
+Only Delivered orders count provisionally.
+
+Sales become Final only after the Return Period is completed.
+
+Rules:
+- Cancelled orders are excluded.
+- Refunded product items are excluded.
+- Partial refunds adjust eligible sales.
+- Orders with fraud holds are excluded from final ranking until reviewed.
+- Do not award final bonuses on unverified or refundable sales.
+
+### Privacy
+
+Affiliate may see:
+- Own ranking.
+- Own sales.
+- Own rewards.
+- Public ranking indicators of other Affiliates.
+
+Do not reveal another Affiliate's private earnings, customer details, or confidential data.
+
+## 16. PREMIUM AFFILIATE DASHBOARD
+
+Create a separate dedicated Affiliate Dashboard.
+
+Do not combine it with the normal Customer Dashboard.
+
+The Customer Dashboard should contain an entry point to the Affiliate Program.
+
+### Desktop Navigation
+
+Use a premium sidebar.
+
+### Mobile Navigation
+
+Use an app-like bottom navigation.
+
+### Dashboard Sections
+
+1. Overview
+2. My Affiliate Links
+3. Website Referral Link
+4. Product Affiliate Links
+5. QR Codes
+6. Product Promotion History
+7. Click History
+8. Order Referrals
+9. Analytics
+10. Sales Reports
+11. Conversion Reports
+12. Commission History
+13. Wallet
+14. Withdrawals
+15. Monthly Targets
+16. Rewards
+17. Leaderboard
+18. Certificate
+19. Digital ID Card
+20. Profile
+21. KYC Information
+22. Notifications
+23. Support Tickets
+24. Settings
+
+### Overview Dashboard Cards
+
+Display:
+
+- Total Clicks.
+- Unique Clicks.
+- Referred Orders.
+- Delivered Orders.
+- Eligible Sales.
+- Conversion Rate.
+- Pending Commission.
+- Available Commission.
+- Processing Balance.
+- Total Withdrawn.
+- Monthly Target Progress.
+- Current Ranking.
+
+Provide useful charts and date filters.
+
+## 17. AFFILIATE ANALYTICS
+
+Provide analytics for:
+
+- Live.
+- Daily.
+- Weekly.
+- Monthly.
+- Yearly.
+- Custom Date Range.
+
+Metrics:
+
+- Total Clicks.
+- Unique Clicks.
+- Referred Orders.
+- Conversion Rate.
+- Product-wise Sales.
+- Product-wise Commission.
+- Pending Commission.
+- Available Commission.
+- Cancelled Commission.
+- Refund Adjustments.
+- Traffic Source.
+- Device.
+- Browser.
+- Eligible Revenue.
+- Performance trends.
+
+Geographic analytics must use only legally permitted, appropriately aggregated location data.
+
+Provide CSV and PDF exports.
+
+Do not expose other customers' private data.
+
+## 18. PRODUCT PROMOTION HISTORY
+
+Affiliate must see every product they have promoted.
+
+Record:
+- Product Name.
+- Product Image.
+- Product URL.
+- Affiliate Link.
+- QR Code.
+- Commission Percentage.
+- First Generated Date.
+- Last Used Date.
+- Total Clicks.
+- Referred Orders.
+- Earned Commission.
+- Product Affiliate Status.
+
+Show exact date and time where available.
+
+Allow copying links and downloading QR codes.
+
+## 19. CERTIFICATE AND DIGITAL ID CARD
+
+Automatically generate a Certificate and Digital ID Card after Affiliate approval and activation.
+
+### Certificate
+
+Include:
+- TeqqnoWorld Logo.
+- Official Affiliate Partner title.
+- Full Name.
+- Unique Affiliate ID.
+- Joining Date.
+- Unique Certificate Number.
+- Authorized Company Signature.
+- QR Code.
+
+Provide:
+- Dashboard preview.
+- Downloadable PDF.
+
+### Digital ID Card
+
+Include:
+- Partner Photo.
+- Name.
+- Affiliate ID.
+- Joining Date.
+- Active/Suspended status.
+- QR Code.
+
+Partner can upload their own photo.
+
+Provide dashboard preview and downloadable digital ID.
+
+### Public Verification Page
+
+QR scan must open a public verification page.
+
+Show only:
+- Partner Name.
+- Affiliate ID.
+- Certificate Number, if applicable.
+- Account Status.
+- Joining Date, if appropriate.
+- Verification Result.
+
+Never show:
+- Aadhaar.
+- PAN.
+- Bank details.
+- Full mobile number.
+- Email address.
+- Private earnings.
+- Customer or order information.
+
+Suspended or closed accounts must show the correct current status.
+
+## 20. CUSTOMER ORDER PRIVACY
+
+Affiliate can see referred order information in masked form only.
+
+Allowed information:
+- Masked Order ID.
+- Product Name.
+- Product Image.
+- Order Date.
+- Order Status.
+- Commission Percentage.
+- Commission Amount.
+- Commission Status.
+
+Never reveal:
+- Customer email.
+- Customer mobile.
+- Customer full name.
+- Customer address.
+- Payment information.
+- Other sensitive customer data.
+
+Enforce this restriction at the backend API level, not only in the frontend.
+
+## 21. NOTIFICATION CENTER
+
+Create a dedicated Notification Center.
+
+Support Dashboard + Email notifications.
+
+Notification events include:
+
+- Application submitted.
+- Email verification.
+- KYC submitted.
+- KYC approved or rejected.
+- Application approved.
+- Application rejected.
+- Affiliate activated.
+- New referred order.
+- Pending commission created.
+- Commission released.
+- Commission cancelled.
+- Commission held.
+- Withdrawal submitted.
+- Withdrawal processing.
+- Withdrawal paid.
+- Withdrawal rejected.
+- Monthly target achieved.
+- Reward earned.
+- Ranking updated.
+- Account suspended.
+- Reactivation requested.
+- Account reactivated.
+- Account closure requested.
+- Certificate generated.
+- ID card generated.
+- Admin announcements.
+- Support ticket replies.
+
+Store notification history.
+
+Provide:
+- Read/unread state.
+- Notification date and time.
+- Relevant action link.
+- Email delivery status where supported.
+
+Use reliable email delivery with retry handling and avoid duplicate notifications.
+
+## 22. SUPPORT TICKET SYSTEM
+
+Create a dedicated Affiliate Support section.
+
+Partner can:
+- Create a support ticket.
+- Select a category.
+- Write a subject.
+- Describe the issue.
+- Attach permitted files.
+- Choose ticket priority.
+- View ticket status.
+- Reply to Admin.
+
+Admin can:
+- View all tickets.
+- Reply.
+- Change priority.
+- Change status.
+- Assign tickets where appropriate.
+- Close tickets.
+
+Statuses:
+- Open.
+- In Progress.
+- Waiting for Affiliate.
+- Resolved.
+- Closed.
+
+Send Dashboard and Email notifications for replies and important ticket changes.
+
+Support email integration must use configured credentials and existing project email infrastructure where available.
+
+## 23. ADMIN AFFILIATE MANAGEMENT PANEL
+
+Create a complete Affiliate Management module inside the existing Admin Dashboard.
+
+Do not replace the existing Admin Dashboard.
+
+### Admin Sections
+
+1. Affiliate Overview.
+2. New Applications.
+3. Application Review.
+4. Partner Management.
+5. KYC Verification.
+6. Bank Verification.
+7. Product Commission Settings.
+8. Affiliate Links.
+9. Referral Tracking.
+10. Order Attribution.
+11. Commission Management.
+12. Fraud Monitoring.
+13. Wallet Management.
+14. Withdrawal Requests.
+15. Monthly Targets.
+16. Rewards Management.
+17. Leaderboard Management.
+18. Certificates.
+19. Digital ID Cards.
+20. Notifications.
+21. Announcements.
+22. Support Tickets.
+23. Reports.
+24. Program Settings.
+25. Admin Audit Logs.
+
+### Application Management
+
+Admin can:
+- Review applications.
+- View eligibility results.
+- Review KYC.
+- Approve.
+- Reject with mandatory reason.
+- Request additional information where appropriate.
+- View application history.
+
+### Partner Management
+
+Admin can:
+- Search Affiliates.
+- Filter by status.
+- View Affiliate profiles.
+- View performance.
+- View referral links.
+- View commission history.
+- View KYC verification status.
+- Suspend.
+- Reactivate after review.
+- Close accounts.
+- Review closure requests.
+
+### Suspension
+
+Admin can suspend any Affiliate at any time.
+
+Requirements:
+- Mandatory suspension reason.
+- Dashboard notification.
+- Email notification.
+- Immediately disable referral links and new attribution.
+- Block new withdrawals.
+
+During suspension:
+- Pending Commission is held.
+- Available Commission is also held.
+- No withdrawal is permitted.
+
+Partner may submit a Reactivation Request.
+
+Admin reviews the request and may approve or reject it.
+
+After reactivation, Admin must review held commission and wallet eligibility before releasing funds.
+
+Preserve all historical records.
+
+### Account Closure
+
+Partner can request Account Closure.
+
+Admin must review the request.
+
+On approved closure:
+- Disable all referral links.
+- Stop new attribution.
+- Cancel unpaid Pending Commission according to the selected program rule.
+- Pay remaining eligible Available Commission through the approved settlement process.
+- Preserve historical ledger and audit records.
+- Never silently delete financial history.
+
+### Program Controls
+
+Admin can:
+- Enable/Disable registrations.
+- Pause/Resume the entire Affiliate Program.
+- Enable/Disable individual products.
+- Configure commission rates.
+- Configure cookie duration.
+- Configure link expiry.
+- Configure minimum withdrawal.
+- Configure processing rules.
+- Configure monthly targets.
+- Configure rewards.
+- Configure Affiliate ID format.
+- Configure certificate settings.
+- Configure eligibility rules.
+
+## 24. FRAUD DETECTION AND SECURITY
+
+Implement a secure fraud-monitoring system.
+
+Monitor signals such as:
+- Self-referrals.
+- Duplicate order attribution.
+- Abnormal click patterns.
+- Suspicious click bursts.
+- Repeated suspicious devices.
+- Invalid or manipulated referral tokens.
+- Unusual conversion patterns.
+- Suspicious refund patterns.
+- Repeated account abuse.
+
+Requirements:
+- Flag suspicious activity.
+- Place affected commission on Hold.
+- Notify Admin.
+- Preserve evidence and audit logs.
+- Allow Admin review.
+- Avoid automatically accusing legitimate Affiliates.
+- Use risk scoring carefully.
+- Do not use IP address as the only fraud signal.
+
+### Security Architecture
+
+Implement:
+- Server-side authorization.
+- Role-based access control.
+- Strict ownership checks.
+- Input validation.
+- Output sanitization.
+- Rate limiting.
+- Secure cookies.
+- CSRF protection where applicable.
+- XSS protection.
+- SQL injection protection.
+- Secure file upload validation.
+- API authentication.
+- Sensitive data masking.
+- Secure secrets management.
+- Audit logs.
+
+Never expose Supabase service-role keys or backend secrets in frontend code.
+
+Use existing Supabase authentication and secure backend access patterns.
+
+All sensitive Admin operations must require proper Admin authorization.
+
+## 25. SUPABASE DATABASE DESIGN
+
+Inspect the current Supabase database before creating migrations.
+
+Reuse existing customer, product, order, and authentication tables.
+
+Create only the additional Affiliate-specific tables required by the existing architecture.
+
+Suggested logical entities include:
+
+- affiliate_program_settings
+- affiliate_applications
+- affiliate_partners
+- affiliate_kyc_records
+- affiliate_bank_accounts
+- affiliate_bank_verifications
+- affiliate_links
+- affiliate_clicks
+- affiliate_attributions
+- affiliate_product_settings
+- affiliate_commissions
+- affiliate_commission_adjustments
+- affiliate_wallets
+- affiliate_wallet_transactions
+- affiliate_withdrawals
+- affiliate_sales_targets
+- affiliate_rewards
+- affiliate_leaderboard_snapshots
+- affiliate_certificates
+- affiliate_id_cards
+- affiliate_notifications
+- affiliate_support_tickets
+- affiliate_support_messages
+- affiliate_announcements
+- affiliate_fraud_flags
+- affiliate_account_closure_requests
+- affiliate_reactivation_requests
+- affiliate_audit_logs
+
+These are suggested logical entities, not an instruction to blindly create all tables.
+
+Consolidate tables where appropriate after inspecting the existing database.
+
+### Database Requirements
+
+- UUID primary keys where appropriate.
+- Foreign keys.
+- Unique constraints.
+- Appropriate indexes.
+- Created and updated timestamps.
+- Status constraints.
+- Referential integrity.
+- Idempotent migrations.
+- Safe rollback strategy where practical.
+- Financial transaction consistency.
+- Immutable ledger history.
+- Proper ownership relationships.
+
+### Supabase RLS
+
+Enable Row Level Security for Affiliate-related tables.
+
+Policies must ensure:
+
+- Affiliates can access only their own data.
+- Affiliates cannot access another Affiliate's private earnings.
+- Affiliates cannot access customer private data.
+- Public verification endpoints expose only approved public fields.
+- Only authorized Admins can review KYC.
+- Only authorized Admins can modify commission settings.
+- Only authorized Admins can manage payouts.
+- Sensitive financial operations are performed through trusted backend functions.
+
+Do not rely on frontend restrictions as security controls.
+
+### Migration Process
+
+Provide:
+1. Complete SQL migration files.
+2. Table creation.
+3. Indexes.
+4. Foreign keys.
+5. RLS policies.
+6. Required database functions/triggers where appropriate.
+7. Migration verification queries.
+8. Rollback or recovery guidance.
+
+Do not run destructive migrations against existing production data.
+
+Clearly identify which SQL scripts require manual execution in Supabase SQL Editor.
+
+## 26. BACKEND API ARCHITECTURE
+
+Follow the existing Express architecture and coding conventions.
+
+Create modular Affiliate services, controllers, routes, validators, and middleware.
+
+Suggested API groups:
+
+- /api/affiliate/program
+- /api/affiliate/applications
+- /api/affiliate/kyc
+- /api/affiliate/profile
+- /api/affiliate/links
+- /api/affiliate/clicks
+- /api/affiliate/analytics
+- /api/affiliate/orders
+- /api/affiliate/commissions
+- /api/affiliate/wallet
+- /api/affiliate/withdrawals
+- /api/affiliate/rewards
+- /api/affiliate/leaderboard
+- /api/affiliate/certificate
+- /api/affiliate/id-card
+- /api/affiliate/notifications
+- /api/affiliate/support
+- /api/affiliate/verification
+
+Admin API groups:
+
+- /api/admin/affiliates
+- /api/admin/affiliate-applications
+- /api/admin/affiliate-kyc
+- /api/admin/affiliate-products
+- /api/admin/affiliate-commissions
+- /api/admin/affiliate-wallets
+- /api/admin/affiliate-withdrawals
+- /api/admin/affiliate-rewards
+- /api/admin/affiliate-reports
+- /api/admin/affiliate-fraud
+- /api/admin/affiliate-settings
+- /api/admin/affiliate-announcements
+- /api/admin/affiliate-support
+- /api/admin/affiliate-audit
+
+Adapt endpoint names to existing project conventions.
+
+All financial calculations must happen on the server.
+
+Implement idempotency and duplicate-event protection for:
+- Order attribution.
+- Commission generation.
+- Commission release.
+- Refund adjustments.
+- Wallet credits.
+- Withdrawal requests.
+- Reward payments.
+
+Integrate with the existing order lifecycle and actual delivery/refund events.
+
+Do not create duplicate order records.
+
+## 27. FRONTEND COMPONENTS
+
+Build reusable components for:
+
+- Affiliate Landing Page.
+- Application Form.
+- OTP Verification.
+- KYC Submission.
+- KYC Status.
+- Affiliate Overview Dashboard.
+- Analytics Cards.
+- Performance Charts.
+- Referral Link Generator.
+- QR Code Display.
+- Product Promotion Table.
+- Click History Table.
+- Referred Orders Table.
+- Commission History.
+- Wallet Overview.
+- Withdrawal Form.
+- Withdrawal History.
+- Monthly Target Progress.
+- Rewards Center.
+- Leaderboard.
+- Certificate Preview.
+- ID Card Preview.
+- Notification Center.
+- Support Ticket Center.
+- Affiliate Profile.
+
+Admin components:
+
+- Affiliate Overview.
+- Application Review.
+- KYC Review.
+- Partner Management.
+- Commission Settings.
+- Product Eligibility Management.
+- Fraud Review.
+- Wallet Management.
+- Withdrawal Review.
+- Rewards Management.
+- Program Settings.
+- Affiliate Reports.
+
+Follow the existing routing and component architecture.
+
+## 28. EMAIL SYSTEM
+
+Use the existing email infrastructure where available.
+
+Configure reusable professional email templates for:
+
+- Application submitted.
+- Application approved.
+- Application rejected.
+- KYC updates.
+- Account activated.
+- Account suspended.
+- Reactivation updates.
+- New referred order.
+- Pending commission.
+- Available commission.
+- Commission held.
+- Withdrawal request.
+- Withdrawal paid.
+- Withdrawal rejected.
+- Rewards earned.
+- Certificate generated.
+- Support replies.
+- Admin announcements.
+- Account closure updates.
+
+Email language: English.
+
+Use branded HTML email templates.
+
+Include plain-text alternatives.
+
+Do not hardcode SMTP passwords or API keys.
+
+Use environment variables.
+
+## 29. REPORTS AND EXPORTS
+
+Provide CSV and PDF exports for:
+
+Affiliate:
+- Click Reports.
+- Product Performance.
+- Referred Orders.
+- Commission History.
+- Wallet Ledger.
+- Withdrawal History.
+- Rewards.
+- Analytics.
+
+Admin:
+- Affiliate Applications.
+- Active Affiliates.
+- Suspended Affiliates.
+- KYC Status.
+- Product Commission Performance.
+- Referral Performance.
+- Commission Reports.
+- Wallet Reports.
+- Withdrawal Reports.
+- Fraud Reports.
+- Rewards Reports.
+
+Exports must respect role permissions and privacy restrictions.
+
+Do not export customer personal data to Affiliate reports.
+
+## 30. PROGRAM SETTINGS
+
+Create a centralized Affiliate Program Settings module.
+
+Admin should control:
+
+- Program Enabled/Disabled.
+- Registration Enabled/Disabled.
+- Eligibility Requirements.
+- Minimum Age.
+- Required Completed Orders.
+- Return Period Eligibility.
+- KYC Requirements.
+- Bank Verification Requirements.
+- Cookie Duration (default 30 days).
+- Attribution Model (Last Click).
+- Link Expiry.
+- Affiliate ID Format.
+- Product Eligibility.
+- Product Commission Percentages.
+- Minimum Withdrawal (default ₹100).
+- Withdrawal Processing Time (5–7 Working Days).
+- Monthly Target Rules.
+- Reward Rules.
+- Leaderboard Rules.
+- Certificate Configuration.
+- Notification Settings.
+- Fraud Detection Settings.
+
+The current default business rules must be stored as configurable settings where applicable.
+
+Do not silently change the selected business rules.
+
+## 31. DEFAULT BUSINESS RULES SUMMARY
+
+Use these selected rules as the initial program configuration:
+
+1. Affiliate must be an existing TeqqnoWorld customer.
+2. At least one Delivered order with completed Return Period is required.
+3. Minimum age: 18.
+4. Email OTP verification is mandatory.
+5. KYC is required after application.
+6. KYC includes Aadhaar, PAN, and bank details.
+7. Admin approval is mandatory.
+8. Bank verification uses Penny Drop and Admin document review.
+9. Membership is free.
+10. Affiliate ID is generated automatically.
+11. Only Admin-enabled products are eligible.
+12. Product-wise commission percentage is Admin-controlled.
+13. Commission is based on GST-inclusive discounted product price.
+14. Shipping charges are excluded.
+15. Referral links use Last Click Attribution.
+16. Cookie duration is 30 days.
+17. A valid referral can earn commission on ANY eligible product purchased during the attribution window.
+18. Self-referrals are blocked automatically.
+19. Order cancellation automatically cancels unpaid related commission.
+20. Full refunds cancel the relevant unpaid commission.
+21. Partial refunds affect only the refunded product.
+22. Commission becomes Available only after Delivery and completed Return Period.
+23. Suspicious commissions are held for Admin review.
+24. Commission rates are snapshotted for each attributed order.
+25. Separate Affiliate Wallet is required.
+26. Minimum Withdrawal is ₹100.
+27. Withdrawals are manually processed.
+28. Withdrawal processing target is 5–7 Working Days.
+29. Rejected withdrawals restore funds to Available Balance.
+30. Monthly Sales Targets and Ranking Rewards are required.
+31. Only Delivered orders count provisionally toward targets.
+32. Sales become final after Return Period completion.
+33. Cash Bonus and Special Rewards are supported.
+34. All Affiliates have one common membership level.
+35. Certificate and Digital ID Card are automatically generated after activation.
+36. QR verification and Unique Verification Number are required.
+37. Account suspension immediately disables links.
+38. Suspension holds Pending and Available Commission.
+39. Reactivation requires Admin approval and commission review.
+40. Partner may request account closure.
+41. Admin reviews closure requests.
+42. On approved closure, unpaid Pending Commission is cancelled and remaining eligible Available Commission is settled.
+43. Admin controls all important Affiliate Program settings.
+44. Dashboard and Email notifications are required.
+45. Support Ticket + Email + Admin Reply are required.
+46. Monthly, Yearly, and All-Time Leaderboards are required.
+47. Analytics include Daily, Weekly, Monthly, Yearly, and Custom Date Reports.
+48. CSV and PDF exports are required.
+49. Affiliate Program appears in Footer, Customer Dashboard, and Website Header.
+50. All Affiliate interfaces use English.
+
+## 32. TESTING AND QUALITY ASSURANCE
+
+Create a complete testing strategy.
+
+### Functional Testing
+
+Test:
+- Eligible customer registration.
+- Ineligible customer rejection.
+- OTP verification.
+- KYC submission.
+- Admin approval.
+- Affiliate activation.
+- Referral link generation.
+- Last-click attribution.
+- 30-day attribution expiry.
+- Website-wide eligible product attribution.
+- Self-referral prevention.
+- Product commission enable/disable.
+- Commission snapshot.
+- Pending commission generation.
+- Delivery status integration.
+- Return Period completion.
+- Commission release.
+- Order cancellation.
+- Full refund.
+- Partial refund.
+- Fraud hold and release.
+- Wallet credit.
+- Withdrawal request.
+- Withdrawal approval.
+- Withdrawal rejection and balance restoration.
+- Monthly target calculation.
+- Leaderboard ranking.
+- Cash and Special Rewards.
+- Certificate generation.
+- Public QR verification.
+- Account suspension.
+- Reactivation.
+- Account closure.
+- Notification delivery.
+- Support ticket workflow.
+
+### Security Testing
+
+Test:
+- Unauthorized Affiliate access.
+- Cross-Affiliate data access.
+- KYC data exposure.
+- Customer data exposure.
+- Unauthorized Admin endpoints.
+- Commission manipulation attempts.
+- Wallet manipulation attempts.
+- Duplicate webhook/event processing.
+- SQL injection.
+- XSS.
+- CSRF where applicable.
+- Malicious file uploads.
+- Rate-limit behavior.
+
+### Financial Testing
+
+Test:
+- Exact commission calculations.
+- Discount handling.
+- GST-inclusive pricing.
+- Shipping exclusion.
+- Partial refunds.
+- Multiple product orders.
+- Multiple commission rates.
+- Duplicate processing prevention.
+- Concurrent withdrawals.
+- Ledger reconciliation.
+
+### Regression Testing
+
+Verify that:
+- Existing website pages still work.
+- Existing Customer Dashboard works.
+- Existing Admin Dashboard works.
+- Product catalog works.
+- Cart works.
+- Checkout works.
+- Existing order processing works.
+- Existing authentication works.
+- Existing Supabase integration works.
+- Existing SEO functionality remains intact.
+- Existing mobile responsiveness is preserved.
+
+Do not claim tests pass unless executed successfully.
+
+## 33. PERFORMANCE AND PRODUCTION READINESS
+
+- Use database indexes appropriately.
+- Paginate large datasets.
+- Avoid unnecessary database queries.
+- Use efficient analytics queries.
+- Cache safe aggregate data where appropriate.
+- Avoid exposing private information in client caches.
+- Optimize charts and tables.
+- Lazy-load heavy dashboard modules.
+- Optimize images and document generation.
+- Avoid blocking the existing checkout or order lifecycle.
+- Ensure graceful error handling.
+- Implement logging without sensitive data.
+- Ensure reliable event processing.
+
+## 34. IMPLEMENTATION PHASES
+
+Implement in controlled phases.
+
+### Phase 1: Existing Codebase Audit
+- Inspect current architecture.
+- Map existing database tables.
+- Identify integration points.
+- Produce implementation plan.
+
+### Phase 2: Database and Backend Foundation
+- Affiliate schema.
+- Migrations.
+- RLS.
+- Core services.
+- Authentication and permissions.
+
+### Phase 3: Registration and KYC
+- Landing page.
+- Application.
+- OTP.
+- KYC.
+- Admin approval.
+
+### Phase 4: Referral and Commission Engine
+- Affiliate links.
+- QR codes.
+- Last-click attribution.
+- Cookie tracking.
+- Commission snapshots.
+- Order integration.
+- Refund handling.
+
+### Phase 5: Affiliate Dashboard
+- Overview.
+- Links.
+- Analytics.
+- Orders.
+- Commission.
+- Wallet.
+- Withdrawals.
+
+### Phase 6: Admin Affiliate Panel
+- Applications.
+- Partners.
+- KYC.
+- Commission settings.
+- Wallet.
+- Withdrawals.
+- Fraud monitoring.
+- Program settings.
+
+### Phase 7: Rewards and Verification
+- Targets.
+- Rewards.
+- Leaderboards.
+- Certificates.
+- Digital ID cards.
+- Public verification.
+
+### Phase 8: Notifications and Support
+- Email.
+- Notification Center.
+- Support tickets.
+- Admin announcements.
+
+### Phase 9: Testing and Optimization
+- Functional tests.
+- Security tests.
+- Financial tests.
+- Regression tests.
+- Responsive testing.
+
+## 35. FINAL DELIVERY REQUIREMENTS
+
+When implementation is completed, provide a clear report containing:
+
+1. Features implemented.
+2. Files created.
+3. Existing files modified.
+4. Database tables created or reused.
+5. SQL migrations requiring manual execution.
+6. Environment variables required.
+7. Email configuration requirements.
+8. External verification service requirements, if any.
+9. Admin configuration steps.
+10. Testing results.
+11. Known limitations.
+12. Deployment steps for Hostinger.
+13. GitHub files and changes ready for review.
+
+Clearly distinguish:
+- Completed.
+- Pending manual setup.
+- Requires external credentials.
+- Not yet implemented.
+
+Do not pretend that SQL migrations have been executed if they have only been generated.
+
+Do not pretend that code has been deployed if it has only been changed locally or in Google AI Studio.
+
+Do not expose production secrets in reports.
+
+## FINAL INSTRUCTION
+
+Build a complete, secure, scalable, premium Affiliate Partner Program for TeqqnoWorld inside the existing e-commerce application.
+
+Prioritize data integrity, financial accuracy, customer privacy, secure KYC handling, reliable order attribution, and a premium user experience.
+
+Preserve all existing website features.
+
+First inspect the current codebase and present the technical implementation plan. Then implement the system phase by phase, verifying each phase before proceeding.
+
+If any required external service, credential, or manual database action is missing, clearly identify it and provide the exact setup instructions rather than using fake data or placeholder success responses.
+
+Do not create a superficial UI-only demo. Implement real database-backed functionality with secure backend logic and working integrations.
+
+The final result must be production-oriented, maintainable, responsive, and fully integrated with the existing TeqqnoWorld website.

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Search, ShoppingBag, Heart, User, Clock, Menu, X, ChevronDown, ShieldCheck, ShieldAlert, LogOut, Package, Truck, Receipt, MapPin } from 'lucide-react';
+import { Search, ShoppingBag, Heart, User, Clock, Menu, X, ChevronDown, ShieldCheck, ShieldAlert, LogOut, Package, Truck, Receipt, MapPin, Sparkles } from 'lucide-react';
 import { UserProfile } from '../types';
 import { BUSINESS_CONFIG, getWhatsAppLink } from '../config/business';
 import { WhatsAppIcon } from './WhatsAppIcon';
@@ -306,6 +306,13 @@ export const Navbar: React.FC<NavbarProps> = ({
                           <Receipt className="w-3.5 h-3.5 text-zinc-500" />
                           <span>GST Tax Invoices</span>
                         </button>
+                        <button
+                          onClick={() => onNavigate('affiliate-program')}
+                          className="w-full text-left px-4 py-2.5 hover:bg-zinc-100 text-zinc-800 font-medium flex items-center gap-2.5 min-h-[40px]"
+                        >
+                          <Sparkles className="w-3.5 h-3.5 text-[#FF7A00]" />
+                          <span>Affiliate Program</span>
+                        </button>
                       </div>
 
                       <div className="pt-1 border-t border-zinc-100">
@@ -468,6 +475,23 @@ export const Navbar: React.FC<NavbarProps> = ({
                 {user && (
                   <span className="w-2 h-2 rounded-full bg-emerald-500 inline-block" />
                 )}
+              </a>
+
+              <a
+                href="/affiliate-program"
+                onClick={(e) => {
+                  if (!e.metaKey && !e.ctrlKey && !e.shiftKey && !e.altKey && e.button === 0) {
+                    e.preventDefault();
+                    onNavigate('affiliate-program');
+                  }
+                }}
+                className={`font-medium transition-colors hover:text-[#FF7A00] flex items-center gap-1.5 py-1.5 whitespace-nowrap shrink-0 min-h-[36px] cursor-pointer ${
+                  currentTab === 'affiliate-program' || currentTab === 'affiliate-dashboard'
+                    ? 'text-[#FF7A00] font-bold'
+                    : 'text-zinc-700'
+                }`}
+              >
+                <span>Affiliate Program</span>
               </a>
             </nav>
 
@@ -719,6 +743,18 @@ export const Navbar: React.FC<NavbarProps> = ({
                 ) : (
                   <span className="text-[10px] text-[#FF7A00] font-semibold">SIGN IN</span>
                 )}
+              </button>
+
+              <button
+                onClick={() => { onNavigate('affiliate-program'); setMobileMenuOpen(false); }}
+                className={`text-left px-3.5 py-3 rounded-xl transition-colors flex items-center justify-between min-h-[44px] ${
+                  currentTab === 'affiliate-program' || currentTab === 'affiliate-dashboard'
+                    ? 'bg-orange-50 text-[#FF7A00] font-bold'
+                    : 'text-zinc-800 hover:bg-zinc-100 font-semibold'
+                }`}
+              >
+                <span>Affiliate Partner Program</span>
+                <span className="text-zinc-400 text-xs">›</span>
               </button>
             </div>
 

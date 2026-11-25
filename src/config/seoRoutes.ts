@@ -278,6 +278,7 @@ export const VALID_LEGAL_PATHS: ReadonlyArray<string> = SEO_LEGAL_PAGES.map((p) 
 export const PRIVATE_NOINDEX_PATHS: ReadonlyArray<string> = [
   '/admin',
   '/dashboard',
+  '/affiliate-dashboard',
   '/checkout',
   '/orders',
   '/order-action',
@@ -331,6 +332,16 @@ export const SEO_BUNDLE_BUILDER_META: SeoStaticPageDefinition = {
   h1: 'Corporate Gift Bundle Builder',
   sitemapPriority: '0.6',
   sitemapChangefreq: 'monthly',
+};
+
+export const SEO_AFFILIATE_PROGRAM_META: SeoStaticPageDefinition = {
+  path: '/affiliate-program',
+  title: 'Affiliate Partner Program | Earn Commission | TeqqnoWorld',
+  description:
+    'Join the official TeqqnoWorld Affiliate Partner Program for verified customers. Promote admin-enabled custom printing products, track clicks, and earn transparent INR commissions.',
+  h1: 'TeqqnoWorld Affiliate Partner Program',
+  sitemapPriority: '0.7',
+  sitemapChangefreq: 'weekly',
 };
 
 // Product ID -> Canonical SEO Slug mapping (used for 301 redirects from /product/<id>)

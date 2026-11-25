@@ -48,6 +48,7 @@ import {
   KeyRound,
   EyeOff,
   Star,
+  Sparkles,
 } from 'lucide-react';
 import { WhatsAppIcon } from './WhatsAppIcon';
 import {
@@ -118,6 +119,7 @@ import {
 } from './admin/AdminSubViews';
 import { AdminSecurityPanel } from './admin/AdminSecurityPanel';
 import { AdminReviewsPanel } from './admin/AdminReviewsPanel';
+import { AdminAffiliatePanel } from './admin/AdminAffiliatePanel';
 import { fetchAdminReviews } from '../services/reviewsService';
 import {
   clearStoredAdminToken,
@@ -1567,6 +1569,12 @@ export const AdminHubView: React.FC<AdminHubViewProps> = ({
       breadcrumb: 'Reviews',
       icon: Star,
     },
+    affiliates: {
+      title: 'Affiliate Partner Program',
+      subtitle: 'Manage partner applications, masked KYC & bank verification, product commissions, payouts, fraud, targets & audit logs.',
+      breadcrumb: 'Affiliate Program',
+      icon: Sparkles,
+    },
     customers: {
       title: 'Customers Directory',
       subtitle: 'Verified B2B & corporate buyers aggregated from real storefront orders.',
@@ -1778,6 +1786,24 @@ export const AdminHubView: React.FC<AdminHubViewProps> = ({
               {pendingReviewsCount}
             </span>
           )}
+        </button>
+
+        {/* 3C. Affiliate Partner Program */}
+        <button
+          onClick={() => {
+            setActiveSection('affiliates');
+            if (isMobile) setMobileMenuOpen(false);
+          }}
+          className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl font-medium transition-all duration-200 cursor-pointer ${
+            activeSection === 'affiliates'
+              ? 'bg-[#FF7900] text-white font-semibold shadow-md shadow-[#FF7900]/25'
+              : 'text-slate-300 hover:text-white hover:bg-white/[0.06]'
+          }`}
+        >
+          <span className="flex items-center gap-3">
+            <Sparkles className="w-4 h-4 shrink-0" />
+            <span>Affiliate Program</span>
+          </span>
         </button>
 
         {/* 4. Customers */}
@@ -2193,6 +2219,8 @@ export const AdminHubView: React.FC<AdminHubViewProps> = ({
               { id: 'orders', label: `Orders (${orders.length})` },
               { id: 'dispatch', label: `Dispatch (${readyToShipOrders.length})` },
               { id: 'products', label: 'Products' },
+              { id: 'reviews', label: 'Reviews' },
+              { id: 'affiliates', label: 'Affiliates' },
               { id: 'customers', label: 'Customers' },
               { id: 'marketing', label: 'Marketing' },
               { id: 'analytics', label: 'Analytics' },
@@ -3161,6 +3189,10 @@ export const AdminHubView: React.FC<AdminHubViewProps> = ({
               onToast={showToast}
               onSessionExpired={handleLock}
             />
+          )}
+
+          {activeSection === 'affiliates' && (
+            <AdminAffiliatePanel />
           )}
 
           {activeSection === 'customers' && (

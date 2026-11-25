@@ -447,6 +447,8 @@ export interface ReviewFormPayload {
   media?: ReviewMediaItem[];
 }
 
+export * from './affiliate';
+
 
 
 

@@ -81,6 +81,15 @@ const AdminHubView = lazy(() =>
 const OrderActionView = lazy(() =>
   import('./components/OrderActionView').then((m) => ({ default: m.OrderActionView }))
 );
+const AffiliateLandingView = lazy(() =>
+  import('./components/affiliate/AffiliateLandingView').then((m) => ({ default: m.AffiliateLandingView }))
+);
+const AffiliateDashboardView = lazy(() =>
+  import('./components/affiliate/AffiliateDashboardView').then((m) => ({ default: m.AffiliateDashboardView }))
+);
+const AffiliateVerificationView = lazy(() =>
+  import('./components/affiliate/AffiliateVerificationView').then((m) => ({ default: m.AffiliateVerificationView }))
+);
 
 // Legal & Policy Views (route-split)
 const PrivacyPolicyView = lazy(() =>
@@ -186,6 +195,7 @@ import { ShieldCheck, Sparkles, Home, LayoutGrid, ShoppingBag, Package, ArrowRig
 import { WhatsAppIcon } from './components/WhatsAppIcon';
 import {
   DEFAULT_OG_IMAGE_ALT,
+  SEO_AFFILIATE_PROGRAM_META,
   SEO_BULK_META,
   SEO_BUNDLE_BUILDER_META,
   SEO_CATALOG_META,
@@ -208,6 +218,7 @@ import {
   type StructuredDataProductInput,
 } from './config/structuredData';
 import { useReviewSummaries } from './context/ReviewSummaryContext';
+import { attributeOrderToAffiliate, trackAffiliateClick } from './services/affiliateService';
 
 interface ResolvedClientRoute {
   tab: string;
@@ -221,6 +232,7 @@ interface ResolvedClientRoute {
     token?: string;
   };
   recoveryCoupon?: boolean;
+  affiliateVerifyCode?: string;
   openModal?: 'catalogues' | 'tracking';
   replaceUrl?: string;
   preserveAuthHash?: boolean;
@@ -493,6 +505,22 @@ function resolveClientRouteFromLocation(): ResolvedClientRoute {
     return { tab: 'bundle-builder' };
   }
 
+  if (normalizedPath === '/affiliate-program') {
+    return { tab: 'affiliate-program' };
+  }
+
+  if (normalizedPath === '/affiliate-dashboard' || normalizedPath.startsWith('/affiliate-dashboard/')) {
+    return { tab: 'affiliate-dashboard' };
+  }
+
+  if (normalizedPath.startsWith('/affiliate/verify/')) {
+    const rawCode = normalizedPath.slice('/affiliate/verify/'.length);
+    return {
+      tab: 'affiliate-verify',
+      affiliateVerifyCode: decodeURIComponent(rawCode || ''),
+    };
+  }
+
   if (VALID_LEGAL_PATHS.includes(normalizedPath)) {
     return { tab: normalizedPath };
   }
@@ -520,6 +548,9 @@ export default function App() {
   );
   const [catalogSearchQuery, setCatalogSearchQuery] = useState<string>(
     initialRoute.searchQuery || ''
+  );
+  const [affiliateVerifyCode, setAffiliateVerifyCode] = useState<string>(
+    initialRoute.affiliateVerifyCode || ''
   );
   const [customizerProductId, setCustomizerProductId] = useState<string>('prod-polo-01');
 
@@ -797,6 +828,9 @@ export default function App() {
       if (resolved.orderAction) {
         setOrderActionParams(resolved.orderAction);
       }
+      if (resolved.affiliateVerifyCode !== undefined) {
+        setAffiliateVerifyCode(resolved.affiliateVerifyCode);
+      }
       if (resolved.recoveryCoupon) {
         import('./services/aisensyService')
           .then(({ activateRecoveryCoupon }) =>
@@ -987,9 +1021,28 @@ export default function App() {
       return;
     }
 
+    if (currentTab === 'affiliate-program') {
+      applyDocumentSeo({
+        title: SEO_AFFILIATE_PROGRAM_META.title,
+        description: SEO_AFFILIATE_PROGRAM_META.description,
+        canonicalPath: '/affiliate-program',
+        imageAlt: SEO_AFFILIATE_PROGRAM_META.h1,
+        structuredData: buildPageStructuredData({
+          kind: 'static',
+          path: '/affiliate-program',
+          title: SEO_AFFILIATE_PROGRAM_META.title,
+          description: SEO_AFFILIATE_PROGRAM_META.description,
+          h1: SEO_AFFILIATE_PROGRAM_META.h1,
+        }),
+      });
+      return;
+    }
+
     if (
       currentTab === 'admin' ||
       currentTab === 'dashboard' ||
+      currentTab === 'affiliate-dashboard' ||
+      currentTab === 'affiliate-verify' ||
       currentTab === 'checkout' ||
       currentTab === 'orders' ||
       currentTab === 'order-action'
@@ -997,13 +1050,15 @@ export default function App() {
       const privateTitles: Record<string, string> = {
         admin: 'Admin Portal | TeqqnoWorld',
         dashboard: 'Customer Dashboard | TeqqnoWorld',
+        'affiliate-dashboard': 'Affiliate Partner Dashboard | TeqqnoWorld',
+        'affiliate-verify': 'Affiliate Partner Verification | TeqqnoWorld',
         checkout: 'Checkout | TeqqnoWorld',
         orders: 'Orders & Tracking | TeqqnoWorld',
         'order-action': 'Order Confirmation | TeqqnoWorld',
       };
       applyDocumentSeo({
         title: privateTitles[currentTab] || 'Account | TeqqnoWorld',
-        description: 'TeqqnoWorld account and order management portal.',
+        description: 'TeqqnoWorld account, partner, and order management portal.',
         canonicalPath: `/${currentTab}`,
         robots: noindexRobots,
         imageAlt: 'TeqqnoWorld',
@@ -1145,6 +1200,26 @@ export default function App() {
       return;
     }
 
+    if (cleanInput === 'affiliate-program' || cleanInput === '/affiliate-program') {
+      pushCleanUrl('/affiliate-program');
+      setCurrentTab('affiliate-program');
+      return;
+    }
+
+    if (cleanInput === 'affiliate-dashboard' || cleanInput === '/affiliate-dashboard') {
+      pushCleanUrl('/affiliate-dashboard');
+      setCurrentTab('affiliate-dashboard');
+      return;
+    }
+
+    if (normalized.startsWith('/affiliate/verify/')) {
+      const code = decodeURIComponent(normalized.slice('/affiliate/verify/'.length));
+      setAffiliateVerifyCode(code);
+      pushCleanUrl(`/affiliate/verify/${encodeURIComponent(code)}`);
+      setCurrentTab('affiliate-verify');
+      return;
+    }
+
     if (cleanInput === 'checkout' || cleanInput === '/checkout') {
       pushCleanUrl('/checkout');
       setCurrentTab('checkout');
@@ -1273,10 +1348,77 @@ export default function App() {
     handleNavigate('checkout');
   };
 
+  // Capture ?ref=<TOKEN> on any landing URL for last-click server attribution
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const params = new URLSearchParams(window.location.search);
+    const refToken = params.get('ref')?.trim();
+    if (!refToken) return;
+    const pathname = window.location.pathname || '/';
+    const matchedProd = pathname.startsWith('/product/')
+      ? PRODUCTS.find(
+          (p) =>
+            p.slug.toLowerCase() ===
+            decodeURIComponent(pathname.slice('/product/'.length)).toLowerCase()
+        )
+      : undefined;
+    const utmSource = params.get('utm_source') || (document.referrer ? new URL(document.referrer).hostname : 'direct');
+    const utmCampaign = params.get('utm_campaign') || undefined;
+    void trackAffiliateClick({
+      ref: refToken,
+      landingPath: pathname,
+      productId: matchedProd?.id,
+      productSlug: matchedProd?.slug,
+      trafficSource: utmSource,
+      campaign: utmCampaign,
+      customerEmail: user?.email,
+      customerUserId: user?.id,
+    });
+  }, [user?.email, user?.id]);
+
   const handleOrderPlaced = (newOrder: Order) => {
     setOrders(prev => [newOrder, ...prev]);
     setActiveOrder(newOrder);
     setCartItems([]);
+
+    // Non-blocking server-authoritative affiliate order attribution (GST-inclusive discounted product amount, shipping excluded)
+    if (newOrder.items && newOrder.items.length > 0) {
+      const itemsSubtotal = newOrder.items.reduce(
+        (sum, item) => sum + item.unitPrice * item.quantity,
+        0
+      );
+      const gstRatio = itemsSubtotal > 0 ? newOrder.gstAmount / itemsSubtotal : 0.18;
+      const shippingFee = Number(newOrder.shippingFee || 0);
+      const couponDiscount = Math.max(
+        0,
+        newOrder.subtotal + newOrder.gstAmount + shippingFee - newOrder.total
+      );
+      void attributeOrderToAffiliate({
+        orderId: newOrder.id,
+        orderNumber: newOrder.orderNumber,
+        customerEmail: newOrder.shippingAddress?.email || user?.email,
+        customerMobile: newOrder.shippingAddress?.phone || user?.mobile,
+        customerUserId: user?.id,
+        shippingInr: shippingFee,
+        items: newOrder.items.map((item, idx) => {
+          const lineBase = item.unitPrice * item.quantity;
+          const grossGstIncl = lineBase * (1 + gstRatio);
+          const lineShare = itemsSubtotal > 0 ? lineBase / itemsSubtotal : 0;
+          const lineDiscount = couponDiscount * lineShare;
+          const eligibleGstInclDiscounted = Math.max(0, grossGstIncl - lineDiscount);
+          return {
+            orderItemId: item.id || `${newOrder.id}-item-${idx + 1}`,
+            productId: item.product.id,
+            quantity: item.quantity,
+            grossGstInclusiveInr: Math.round(grossGstIncl * 100) / 100,
+            discountInr: Math.round(lineDiscount * 100) / 100,
+            gstInclusiveDiscountedAmountInr:
+              Math.round(eligibleGstInclDiscounted * 100) / 100,
+          };
+        }),
+      });
+    }
+
     handleNavigate('orders');
   };
 
@@ -1372,7 +1514,8 @@ export default function App() {
     );
   }
 
-  const isCustomerPortalFull = currentTab === 'dashboard' && Boolean(user);
+  const isCustomerPortalFull =
+    (currentTab === 'dashboard' && Boolean(user)) || currentTab === 'affiliate-dashboard';
 
   return (
     <div className="min-h-screen flex flex-col bg-[#F4F2FA] text-[#1A1B22] font-sans w-full max-w-full overflow-x-clip">
@@ -1698,6 +1841,38 @@ export default function App() {
               </button>
             </div>
           )
+        )}
+
+        {/* VIEW H2: AFFILIATE PARTNER PROGRAM LANDING PAGE */}
+        {currentTab === 'affiliate-program' && (
+          <AffiliateLandingView
+            user={user}
+            onNavigate={handleNavigate}
+            onRequestLogin={() => {
+              setAuthModalNote('Sign in with your TeqqnoWorld customer account to check Affiliate Program eligibility');
+              setIsAuthModalOpen(true);
+            }}
+          />
+        )}
+
+        {/* VIEW H3: DEDICATED AFFILIATE PARTNER DASHBOARD */}
+        {currentTab === 'affiliate-dashboard' && (
+          <AffiliateDashboardView
+            user={user}
+            onNavigate={handleNavigate}
+            onRequestLogin={() => {
+              setAuthModalNote('Sign in to access your TeqqnoWorld Affiliate Partner Dashboard');
+              setIsAuthModalOpen(true);
+            }}
+          />
+        )}
+
+        {/* VIEW H4: PUBLIC AFFILIATE CREDENTIAL VERIFICATION PAGE */}
+        {currentTab === 'affiliate-verify' && (
+          <AffiliateVerificationView
+            verificationCode={affiliateVerifyCode}
+            onBackHome={() => handleNavigate('home')}
+          />
         )}
 
         {/* VIEW I: LEGAL & POLICY PAGES */}

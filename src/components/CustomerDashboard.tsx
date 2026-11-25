@@ -656,6 +656,21 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
 
         <button
           type="button"
+          onClick={() => {
+            setMobileDrawerOpen(false);
+            onNavigateTab('affiliate-program');
+          }}
+          className="w-full flex items-center justify-between gap-2.5 px-3.5 py-2.5 rounded-xl text-xs font-semibold transition-all cursor-pointer min-h-[42px] text-[#FF7900] bg-[#FF7900]/10 hover:bg-[#FF7900]/20 border border-[#FF7900]/25 mt-1"
+        >
+          <span className="flex items-center gap-2.5">
+            <Sparkles className="w-4 h-4 text-[#FF7900]" />
+            <span>Affiliate Program</span>
+          </span>
+          <span className="text-[10px] font-mono uppercase">Partner</span>
+        </button>
+
+        <button
+          type="button"
           onClick={() => goToTab('support')}
           className={`w-full flex items-center gap-2.5 px-3.5 py-2.5 rounded-xl text-xs font-semibold transition-all cursor-pointer min-h-[42px] ${
             activeTab === 'support'
