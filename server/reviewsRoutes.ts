@@ -1,4 +1,5 @@
-import express, { Request, Response, Router } from 'express';
+import express from 'express';
+import type { Request, Response, Router } from 'express';
 import crypto from 'crypto';
 import fs from 'fs';
 import os from 'os';
