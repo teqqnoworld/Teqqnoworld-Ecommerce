@@ -207,6 +207,7 @@ import {
   buildPageStructuredData,
   type StructuredDataProductInput,
 } from './config/structuredData';
+import { useReviewSummaries } from './context/ReviewSummaryContext';
 
 interface ResolvedClientRoute {
   tab: string;
@@ -501,6 +502,7 @@ function resolveClientRouteFromLocation(): ResolvedClientRoute {
 
 export default function App() {
   const initialRoute = resolveClientRouteFromLocation();
+  const { summaries: reviewSummaries } = useReviewSummaries();
 
   // Navigation & View Routing (Clean SEO-friendly paths + safe legacy hash migration)
   const [currentTab, setCurrentTab] = useState<string>(initialRoute.tab);
@@ -827,17 +829,28 @@ export default function App() {
   // Dynamically synchronize <title>, meta description, canonical, robots, OpenGraph, Twitter, and JSON-LD
   useEffect(() => {
     const noindexRobots = 'noindex, nofollow';
-    const toStructuredProduct = (p: Product): StructuredDataProductInput => ({
-      id: p.id,
-      slug: p.slug,
-      name: p.name,
-      description: p.description,
-      category: p.category,
-      productType: p.productType,
-      basePrice: p.basePrice,
-      moq: p.moq,
-      imageUrl: p.colors?.[0]?.imageFront,
-    });
+    const toStructuredProduct = (p: Product): StructuredDataProductInput => {
+      const liveSummary = reviewSummaries[p.id];
+      return {
+        id: p.id,
+        slug: p.slug,
+        name: p.name,
+        description: p.description,
+        category: p.category,
+        productType: p.productType,
+        basePrice: p.basePrice,
+        moq: p.moq,
+        imageUrl: p.colors?.[0]?.imageFront,
+        ...(liveSummary && liveSummary.totalReviews > 0 && liveSummary.averageRating > 0
+          ? {
+              verifiedReviewAggregate: {
+                ratingValue: liveSummary.averageRating,
+                reviewCount: liveSummary.totalReviews,
+              },
+            }
+          : {}),
+      };
+    };
 
     if (currentTab === 'product-detail' && selectedProduct) {
       const cleanProductH1 = getProductH1(selectedProduct.id, selectedProduct.name);
@@ -1021,7 +1034,7 @@ export default function App() {
       imageAlt: DEFAULT_OG_IMAGE_ALT,
       structuredData: buildPageStructuredData({ kind: 'home' }),
     });
-  }, [currentTab, selectedProduct, catalogCategory]);
+  }, [currentTab, selectedProduct, catalogCategory, reviewSummaries]);
 
   // Helper to safely push clean path URLs
   const pushCleanUrl = (targetPath: string) => {
@@ -1497,6 +1510,12 @@ export default function App() {
             onRequestQuote={() => handleNavigate('bulk')}
             wishlistIds={wishlistIds}
             onToggleWishlist={handleToggleWishlist}
+            user={user}
+            orders={userScopedOrders}
+            onRequestLogin={() => {
+              setAuthModalNote('Sign in to connect your review with verified TeqqnoWorld orders');
+              setIsAuthModalOpen(true);
+            }}
           />
         )}
 

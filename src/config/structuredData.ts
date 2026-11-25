@@ -72,6 +72,21 @@ export interface StructuredDataProductInput {
    * Omitted when not verified (never defaulted or invented).
    */
   verifiedAvailability?: 'InStock' | 'OutOfStock' | 'PreOrder' | 'BackOrder';
+  /**
+   * Genuine published review aggregate from the live review database.
+   * Omitted whenever reviewCount === 0 (never fabricated).
+   */
+  verifiedReviewAggregate?: {
+    ratingValue: number;
+    reviewCount: number;
+    reviews?: Array<{
+      authorName: string;
+      ratingValue: number;
+      headline?: string;
+      reviewBody: string;
+      datePublished: string;
+    }>;
+  };
 }
 
 export type StructuredDataPageInput =
@@ -541,6 +556,44 @@ function buildProductEntity(
   const offers = buildProductOffers(product, canonicalUrl);
   if (offers) {
     entity.offers = offers;
+  }
+
+  // Emit AggregateRating and Review nodes ONLY when genuine published reviews exist
+  const revAgg = product.verifiedReviewAggregate;
+  if (
+    revAgg &&
+    typeof revAgg.reviewCount === 'number' &&
+    revAgg.reviewCount > 0 &&
+    typeof revAgg.ratingValue === 'number' &&
+    revAgg.ratingValue >= 1 &&
+    revAgg.ratingValue <= 5
+  ) {
+    entity.aggregateRating = {
+      '@type': 'AggregateRating',
+      ratingValue: Number(revAgg.ratingValue.toFixed(1)),
+      reviewCount: Math.round(revAgg.reviewCount),
+      bestRating: 5,
+      worstRating: 1,
+    };
+
+    if (Array.isArray(revAgg.reviews) && revAgg.reviews.length > 0) {
+      entity.review = revAgg.reviews.slice(0, 5).map((r) => ({
+        '@type': 'Review',
+        author: {
+          '@type': 'Person',
+          name: cleanText(r.authorName),
+        },
+        datePublished: r.datePublished.slice(0, 10),
+        ...(r.headline ? { name: cleanText(r.headline) } : {}),
+        reviewBody: cleanText(r.reviewBody),
+        reviewRating: {
+          '@type': 'Rating',
+          ratingValue: Math.max(1, Math.min(5, Math.round(r.ratingValue))),
+          bestRating: 5,
+          worstRating: 1,
+        },
+      }));
+    }
   }
 
   return entity;

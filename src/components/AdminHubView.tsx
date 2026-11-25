@@ -47,6 +47,7 @@ import {
   ShieldCheck,
   KeyRound,
   EyeOff,
+  Star,
 } from 'lucide-react';
 import { WhatsAppIcon } from './WhatsAppIcon';
 import {
@@ -116,6 +117,8 @@ import {
   AnalyticsSummary,
 } from './admin/AdminSubViews';
 import { AdminSecurityPanel } from './admin/AdminSecurityPanel';
+import { AdminReviewsPanel } from './admin/AdminReviewsPanel';
+import { fetchAdminReviews } from '../services/reviewsService';
 import {
   clearStoredAdminToken,
   getAdminAuthStatus,
@@ -190,6 +193,7 @@ export const AdminHubView: React.FC<AdminHubViewProps> = ({
   const [loadingOrders, setLoadingOrders] = useState<boolean>(false);
   const [loadingLeads, setLoadingLeads] = useState<boolean>(false);
   const [updatingOrderId, setUpdatingOrderId] = useState<string | null>(null);
+  const [pendingReviewsCount, setPendingReviewsCount] = useState<number>(0);
 
   // Orders Filters, Selection & Pagination
   const [orderSearchQuery, setOrderSearchQuery] = useState<string>('');
@@ -322,6 +326,13 @@ export const AdminHubView: React.FC<AdminHubViewProps> = ({
   useEffect(() => {
     if (isAuthenticated) {
       loadData();
+      fetchAdminReviews({ status: 'pending' })
+        .then((res) => {
+          if (res.success && res.kpis) {
+            setPendingReviewsCount(res.kpis.pendingCount);
+          }
+        })
+        .catch(() => {});
     }
   }, [isAuthenticated]);
 
@@ -1550,6 +1561,12 @@ export const AdminHubView: React.FC<AdminHubViewProps> = ({
       breadcrumb: 'Products',
       icon: Box,
     },
+    reviews: {
+      title: 'Product Reviews & Ratings',
+      subtitle: 'Moderate customer reviews, verify purchases, publish replies, and manage review policy.',
+      breadcrumb: 'Reviews',
+      icon: Star,
+    },
     customers: {
       title: 'Customers Directory',
       subtitle: 'Verified B2B & corporate buyers aggregated from real storefront orders.',
@@ -1738,6 +1755,29 @@ export const AdminHubView: React.FC<AdminHubViewProps> = ({
             <span>Products</span>
           </span>
           <span className="font-mono text-[10px] text-slate-400">{PRODUCTS.length}</span>
+        </button>
+
+        {/* 3B. Reviews & Ratings */}
+        <button
+          onClick={() => {
+            setActiveSection('reviews');
+            if (isMobile) setMobileMenuOpen(false);
+          }}
+          className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl font-medium transition-all duration-200 cursor-pointer ${
+            activeSection === 'reviews'
+              ? 'bg-[#FF7900] text-white font-semibold shadow-md shadow-[#FF7900]/25'
+              : 'text-slate-300 hover:text-white hover:bg-white/[0.06]'
+          }`}
+        >
+          <span className="flex items-center gap-3">
+            <Star className="w-4 h-4 shrink-0" />
+            <span>Reviews</span>
+          </span>
+          {pendingReviewsCount > 0 && (
+            <span className="px-1.5 py-0.5 rounded-md font-mono text-[10px] font-semibold bg-amber-500/20 text-amber-300">
+              {pendingReviewsCount}
+            </span>
+          )}
         </button>
 
         {/* 4. Customers */}
@@ -3112,6 +3152,14 @@ export const AdminHubView: React.FC<AdminHubViewProps> = ({
                 setNewOrdProductId(pid);
                 setCreateOrderOpen(true);
               }}
+            />
+          )}
+
+          {activeSection === 'reviews' && (
+            <AdminReviewsPanel
+              onPendingCountChange={setPendingReviewsCount}
+              onToast={showToast}
+              onSessionExpired={handleLock}
             />
           )}
 

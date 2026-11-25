@@ -25,6 +25,8 @@ import {
   getProductH1,
   getProductPath,
 } from '../config/seoRoutes';
+import { useReviewSummaries } from '../context/ReviewSummaryContext';
+import { ProductRatingBadge } from './reviews/ProductRatingBadge';
 
 const SHOWCASE_BANNER_BY_PRODUCT_ID: Record<string, { src: string; fit: 'cover' | 'contain' }> = {
   'prod-ceramic-mug': {
@@ -100,6 +102,7 @@ export const ProductCatalogView: React.FC<ProductCatalogViewProps> = ({
   wishlistIds = [],
   onToggleWishlist,
 }) => {
+  const { getProductRatingMeta } = useReviewSummaries();
   const [selectedCategory, setSelectedCategory] = useState<ProductCategory>(initialCategory);
   const activeCategorySeo =
     selectedCategory !== 'all' ? findCategoryBySlugOrAlias(selectedCategory) : undefined;
@@ -184,11 +187,16 @@ export const ProductCatalogView: React.FC<ProductCatalogViewProps> = ({
     }).sort((a, b) => {
       if (sortBy === 'price-low') return a.basePrice - b.basePrice;
       if (sortBy === 'price-high') return b.basePrice - a.basePrice;
-      if (sortBy === 'rating') return b.rating - a.rating;
+      if (sortBy === 'rating') {
+        const ra = getProductRatingMeta(a.id);
+        const rb = getProductRatingMeta(b.id);
+        if (rb.rating !== ra.rating) return rb.rating - ra.rating;
+        return rb.reviewCount - ra.reviewCount;
+      }
       if (sortBy === 'moq') return a.moq - b.moq;
       return 0; // featured default
     });
-  }, [selectedCategory, selectedPrintMethod, selectedPriceRange, selectedMoqRange, selectedDispatch, onlyWishlisted, wishlistIds, searchTerm, sortBy]);
+  }, [selectedCategory, selectedPrintMethod, selectedPriceRange, selectedMoqRange, selectedDispatch, onlyWishlisted, wishlistIds, searchTerm, sortBy, getProductRatingMeta]);
 
   const savedCatalogCount = PRODUCTS.filter(p => wishlistIds.includes(p.id)).length;
 
@@ -1000,11 +1008,7 @@ export const ProductCatalogView: React.FC<ProductCatalogViewProps> = ({
                         >
                           {productCategorySeo ? productCategorySeo.name : product.category}
                         </a>
-                        <div className="flex items-center gap-1 text-amber-500">
-                          <Star className="w-3.5 h-3.5 fill-current" />
-                          <span className="font-semibold text-zinc-700 text-[11px]">{product.rating}</span>
-                          <span className="text-zinc-400 text-[10px]">({product.reviewCount})</span>
-                        </div>
+                        <ProductRatingBadge productId={product.id} variant="card" />
                       </div>
 
                       <h3 className="font-display font-bold text-sm sm:text-base text-[#0B1530] group-hover:text-[#FF7900] transition-colors line-clamp-1">

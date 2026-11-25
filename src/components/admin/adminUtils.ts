@@ -6,6 +6,7 @@ export type AdminSection =
   | 'orders'
   | 'dispatch'
   | 'products'
+  | 'reviews'
   | 'customers'
   | 'marketing'
   | 'analytics'

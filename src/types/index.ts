@@ -334,4 +334,119 @@ export interface Order {
   };
 }
 
+// ==============================================================================
+// PRODUCT REVIEW & RATING SYSTEM TYPES
+// ==============================================================================
+
+export type ReviewModerationStatus = 'pending' | 'approved' | 'rejected' | 'hidden';
+
+export type ReviewSortOption = 'relevant' | 'recent' | 'helpful' | 'highest' | 'lowest';
+
+export type ReviewModerationMode = 'auto_verified' | 'auto_all' | 'manual_all';
+
+export type ReviewReportReason = 'spam' | 'inappropriate' | 'off_topic' | 'misleading';
+
+export interface ReviewCategoryRatings {
+  productQuality: number; // 1 to 5
+  printQuality: number; // 1 to 5
+  packaging: number; // 1 to 5
+  valueForMoney: number; // 1 to 5
+  overallExperience: number; // 1 to 5
+}
+
+export interface ReviewMediaItem {
+  id: string;
+  type: 'image' | 'video';
+  url: string;
+  mimeType?: string;
+  fileName?: string;
+}
+
+export interface ReviewModerationLogEntry {
+  at: string;
+  action: string;
+  actor: 'admin' | 'customer' | 'system';
+  detail?: string;
+}
+
+export interface ProductReview {
+  id: string;
+  productId: string;
+  productName: string;
+  customerId?: string;
+  customerName: string;
+  customerEmail?: string; // Only populated for admin or the review owner
+  companyName?: string;
+  rating: number; // 1 to 5 overall
+  categoryRatings: ReviewCategoryRatings;
+  title: string;
+  comment: string;
+  photos: string[]; // Image URLs (backwards-compatible shorthand)
+  videos: string[]; // Video URLs
+  media: ReviewMediaItem[]; // Unified ordered photos + videos
+  variantSummary?: string; // e.g. "Navy Blue · Precision Embroidery · 50 pcs"
+  wouldRecommend: boolean;
+  verifiedPurchase: boolean;
+  orderNumber?: string;
+  status: ReviewModerationStatus;
+  helpfulCount: number;
+  viewerHasVotedHelpful?: boolean;
+  isOwner?: boolean;
+  isFeatured: boolean;
+  reportCount: number;
+  reportReasons?: ReviewReportReason[];
+  adminReply?: string;
+  adminRepliedAt?: string;
+  moderationNote?: string;
+  moderationHistory?: ReviewModerationLogEntry[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ProductReviewSummary {
+  productId: string;
+  averageRating: number;
+  totalReviews: number;
+  verifiedCount: number;
+  photoReviewCount: number;
+  videoReviewCount: number;
+  recommendPercent: number;
+  distribution: {
+    1: number;
+    2: number;
+    3: number;
+    4: number;
+    5: number;
+  };
+  categoryAverages: ReviewCategoryRatings;
+}
+
+export interface ReviewSystemSettings {
+  moderationMode: ReviewModerationMode;
+  allowGuestReviews: boolean;
+  allowCustomerEdits: boolean;
+  updatedAt: string;
+}
+
+export interface ReviewFormPayload {
+  productId: string;
+  productName: string;
+  rating: number;
+  categoryRatings: ReviewCategoryRatings;
+  title: string;
+  comment: string;
+  customerName: string;
+  customerEmail: string;
+  customerId?: string;
+  companyName?: string;
+  variantSummary?: string;
+  wouldRecommend: boolean;
+  orderNumber?: string;
+  photos: string[];
+  videos?: string[];
+  media?: ReviewMediaItem[];
+}
+
+
+
 

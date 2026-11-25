@@ -4,6 +4,7 @@ import { BEST_SELLERS, BestSellerProduct } from '../data/mockData';
 import { Product } from '../types';
 import { getProductPath } from '../config/seoRoutes';
 import { getResponsivePictureSources } from '../utils/responsiveImage';
+import { ProductRatingBadge } from './reviews/ProductRatingBadge';
 
 interface FeaturedProductsProps {
   products: Product[];
@@ -184,12 +185,8 @@ export const FeaturedProducts: React.FC<FeaturedProductsProps> = ({
               <div className="p-4 sm:p-5 flex-1 flex flex-col justify-between space-y-3">
                 <div>
                   {/* Rating */}
-                  <div className="flex items-center gap-1.5 text-xs text-zinc-500 mb-1">
-                    <div className="flex items-center gap-1 text-amber-500">
-                      <Star className="w-3.5 h-3.5 fill-current group-hover:scale-125 group-hover:rotate-12 transition-all duration-300" />
-                      <span className="font-bold text-zinc-800 text-xs">{p.rating}</span>
-                    </div>
-                    <span>({p.reviewCount} reviews)</span>
+                  <div className="mb-1">
+                    <ProductRatingBadge productId={fullProd.id} variant="card" />
                   </div>
 
                   {/* Title */}

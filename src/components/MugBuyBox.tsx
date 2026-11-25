@@ -18,6 +18,7 @@ import { ProductAssuranceCards } from './ProductAssuranceCards';
 import { ProductMockupCanvas } from './ProductMockupCanvas';
 import { compressImageFile } from '../utils/imageCompressor';
 import { getProductH1 } from '../config/seoRoutes';
+import { ProductRatingBadge } from './reviews/ProductRatingBadge';
 
 interface MugBuyBoxProps {
   product: Product;
@@ -207,15 +208,7 @@ export const MugBuyBox: React.FC<MugBuyBoxProps> = ({
 
         {/* Rating & Orders Social Proof */}
         <div className="flex flex-wrap items-center gap-3 text-xs mt-3.5 pt-2.5 border-t border-zinc-100">
-          <div className="flex items-center gap-1 text-amber-500">
-            <div className="flex items-center">
-              {[...Array(5)].map((_, i) => (
-                <Star key={i} className="w-3.5 h-3.5 fill-current" />
-              ))}
-            </div>
-            <span className="font-bold text-zinc-800 ml-1">{product.rating}</span>
-            <span className="text-zinc-500">({product.reviewCount} Reviews)</span>
-          </div>
+          <ProductRatingBadge productId={product.id} variant="pdp" />
           <span className="text-zinc-300">|</span>
           <span className="text-emerald-700 font-semibold font-mono text-[11px]">
             1,450+ Mugs Delivered

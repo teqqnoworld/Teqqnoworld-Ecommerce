@@ -275,3 +275,167 @@ ON CONFLICT (id) DO UPDATE SET
     available_colors = EXCLUDED.available_colors,
     available_sizes = EXCLUDED.available_sizes,
     description = EXCLUDED.description;
+
+-- ==============================================================================
+-- 7. PRODUCT REVIEW & RATING SYSTEM TABLES
+-- Independent per-product reviews with duplicate prevention per (product, customer),
+-- separate rating categories, media storage, helpful votes, reports & moderation.
+-- ==============================================================================
+
+CREATE TABLE IF NOT EXISTS public.product_reviews (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    product_id TEXT NOT NULL,
+    product_name TEXT NOT NULL,
+    customer_id TEXT,
+    customer_name TEXT NOT NULL,
+    customer_email TEXT NOT NULL,
+    customer_email_normalized TEXT GENERATED ALWAYS AS (LOWER(TRIM(customer_email))) STORED,
+    company_name TEXT,
+    rating INTEGER NOT NULL CHECK (rating >= 1 AND rating <= 5),
+    rating_product_quality INTEGER NOT NULL DEFAULT 5 CHECK (rating_product_quality >= 1 AND rating_product_quality <= 5),
+    rating_print_quality INTEGER NOT NULL DEFAULT 5 CHECK (rating_print_quality >= 1 AND rating_print_quality <= 5),
+    rating_packaging INTEGER NOT NULL DEFAULT 5 CHECK (rating_packaging >= 1 AND rating_packaging <= 5),
+    rating_value_for_money INTEGER NOT NULL DEFAULT 5 CHECK (rating_value_for_money >= 1 AND rating_value_for_money <= 5),
+    rating_overall_experience INTEGER NOT NULL DEFAULT 5 CHECK (rating_overall_experience >= 1 AND rating_overall_experience <= 5),
+    title TEXT NOT NULL CHECK (char_length(title) >= 3 AND char_length(title) <= 140),
+    comment TEXT NOT NULL CHECK (char_length(comment) >= 10 AND char_length(comment) <= 2500),
+    photos JSONB NOT NULL DEFAULT '[]'::jsonb,
+    videos JSONB NOT NULL DEFAULT '[]'::jsonb,
+    variant_summary TEXT,
+    would_recommend BOOLEAN NOT NULL DEFAULT true,
+    verified_purchase BOOLEAN NOT NULL DEFAULT false,
+    order_number TEXT,
+    status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'approved', 'rejected', 'hidden')),
+    helpful_count INTEGER NOT NULL DEFAULT 0 CHECK (helpful_count >= 0),
+    is_featured BOOLEAN NOT NULL DEFAULT false,
+    report_count INTEGER NOT NULL DEFAULT 0 CHECK (report_count >= 0),
+    admin_reply TEXT,
+    admin_replied_at TIMESTAMPTZ,
+    moderation_note TEXT,
+    moderation_history JSONB NOT NULL DEFAULT '[]'::jsonb,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT TIMEZONE('utc'::text, NOW()),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT TIMEZONE('utc'::text, NOW())
+);
+
+-- Enforce one review per customer per product (customers can review multiple different products freely)
+CREATE UNIQUE INDEX IF NOT EXISTS uq_product_reviews_product_customer
+    ON public.product_reviews(product_id, customer_email_normalized);
+
+CREATE INDEX IF NOT EXISTS idx_product_reviews_product_status
+    ON public.product_reviews(product_id, status, created_at DESC);
+
+CREATE INDEX IF NOT EXISTS idx_product_reviews_customer_email
+    ON public.product_reviews(customer_email_normalized, created_at DESC);
+
+CREATE INDEX IF NOT EXISTS idx_product_reviews_status_created
+    ON public.product_reviews(status, created_at DESC);
+
+CREATE TABLE IF NOT EXISTS public.review_media (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    review_id UUID NOT NULL REFERENCES public.product_reviews(id) ON DELETE CASCADE,
+    media_type TEXT NOT NULL CHECK (media_type IN ('image', 'video')),
+    media_url TEXT NOT NULL,
+    mime_type TEXT,
+    file_name TEXT,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT TIMEZONE('utc'::text, NOW())
+);
+
+CREATE INDEX IF NOT EXISTS idx_review_media_review_id ON public.review_media(review_id);
+
+CREATE TABLE IF NOT EXISTS public.review_helpful_votes (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    review_id UUID NOT NULL REFERENCES public.product_reviews(id) ON DELETE CASCADE,
+    voter_key TEXT NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT TIMEZONE('utc'::text, NOW()),
+    UNIQUE (review_id, voter_key)
+);
+
+CREATE TABLE IF NOT EXISTS public.review_reports (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    review_id UUID NOT NULL REFERENCES public.product_reviews(id) ON DELETE CASCADE,
+    voter_key TEXT NOT NULL,
+    reason TEXT NOT NULL CHECK (reason IN ('spam', 'inappropriate', 'off_topic', 'misleading')),
+    created_at TIMESTAMPTZ NOT NULL DEFAULT TIMEZONE('utc'::text, NOW()),
+    UNIQUE (review_id, voter_key)
+);
+
+CREATE TABLE IF NOT EXISTS public.review_settings (
+    id TEXT PRIMARY KEY DEFAULT 'default',
+    moderation_mode TEXT NOT NULL DEFAULT 'auto_verified' CHECK (moderation_mode IN ('auto_verified', 'auto_all', 'manual_all')),
+    allow_guest_reviews BOOLEAN NOT NULL DEFAULT true,
+    allow_customer_edits BOOLEAN NOT NULL DEFAULT true,
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT TIMEZONE('utc'::text, NOW())
+);
+
+INSERT INTO public.review_settings (id, moderation_mode, allow_guest_reviews, allow_customer_edits)
+VALUES ('default', 'auto_verified', true, true)
+ON CONFLICT (id) DO NOTHING;
+
+-- Storage bucket for customer review photos & short videos
+INSERT INTO storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+VALUES (
+    'review-media',
+    'review-media',
+    true,
+    26214400, -- 25MB max for short review videos
+    ARRAY['image/png', 'image/jpeg', 'image/jpg', 'image/webp', 'video/mp4', 'video/webm', 'video/quicktime']
+)
+ON CONFLICT (id) DO UPDATE SET
+    public = true,
+    file_size_limit = 26214400,
+    allowed_mime_types = ARRAY['image/png', 'image/jpeg', 'image/jpg', 'image/webp', 'video/mp4', 'video/webm', 'video/quicktime'];
+
+-- RLS Policies for review tables
+ALTER TABLE public.product_reviews ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.review_media ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.review_helpful_votes ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.review_reports ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.review_settings ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Public can read approved product reviews" ON public.product_reviews;
+DROP POLICY IF EXISTS "Customers can read own product reviews" ON public.product_reviews;
+DROP POLICY IF EXISTS "Admins manage all product reviews" ON public.product_reviews;
+DROP POLICY IF EXISTS "Public can read approved review media" ON public.review_media;
+DROP POLICY IF EXISTS "Admins manage all review media" ON public.review_media;
+
+-- Public visitors can read only approved/published reviews
+CREATE POLICY "Public can read approved product reviews"
+    ON public.product_reviews
+    FOR SELECT
+    TO public
+    USING (status = 'approved');
+
+-- Signed-in customers can view their own pending/rejected/hidden reviews
+CREATE POLICY "Customers can read own product reviews"
+    ON public.product_reviews
+    FOR SELECT
+    TO authenticated
+    USING (LOWER(TRIM(customer_email)) = LOWER(TRIM(auth.jwt() ->> 'email')));
+
+-- Server service-role / admin manages moderation & updates (customers cannot self-approve or alter verified_purchase)
+CREATE POLICY "Admins manage all product reviews"
+    ON public.product_reviews
+    FOR ALL
+    TO service_role
+    USING (true)
+    WITH CHECK (true);
+
+CREATE POLICY "Public can read approved review media"
+    ON public.review_media
+    FOR SELECT
+    TO public
+    USING (
+        EXISTS (
+            SELECT 1 FROM public.product_reviews pr
+            WHERE pr.id = review_media.review_id AND pr.status = 'approved'
+        )
+    );
+
+CREATE POLICY "Admins manage all review media"
+    ON public.review_media
+    FOR ALL
+    TO service_role
+    USING (true)
+    WITH CHECK (true);
+
+

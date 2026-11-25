@@ -16,6 +16,7 @@ import { ProductMockupCanvas } from './ProductMockupCanvas';
 import { compressImageFile } from '../utils/imageCompressor';
 import { calculateProductPrice, formatCurrencyINR } from '../data/pricingRules';
 import { getProductH1 } from '../config/seoRoutes';
+import { ProductRatingBadge } from './reviews/ProductRatingBadge';
 
 export interface CanopyKioskBuyBoxProps {
   product: Product;
@@ -133,16 +134,7 @@ export const CanopyKioskBuyBox: React.FC<CanopyKioskBuyBoxProps> = ({
             </span>
           </div>
 
-          <div className="flex items-center gap-1.5 text-xs text-zinc-600 font-medium">
-            <div className="flex text-amber-400">
-              {[...Array(5)].map((_, i) => (
-                <Star key={i} className="w-3.5 h-3.5 fill-current" />
-              ))}
-            </div>
-            <span className="font-bold text-zinc-900">{product.rating}</span>
-            <span className="text-zinc-400">·</span>
-            <span className="text-zinc-500 font-mono">({product.reviewCount} Reviews)</span>
-          </div>
+          <ProductRatingBadge productId={product.id} variant="pdp" />
         </div>
 
         <h1 className="font-display font-extrabold text-2xl sm:text-3xl text-[#0B0B0D] tracking-tight">

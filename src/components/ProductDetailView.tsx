@@ -28,7 +28,7 @@ import {
   Heart
 } from 'lucide-react';
 import { WhatsAppIcon } from './WhatsAppIcon';
-import { Product, ProductColor, PrintMethod, CartItem, CustomArtwork, VisitingCardDesignState } from '../types';
+import { Product, ProductColor, PrintMethod, CartItem, CustomArtwork, VisitingCardDesignState, Order, UserProfile } from '../types';
 import { PRODUCTS } from '../data/mockData';
 import { ProductMockupCanvas } from './ProductMockupCanvas';
 import { getTippingPoloImages } from '../data/tippingPoloImages';
@@ -60,6 +60,8 @@ import {
   getProductH1,
   getProductPath,
 } from '../config/seoRoutes';
+import { ProductRatingBadge } from './reviews/ProductRatingBadge';
+import { ProductReviewsSection } from './reviews/ProductReviewsSection';
 
 interface ProductDetailViewProps {
   product: Product;
@@ -73,6 +75,9 @@ interface ProductDetailViewProps {
   onRequestQuote: (product: Product, qty: number) => void;
   wishlistIds?: string[];
   onToggleWishlist?: (productId: string) => void;
+  user?: UserProfile | null;
+  orders?: Order[];
+  onRequestLogin?: () => void;
 }
 
 // 6 Promotional Ceramic Mug Infographic Banners in logical sequential storytelling order
@@ -413,6 +418,9 @@ export const ProductDetailView: React.FC<ProductDetailViewProps> = ({
   onRequestQuote,
   wishlistIds = [],
   onToggleWishlist,
+  user = null,
+  orders = [],
+  onRequestLogin,
 }) => {
   const isWishlisted = wishlistIds.includes(product.id);
   // Check if product is Polo T-Shirt
@@ -2339,16 +2347,8 @@ export const ProductDetailView: React.FC<ProductDetailViewProps> = ({
                 </div>
 
                 {/* Rating & Orders Social Proof */}
-                <div className="flex items-center gap-3 text-xs mt-3 pt-2 border-t border-zinc-100">
-                  <div className="flex items-center gap-1 text-amber-500">
-                    <div className="flex items-center">
-                      {[...Array(5)].map((_, i) => (
-                        <Star key={i} className="w-3.5 h-3.5 fill-current" />
-                      ))}
-                    </div>
-                    <span className="font-bold text-zinc-800 ml-1">{product.rating}</span>
-                    <span className="text-zinc-500">({product.reviewCount} Reviews)</span>
-                  </div>
+                <div className="flex flex-wrap items-center gap-3 text-xs mt-3 pt-2 border-t border-zinc-100">
+                  <ProductRatingBadge productId={product.id} variant="pdp" />
                   <span className="text-zinc-300">|</span>
                   <span className="text-emerald-700 font-semibold font-mono text-[11px]">
                     1650+ Orders Delivered
@@ -3193,6 +3193,21 @@ export const ProductDetailView: React.FC<ProductDetailViewProps> = ({
             </div>
           </section>
         )}
+
+        {/* ========================================================================= */}
+        {/* CUSTOMER REVIEWS & RATINGS (PER-PRODUCT ISOLATED)                         */}
+        {/* ========================================================================= */}
+        <ProductReviewsSection
+          product={product}
+          selectedVariantSummary={
+            selectedColor?.name
+              ? `${selectedColor.name} · ${selectedPrintMethod}`
+              : selectedPrintMethod
+          }
+          user={user}
+          orders={orders}
+          onRequestLogin={onRequestLogin}
+        />
 
         {/* ========================================================================= */}
         {/* RELATED PRODUCTS ("You May Also Like")                                   */}

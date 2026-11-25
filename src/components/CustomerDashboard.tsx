@@ -42,6 +42,7 @@ import {
   ShoppingBag,
   SlidersHorizontal,
   Sparkles,
+  Star,
   Truck,
   Upload,
   User,
@@ -92,6 +93,7 @@ import {
   CustomerWishlistView,
   OrderDetailDrawer,
 } from './customer/CustomerSections';
+import { CustomerReviewsView } from './customer/CustomerReviewsView';
 
 export type DashboardTab = CustomerTab;
 
@@ -454,6 +456,11 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
       label: 'My Orders & Proofs',
       icon: <Package className="w-4 h-4" />,
       badge: totalOrdersCount,
+    },
+    {
+      id: 'reviews',
+      label: 'My Reviews',
+      icon: <Star className="w-4 h-4" />,
     },
     { id: 'track', label: 'Track Consignment', icon: <Truck className="w-4 h-4" /> },
     {
@@ -1947,6 +1954,15 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
               user={user}
               rfqs={customerRfqs}
               onAddRfq={(rfq) => setCustomerRfqs((prev) => [rfq, ...prev])}
+              onToast={pushToast}
+            />
+          )}
+
+          {activeTab === 'reviews' && (
+            <CustomerReviewsView
+              user={user}
+              orders={mergedOrders}
+              onOpenProduct={onCustomizeProduct}
               onToast={pushToast}
             />
           )}

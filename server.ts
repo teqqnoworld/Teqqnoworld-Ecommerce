@@ -9,6 +9,7 @@ import QRCode from 'qrcode';
 import { fileURLToPath } from 'url';
 import dotenv from 'dotenv';
 import { registerProductFeedRoutes } from './server/productFeed.ts';
+import { createReviewsRouter } from './server/reviewsRoutes.ts';
 import {
   injectSeoIntoHtml,
   isNonHtmlRoutePath,
@@ -5834,6 +5835,66 @@ const seoAndFeedOptions = {
 
 registerSeoPublicEndpoints(app, seoAndFeedOptions);
 registerProductFeedRoutes(app, seoAndFeedOptions);
+
+// ==============================================================================
+// 3Z-2. PRODUCT REVIEW & RATING SYSTEM API
+// ==============================================================================
+app.use(
+  '/api',
+  createReviewsRouter({
+    verifyAdminRequest: (req: Request) =>
+      verifySignedAdminToken(extractAdminBearerToken(req), 'session'),
+    getSupabaseAdminConfig,
+    buildSupabaseAdminHeaders,
+    getAdminEmails: () => getSmtpConfig().adminEmailList,
+    sendNotificationEmail: async (params) => {
+      const cfg = getSmtpConfig();
+      const transporter = getSmtpTransporter();
+      if (!transporter) {
+        console.log('[Review Notification Email - Simulation Mode]', {
+          to: params.to,
+          subject: params.subject,
+        });
+        return;
+      }
+      const html = `<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1.0" /></head>
+<body style="margin:0;padding:0;background-color:#F4F6F9;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:#0F172A;">
+  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background-color:#F4F6F9;padding:24px 12px;">
+    <tr>
+      <td align="center">
+        <table role="presentation" width="540" cellspacing="0" cellpadding="0" style="max-width:540px;width:100%;background-color:#FFFFFF;border-radius:12px;overflow:hidden;border:1px solid #E2E8F0;">
+          <tr>
+            <td style="background-color:#071B35;padding:18px 24px;border-bottom:3px solid #FF7900;">
+              <div style="font-size:20px;font-weight:800;color:#FFFFFF;">Teqqno<span style="color:#FF7900;">World</span></div>
+              <div style="font-size:11px;letter-spacing:1.1px;text-transform:uppercase;color:#CBD5E1;margin-top:3px;">${escapeHtml(params.badge)}</div>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:24px;">
+              <h1 style="margin:0 0 10px 0;font-size:18px;color:#0F172A;">${escapeHtml(params.heading)}</h1>
+              <p style="margin:0 0 14px 0;font-size:14px;line-height:1.6;color:#334155;">${escapeHtml(params.bodyText)}</p>
+              ${params.note ? `<p style="margin:0;font-size:12px;color:#64748B;">${escapeHtml(params.note)}</p>` : ''}
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>`;
+      await transporter.sendMail({
+        from: `"TeqqnoWorld Reviews" <${cfg.smtpUser}>`,
+        to: params.to,
+        replyTo: cfg.smtpUser,
+        subject: params.subject,
+        text: `${params.heading}\n\n${params.bodyText}${params.note ? `\n\n${params.note}` : ''}`,
+        html,
+      });
+    },
+  })
+);
 
 // ==============================================================================
 // 4. DEV SERVER & STATIC FILE SERVING

@@ -14,6 +14,7 @@ import { parseOrderNotes } from '../admin/adminUtils';
 export type CustomerTab =
   | 'overview'
   | 'orders'
+  | 'reviews'
   | 'track'
   | 'artworks'
   | 'brand-assets'

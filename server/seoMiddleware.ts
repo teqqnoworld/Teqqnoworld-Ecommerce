@@ -31,6 +31,7 @@ import {
   type JsonLdDocument,
   type StructuredDataProductInput,
 } from '../src/config/structuredData.ts';
+import { getPublishedReviewAggregateForSeo } from './reviewsRoutes.ts';
 
 // ==============================================================================
 // TEQQNOWORLD PHASE 1 SERVER-SIDE SEO ENGINE
@@ -96,6 +97,7 @@ function extractProductSlug(productUrl: string): string {
 }
 
 function feedItemToStructuredProduct(item: ProductFeedItem): StructuredDataProductInput {
+  const verifiedReviewAggregate = getPublishedReviewAggregateForSeo(item.item_id);
   return {
     id: item.item_id,
     slug: extractProductSlug(item.url),
@@ -104,6 +106,7 @@ function feedItemToStructuredProduct(item: ProductFeedItem): StructuredDataProdu
     category: item.product_category,
     basePrice: parsePriceAmount(item.price),
     imageUrl: item.image_url,
+    ...(verifiedReviewAggregate ? { verifiedReviewAggregate } : {}),
   };
 }
 
