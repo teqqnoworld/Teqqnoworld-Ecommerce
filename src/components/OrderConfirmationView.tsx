@@ -27,6 +27,7 @@ import {
 } from '../services/aisensyService';
 import { WhatsAppIcon } from './WhatsAppIcon';
 import { BUSINESS_CONFIG, getWhatsAppLink } from '../config/business';
+import { triggerCelebration } from '../services/celebrationService';
 
 interface OrderConfirmationViewProps {
   order: Order;
@@ -56,6 +57,21 @@ export const OrderConfirmationView: React.FC<OrderConfirmationViewProps> = ({
   const [showWaPreview, setShowWaPreview] = useState(false);
 
   React.useEffect(() => {
+    const createdMs = Date.parse(order.createdAt);
+    const isFreshOrder = Number.isFinite(createdMs) && Date.now() - createdMs < 15_000;
+    if (isFreshOrder) {
+      // Deduplicated against App.tsx handleOrderPlaced via identical eventKey
+      triggerCelebration({
+        level: 'grand',
+        sound: 'grand',
+        eventKey: `order-placed:${order.id}`,
+        dedupeWindowMs: 30000,
+        action: 'order_confirmation_displayed',
+      });
+    }
+  }, [order.id, order.createdAt]);
+
+  React.useEffect(() => {
     setWaActionStatus(order.whatsappActionStatus || 'pending');
     getWhatsAppOrderActionStatus(order.id, order.orderNumber)
       .then((res) => {
@@ -82,6 +98,14 @@ export const OrderConfirmationView: React.FC<OrderConfirmationViewProps> = ({
           whatsappActionStatus: res.whatsappActionStatus,
           orderStatus: res.whatsappActionStatus === 'confirmed' ? 'Confirmed' : order.orderStatus,
         });
+        if (action === 'confirm' && res.whatsappActionStatus === 'confirmed') {
+          triggerCelebration({
+            level: 'subtle',
+            sound: 'chime',
+            eventKey: `wa-order-confirm:${order.id}`,
+            action: 'whatsapp_order_confirmed',
+          });
+        }
       }
     } finally {
       setWaActionLoading(false);
@@ -108,6 +132,12 @@ export const OrderConfirmationView: React.FC<OrderConfirmationViewProps> = ({
       orderStatus: 'Manufacturing',
     };
     onUpdateOrder(updated);
+    triggerCelebration({
+      level: 'premium',
+      sound: 'celebration',
+      eventKey: `proof-approved:${order.id}`,
+      action: 'digital_proof_approved',
+    });
   };
 
   // Request proof revision

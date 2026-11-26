@@ -9,6 +9,7 @@ import {
   getActiveRecoveryCoupon,
   subscribeRecoveryCoupon,
 } from '../services/aisensyService';
+import { triggerCelebration } from '../services/celebrationService';
 
 interface CartDrawerProps {
   isOpen: boolean;
@@ -122,6 +123,13 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
         sessionStorage.setItem('teqqno_applied_coupon', normalized);
       } catch {}
       setCouponMessage(`🎉 First Order 10% OFF applied! Saved ₹${discount.toLocaleString('en-IN')}`);
+      triggerCelebration({
+        level: 'premium',
+        sound: 'celebration',
+        eventKey: `coupon-applied:${normalized}`,
+        dedupeWindowMs: 4000,
+        action: 'coupon_applied',
+      });
     } else if (code === 'SAVE5NOW' || code === 'TEQQNO5') {
       const active = getActiveRecoveryCoupon();
       if (!active) {
@@ -135,6 +143,13 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
         sessionStorage.setItem('teqqno_applied_coupon', 'SAVE5NOW');
       } catch {}
       setCouponMessage(`⚡ Limited-Time 5% OFF applied! Saved ₹${discount.toLocaleString('en-IN')}`);
+      triggerCelebration({
+        level: 'premium',
+        sound: 'celebration',
+        eventKey: 'coupon-applied:SAVE5NOW',
+        dedupeWindowMs: 4000,
+        action: 'discount_applied',
+      });
     } else if (code === 'TEQQNOBULK') {
       const discount = Math.min(subtotal, 500);
       setAppliedCode('TEQQNOBULK');
@@ -143,6 +158,13 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
         sessionStorage.setItem('teqqno_applied_coupon', 'TEQQNOBULK');
       } catch {}
       setCouponMessage(`Bulk voucher applied! Saved ₹${discount.toLocaleString('en-IN')}`);
+      triggerCelebration({
+        level: 'premium',
+        sound: 'celebration',
+        eventKey: 'coupon-applied:TEQQNOBULK',
+        dedupeWindowMs: 4000,
+        action: 'coupon_applied',
+      });
     } else {
       setCouponMessage('Invalid code. Try "WELCOME10" or "TEQQNO10"');
     }

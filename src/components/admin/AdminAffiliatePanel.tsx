@@ -37,6 +37,7 @@ import {
   formatInrPaisa,
   formatShortDate,
 } from '../../services/affiliateService';
+import { triggerCelebration } from '../../services/celebrationService';
 import type {
   AffiliateApplicationRecord,
   AffiliateAuditLogRecord,
@@ -557,20 +558,26 @@ export const AdminAffiliatePanel: React.FC = () => {
                       </>
                     )}
                     {k.kycStatus === 'verified' && k.bankVerificationStatus === 'verified' && !k.partnerId && (
-                      <button
-                        onClick={async () => {
-                          try {
-                            const res = await adminReviewKyc(k.id, { action: 'activate_partner' });
-                            notify(`Partner activated! Assigned Affiliate ID: ${res.partner?.affiliateId}`);
-                            loadAll();
-                          } catch (err: any) {
-                            notify(err?.message || 'Activation failed', 'error');
-                          }
-                        }}
-                        className="px-4 py-1.5 rounded-lg bg-[#FF7A00] hover:bg-[#e56d00] text-white font-bold cursor-pointer"
-                      >
-                        Final Approve &amp; Activate Partner
-                      </button>
+                        <button
+                          onClick={async () => {
+                            try {
+                              const res = await adminReviewKyc(k.id, { action: 'activate_partner' });
+                              notify(`Partner activated! Assigned Affiliate ID: ${res.partner?.affiliateId}`);
+                              triggerCelebration({
+                                level: 'grand',
+                                sound: 'grand',
+                                eventKey: `admin-partner-activated:${res.partner?.affiliateId || k.id}`,
+                                action: 'affiliate_account_approved',
+                              });
+                              loadAll();
+                            } catch (err: any) {
+                              notify(err?.message || 'Activation failed', 'error');
+                            }
+                          }}
+                          className="px-4 py-1.5 rounded-lg bg-[#FF7A00] hover:bg-[#e56d00] text-white font-bold cursor-pointer"
+                        >
+                          Final Approve &amp; Activate Partner
+                        </button>
                     )}
                   </div>
                 </div>
@@ -1194,6 +1201,13 @@ export const AdminAffiliatePanel: React.FC = () => {
                   });
                   setAwardTitle('');
                   notify('Reward awarded and partner notified.');
+                  triggerCelebration({
+                    level: 'grand',
+                    sound: 'grand',
+                    eventKey: `admin-reward-awarded:${awardPartnerId}:${Date.now()}`,
+                    dedupeWindowMs: 2500,
+                    action: 'affiliate_reward_unlocked',
+                  });
                   loadAll();
                 } catch (err: any) {
                   notify(err?.message || 'Reward failed', 'error');

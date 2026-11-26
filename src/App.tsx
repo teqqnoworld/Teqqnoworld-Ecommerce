@@ -9,6 +9,8 @@ import { CtaBanner } from './components/CtaBanner';
 import { Footer } from './components/Footer';
 import { ClientLogosSection } from './components/ClientLogosSection';
 import { DelhiveryAreaModal } from './components/DelhiveryPincodeChecker';
+import { CelebrationOverlay } from './components/CelebrationOverlay';
+import { triggerCelebration } from './services/celebrationService';
 import { BUSINESS_CONFIG, getWhatsAppLink } from './config/business';
 
 // Lazy-loaded heavy below-the-fold homepage sections, routes, modals & legal pages
@@ -709,7 +711,8 @@ export default function App() {
       try {
         const { supabase } = await import('./lib/supabase');
         if (oauthCode) {
-          await supabase.auth.exchangeCodeForSession(oauthCode);
+          const { error: exchangeError } = await supabase.auth.exchangeCodeForSession(oauthCode);
+          if (exchangeError) return;
         }
         const { data } = await supabase.auth.getSession();
         const authUser = data?.session?.user;
@@ -776,6 +779,15 @@ export default function App() {
         }
 
         setUser(verifiedProfile);
+        if (!hash.includes('type=recovery')) {
+          triggerCelebration({
+            level: 'subtle',
+            sound: 'pop',
+            eventKey: `auth-session:${verifiedProfile.id}`,
+            dedupeWindowMs: 12000,
+            action: 'customer_login',
+          });
+        }
         try {
           localStorage.setItem('teqqno_user', JSON.stringify(verifiedProfile));
           localStorage.setItem(
@@ -1320,6 +1332,13 @@ export default function App() {
       return [newItem, ...prev];
     });
     setIsCartOpen(true);
+    triggerCelebration({
+      level: 'premium',
+      sound: 'celebration',
+      eventKey: `add-to-cart:${newItem.id}`,
+      dedupeWindowMs: 1200,
+      action: 'add_to_cart',
+    });
   };
 
   const handleUpdateQuantity = (id: string, delta: number) => {
@@ -1419,6 +1438,14 @@ export default function App() {
       });
     }
 
+    triggerCelebration({
+      level: 'grand',
+      sound: 'grand',
+      eventKey: `order-placed:${newOrder.id}`,
+      dedupeWindowMs: 30000,
+      action: 'order_placed',
+    });
+
     handleNavigate('orders');
   };
 
@@ -1466,14 +1493,31 @@ export default function App() {
   const handleReorder = (order: Order) => {
     setCartItems(prev => [...order.items, ...prev]);
     setIsCartOpen(true);
+    triggerCelebration({
+      level: 'premium',
+      sound: 'celebration',
+      eventKey: `reorder:${order.id}:${Date.now()}`,
+      dedupeWindowMs: 1200,
+      action: 'reorder_to_cart',
+    });
   };
 
   const handleToggleWishlist = (productId: string) => {
+    const isAdding = !wishlistIds.includes(productId);
     setWishlistIds(prev =>
       prev.includes(productId)
         ? prev.filter(id => id !== productId)
         : [productId, ...prev]
     );
+    if (isAdding) {
+      triggerCelebration({
+        level: 'subtle',
+        sound: 'pop',
+        eventKey: `wishlist-add:${productId}`,
+        dedupeWindowMs: 1500,
+        action: 'wishlist_added',
+      });
+    }
   };
 
   const handleClearWishlist = () => {
@@ -1510,6 +1554,7 @@ export default function App() {
             }}
           />
         )}
+        <CelebrationOverlay />
       </Suspense>
     );
   }
@@ -2165,6 +2210,9 @@ export default function App() {
           </button>
         </nav>
       )}
+
+      {/* Global Website-Wide Luxury Celebration Canvas Overlay */}
+      <CelebrationOverlay />
 
     </div>
   );

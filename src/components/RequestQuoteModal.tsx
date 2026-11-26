@@ -9,6 +9,7 @@ import { uploadDataUrlToStorage } from '../services/supabaseService';
 import { PRODUCTS } from '../data/mockData';
 import { compressImageFile } from '../utils/imageCompressor';
 import { VoiceInstructionsCard } from './VoiceInstructionsCard';
+import { triggerCelebration } from '../services/celebrationService';
 
 interface RequestQuoteModalProps {
   isOpen: boolean;
@@ -110,8 +111,17 @@ export const RequestQuoteModal: React.FC<RequestQuoteModalProps> = ({
       existingLogoUrl: !logoFile && prefilledLogoUrl ? prefilledLogoUrl : undefined,
     });
 
-    if (res.success && res.orderId && onSuccess) {
-      onSuccess(res.orderId);
+    if (res.success) {
+      triggerCelebration({
+        level: 'premium',
+        sound: 'celebration',
+        eventKey: `quote-request:${res.orderId || Date.now()}`,
+        dedupeWindowMs: 3000,
+        action: 'quote_request_submitted',
+      });
+      if (res.orderId && onSuccess) {
+        onSuccess(res.orderId);
+      }
     }
   };
 

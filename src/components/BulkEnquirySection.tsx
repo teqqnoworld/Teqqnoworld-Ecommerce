@@ -12,6 +12,7 @@ import { uploadDataUrlToStorage } from '../services/supabaseService';
 import { PRODUCTS } from '../data/mockData';
 import { compressImageFile } from '../utils/imageCompressor';
 import { VoiceInstructionsCard } from './VoiceInstructionsCard';
+import { triggerCelebration } from '../services/celebrationService';
 
 interface BulkEnquirySectionProps {
   prefilledItemName?: string;
@@ -97,22 +98,31 @@ export const BulkEnquirySection: React.FC<BulkEnquirySectionProps> = ({
       logoFile,
     });
 
-    if (quoteRes.success && onEnquirySubmitted) {
-      const submission: BulkEnquirySubmission = {
-        id: quoteRes.orderId || `RFQ-${Math.floor(100000 + Math.random() * 900000)}`,
-        companyName: companyName || 'Corporate Client',
-        contactPerson: customerName || 'Procurement Lead',
-        email,
-        phone,
-        productCategory: PRODUCTS.find(p => p.id === selectedProductId)?.category || 'apparel',
-        estimatedQty: quantity,
-        targetDeliveryDate: 'Within 7 Days',
-        customizationDetails: customNotes || prefilledItemName || 'Bulk production enquiry',
-        hasGst: true,
-        createdAt: new Date().toISOString(),
-        status: 'Received',
-      };
-      onEnquirySubmitted(submission);
+    if (quoteRes.success) {
+      triggerCelebration({
+        level: 'premium',
+        sound: 'celebration',
+        eventKey: `bulk-enquiry:${quoteRes.orderId || Date.now()}`,
+        dedupeWindowMs: 3000,
+        action: 'bulk_enquiry_submitted',
+      });
+      if (onEnquirySubmitted) {
+        const submission: BulkEnquirySubmission = {
+          id: quoteRes.orderId || `RFQ-${Math.floor(100000 + Math.random() * 900000)}`,
+          companyName: companyName || 'Corporate Client',
+          contactPerson: customerName || 'Procurement Lead',
+          email,
+          phone,
+          productCategory: PRODUCTS.find(p => p.id === selectedProductId)?.category || 'apparel',
+          estimatedQty: quantity,
+          targetDeliveryDate: 'Within 7 Days',
+          customizationDetails: customNotes || prefilledItemName || 'Bulk production enquiry',
+          hasGst: true,
+          createdAt: new Date().toISOString(),
+          status: 'Received',
+        };
+        onEnquirySubmitted(submission);
+      }
     }
   };
 

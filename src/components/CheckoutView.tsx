@@ -62,6 +62,7 @@ import {
   extractArtworkAssetsFromItem,
   generateItemMockupSnapshots,
 } from '../utils/mockupSnapshot';
+import { triggerCelebration } from '../services/celebrationService';
 
 interface CheckoutViewProps {
   items: CartItem[];
@@ -290,6 +291,13 @@ export const CheckoutView: React.FC<CheckoutViewProps> = ({
         type: 'success',
         text: `🎉 Code ${normalized} applied! You saved ₹${saved.toLocaleString('en-IN')} (10% OFF).`,
       });
+      triggerCelebration({
+        level: 'premium',
+        sound: 'celebration',
+        eventKey: `checkout-coupon:${normalized}`,
+        dedupeWindowMs: 4000,
+        action: 'coupon_applied',
+      });
     } else if (code === 'SAVE5NOW' || code === 'TEQQNO5') {
       const active = getActiveRecoveryCoupon();
       if (!active) {
@@ -309,6 +317,13 @@ export const CheckoutView: React.FC<CheckoutViewProps> = ({
         type: 'success',
         text: `⚡ Limited-Time 5% OFF (SAVE5NOW) applied! You saved ₹${saved.toLocaleString('en-IN')}.`,
       });
+      triggerCelebration({
+        level: 'premium',
+        sound: 'celebration',
+        eventKey: 'checkout-coupon:SAVE5NOW',
+        dedupeWindowMs: 4000,
+        action: 'discount_applied',
+      });
     } else if (code === 'TEQQNOBULK') {
       const saved = Math.min(subtotal, 500);
       setAppliedPromoCode('TEQQNOBULK');
@@ -319,6 +334,13 @@ export const CheckoutView: React.FC<CheckoutViewProps> = ({
       setPromoFeedback({
         type: 'success',
         text: `Bulk voucher applied! Saved ₹${saved.toLocaleString('en-IN')}.`,
+      });
+      triggerCelebration({
+        level: 'premium',
+        sound: 'celebration',
+        eventKey: 'checkout-coupon:TEQQNOBULK',
+        dedupeWindowMs: 4000,
+        action: 'coupon_applied',
       });
     } else {
       setPromoFeedback({

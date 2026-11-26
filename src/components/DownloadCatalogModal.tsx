@@ -12,6 +12,8 @@ import {
 } from 'lucide-react';
 import { BUSINESS_DETAILS } from '../data/legalData';
 import { generateCorporateCataloguePdf } from '../utils/pdfGenerator';
+import { sendCatalogueEmail } from '../services/emailService';
+import { triggerCelebration } from '../services/celebrationService';
 
 interface CatalogItem {
   id: string;
@@ -84,7 +86,9 @@ export const DownloadCatalogModal: React.FC<DownloadCatalogModalProps> = ({
   const [downloadingId, setDownloadingId] = useState<string | null>(null);
   const [downloadSuccessId, setDownloadSuccessId] = useState<string | null>(null);
   const [emailInput, setEmailInput] = useState('');
-  const [emailSent, setEmailSent] = useState(false);
+  const [emailSending, setEmailSending] = useState(false);
+  const [emailSentMessage, setEmailSentMessage] = useState<string | null>(null);
+  const [emailError, setEmailError] = useState<string | null>(null);
 
   if (!isOpen) return null;
 
@@ -97,18 +101,51 @@ export const DownloadCatalogModal: React.FC<DownloadCatalogModalProps> = ({
 
       setDownloadingId(null);
       setDownloadSuccessId(item.id);
+      triggerCelebration({
+        level: 'subtle',
+        sound: 'chime',
+        eventKey: `catalog-download:${item.id}:${Date.now()}`,
+        dedupeWindowMs: 1500,
+        action: 'catalogue_downloaded',
+      });
       setTimeout(() => setDownloadSuccessId(null), 3500);
     }, 400);
   };
 
-  const handleSendEmail = (e: React.FormEvent) => {
+  const handleSendEmail = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!emailInput) return;
-    setEmailSent(true);
-    setTimeout(() => {
-      setEmailSent(false);
+    const trimmedEmail = emailInput.trim();
+    if (!trimmedEmail || emailSending) return;
+
+    setEmailSending(true);
+    setEmailError(null);
+    setEmailSentMessage(null);
+
+    try {
+      const res = await sendCatalogueEmail(trimmedEmail);
+      if (!res.success) {
+        setEmailError(
+          res.message || 'Email delivery is currently unavailable. Please download the PDFs directly above.'
+        );
+        return;
+      }
+
+      setEmailSentMessage(res.message || `Catalogue email sent to ${trimmedEmail}.`);
       setEmailInput('');
-    }, 4000);
+      triggerCelebration({
+        level: 'subtle',
+        sound: 'pop',
+        eventKey: `catalog-email:${res.messageId || trimmedEmail}`,
+        dedupeWindowMs: 4000,
+        action: 'catalogue_emailed',
+      });
+    } catch (err: any) {
+      setEmailError(
+        err?.message || 'Unable to send catalogue email right now. Please download the PDFs directly above.'
+      );
+    } finally {
+      setEmailSending(false);
+    }
   };
 
   return (
@@ -217,33 +254,53 @@ export const DownloadCatalogModal: React.FC<DownloadCatalogModalProps> = ({
           </div>
 
           {/* Email Full Catalog Suite */}
-          <div className="p-5 rounded-2xl bg-gradient-to-r from-[#071B35] to-[#0D274A] text-white flex flex-col sm:flex-row sm:items-center justify-between gap-4 border border-white/10 shadow-lg">
-            <div className="space-y-1">
-              <h4 className="font-display font-bold text-sm text-white flex items-center gap-1.5">
-                <Mail className="w-4 h-4 text-[#FF7900]" />
-                <span>Email All Catalogues to Procurement Team</span>
-              </h4>
-              <p className="text-xs text-slate-300">
-                Receive all 4 high-resolution PDFs directly into your corporate inbox.
-              </p>
+          <div className="p-5 rounded-2xl bg-gradient-to-r from-[#071B35] to-[#0D274A] text-white border border-white/10 shadow-lg space-y-3">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div className="space-y-1">
+                <h4 className="font-display font-bold text-sm text-white flex items-center gap-1.5">
+                  <Mail className="w-4 h-4 text-[#FF7900]" />
+                  <span>Email All Catalogues to Procurement Team</span>
+                </h4>
+                <p className="text-xs text-slate-300">
+                  Receive the complete 2026 corporate catalogue guide in your inbox.
+                </p>
+              </div>
+
+              <form onSubmit={handleSendEmail} className="flex items-center gap-2">
+                <input
+                  type="email"
+                  placeholder="company@domain.com"
+                  value={emailInput}
+                  onChange={(e) => {
+                    setEmailInput(e.target.value);
+                    if (emailError) setEmailError(null);
+                  }}
+                  disabled={emailSending}
+                  className="px-3.5 py-2 text-xs rounded-xl bg-white/10 border border-white/15 text-white placeholder-slate-400 outline-none focus:border-[#FF7900] min-w-[200px] min-h-[40px] disabled:opacity-60"
+                  required
+                />
+                <button
+                  type="submit"
+                  disabled={emailSending}
+                  className="bg-[#FF7900] hover:bg-[#e56d00] disabled:opacity-60 disabled:cursor-not-allowed text-white text-xs font-semibold px-4 py-2 rounded-xl transition-all whitespace-nowrap cursor-pointer min-h-[40px] shadow-md shadow-[#FF7900]/25"
+                >
+                  {emailSending ? 'Sending...' : 'Send All'}
+                </button>
+              </form>
             </div>
 
-            <form onSubmit={handleSendEmail} className="flex items-center gap-2">
-              <input
-                type="email"
-                placeholder="company@domain.com"
-                value={emailInput}
-                onChange={(e) => setEmailInput(e.target.value)}
-                className="px-3.5 py-2 text-xs rounded-xl bg-white/10 border border-white/15 text-white placeholder-slate-400 outline-none focus:border-[#FF7900] min-w-[200px] min-h-[40px]"
-                required
-              />
-              <button
-                type="submit"
-                className="bg-[#FF7900] hover:bg-[#e56d00] text-white text-xs font-semibold px-4 py-2 rounded-xl transition-all whitespace-nowrap cursor-pointer min-h-[40px] shadow-md shadow-[#FF7900]/25"
-              >
-                {emailSent ? 'Sent to Inbox!' : 'Send All'}
-              </button>
-            </form>
+            {emailSentMessage && (
+              <div className="flex items-center gap-2 text-xs text-emerald-300 bg-emerald-500/15 border border-emerald-400/30 rounded-xl px-3.5 py-2">
+                <CheckCircle2 className="w-4 h-4 shrink-0" />
+                <span>{emailSentMessage}</span>
+              </div>
+            )}
+
+            {emailError && (
+              <div className="text-xs text-amber-200 bg-amber-500/15 border border-amber-400/30 rounded-xl px-3.5 py-2">
+                {emailError}
+              </div>
+            )}
           </div>
         </div>
       </div>

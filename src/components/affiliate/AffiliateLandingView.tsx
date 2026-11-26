@@ -38,6 +38,7 @@ import {
   uploadAffiliateKycDocument,
   verifyAffiliateEmailOtp,
 } from '../../services/affiliateService';
+import { triggerCelebration } from '../../services/celebrationService';
 
 interface AffiliateLandingViewProps {
   user: UserProfile | null;
@@ -198,6 +199,14 @@ export const AffiliateLandingView: React.FC<AffiliateLandingViewProps> = ({
       const res = await verifyAffiliateEmailOtp({ email, code: otpCode });
       setOtpVerified(res.emailVerified);
       setFeedback({ type: 'success', text: res.message });
+      if (res.emailVerified) {
+        triggerCelebration({
+          level: 'subtle',
+          sound: 'chime',
+          eventKey: `aff-otp-verified:${email}`,
+          action: 'affiliate_email_verified',
+        });
+      }
     } catch (err: any) {
       setFeedback({ type: 'error', text: err?.message || 'OTP verification failed.' });
     } finally {
@@ -225,6 +234,12 @@ export const AffiliateLandingView: React.FC<AffiliateLandingViewProps> = ({
       });
       setApplication(res.application);
       setFeedback({ type: 'success', text: res.message });
+      triggerCelebration({
+        level: 'premium',
+        sound: 'celebration',
+        eventKey: `aff-app-submitted:${res.application?.id || email}`,
+        action: 'affiliate_application_submitted',
+      });
       await refreshEligibility();
     } catch (err: any) {
       setFeedback({ type: 'error', text: err?.message || 'Unable to submit application.' });
@@ -289,6 +304,12 @@ export const AffiliateLandingView: React.FC<AffiliateLandingViewProps> = ({
       });
       setKyc(res.kyc);
       setFeedback({ type: 'success', text: res.message });
+      triggerCelebration({
+        level: 'premium',
+        sound: 'celebration',
+        eventKey: `aff-kyc-submitted:${res.kyc?.id || application.id}`,
+        action: 'affiliate_kyc_submitted',
+      });
       await refreshEligibility();
     } catch (err: any) {
       setFeedback({ type: 'error', text: err?.message || 'KYC submission failed.' });

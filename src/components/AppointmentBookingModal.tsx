@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { triggerCelebration } from '../services/celebrationService';
 import { 
   Calendar, 
   Clock, 
@@ -131,10 +132,16 @@ export const AppointmentBookingModal: React.FC<AppointmentBookingModalProps> = (
       if (result.success) {
         setSavedTable(result.tableUsed || 'appointments');
         setIsSuccess(true);
+        triggerCelebration({
+          level: 'premium',
+          sound: 'celebration',
+          eventKey: `appointment-booked:${refCode}`,
+          action: 'appointment_booked',
+        });
       } else {
         if (result.needsTableCreation) {
           setNeedsSqlSetup(true);
-          setIsSuccess(true); // Still mark as success locally, showing the 1-click SQL setup
+          setIsSuccess(true); // Show local-only notice + SQL setup instructions (not confirmed on server)
         } else {
           setErrorMsg(result.error || 'Failed to save to Supabase backend.');
         }
@@ -227,25 +234,50 @@ export const AppointmentBookingModal: React.FC<AppointmentBookingModalProps> = (
         <div className="p-5 sm:p-6 overflow-y-auto space-y-5">
           {isSuccess ? (
             <div className="py-6 space-y-5 text-center">
-              <div className="w-16 h-16 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center mx-auto shadow-md">
-                <CheckCircle2 className="w-10 h-10" />
+              <div
+                className={`w-16 h-16 rounded-full flex items-center justify-center mx-auto shadow-md ${
+                  needsSqlSetup
+                    ? 'bg-amber-100 text-amber-600'
+                    : 'bg-emerald-100 text-emerald-600'
+                }`}
+              >
+                {needsSqlSetup ? (
+                  <AlertCircle className="w-9 h-9" />
+                ) : (
+                  <CheckCircle2 className="w-10 h-10" />
+                )}
               </div>
 
               <div>
                 <span className="text-xs font-mono font-bold text-zinc-500 uppercase tracking-wider">
-                  Booking Reference
+                  {needsSqlSetup ? 'Local Draft Reference (Not Synced)' : 'Booking Reference'}
                 </span>
                 <div className="text-2xl font-black text-slate-900 font-mono mt-0.5">
                   {bookingRef}
                 </div>
                 <h4 className="font-display font-bold text-lg text-slate-900 mt-2">
-                  Appointment Confirmed & Logged!
+                  {needsSqlSetup
+                    ? 'Saved Locally Only — Not Yet Confirmed on Server'
+                    : 'Appointment Confirmed & Logged!'}
                 </h4>
                 <p className="text-xs sm:text-sm text-zinc-600 max-w-md mx-auto mt-1 leading-relaxed">
-                  Thank you, <strong>{name}</strong>! We have reserved your slot on{' '}
-                  <strong className="text-slate-900">{appointmentDate}</strong> at{' '}
-                  <strong className="text-slate-900">{appointmentTime}</strong> via{' '}
-                  <strong className="text-slate-900">{meetingMode}</strong>.
+                  {needsSqlSetup ? (
+                    <>
+                      Your requested slot for{' '}
+                      <strong className="text-slate-900">{appointmentDate}</strong> at{' '}
+                      <strong className="text-slate-900">{appointmentTime}</strong> via{' '}
+                      <strong className="text-slate-900">{meetingMode}</strong> could not be
+                      saved to the server database yet and is stored only on this browser. Please
+                      confirm via WhatsApp below or complete the database setup.
+                    </>
+                  ) : (
+                    <>
+                      Thank you, <strong>{name}</strong>! We have reserved your slot on{' '}
+                      <strong className="text-slate-900">{appointmentDate}</strong> at{' '}
+                      <strong className="text-slate-900">{appointmentTime}</strong> via{' '}
+                      <strong className="text-slate-900">{meetingMode}</strong>.
+                    </>
+                  )}
                 </p>
               </div>
 

@@ -161,6 +161,63 @@ export async function sendTestEmail(toEmail?: string): Promise<EmailResponse> {
   }
 }
 
+export interface CatalogueEmailResponse {
+  success: boolean;
+  messageId?: string;
+  recipient?: string;
+  configured?: boolean;
+  retryAfterSec?: number;
+  backendUnavailable?: boolean;
+  message: string;
+}
+
+/**
+ * Dispatches the TeqqnoWorld corporate catalogue suite email via Hostinger SMTP (/api/send-catalogue-email).
+ * Never fakes success when SMTP or backend is unavailable.
+ */
+export async function sendCatalogueEmail(email: string): Promise<CatalogueEmailResponse> {
+  try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 15000);
+
+    const response = await fetch('/api/send-catalogue-email', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email }),
+      signal: controller.signal,
+    });
+    clearTimeout(timeoutId);
+
+    const data = await safeParseJson<CatalogueEmailResponse>(response);
+    if (!data) {
+      return {
+        success: false,
+        backendUnavailable: true,
+        message: `Email delivery service is unavailable (HTTP ${response.status}). Please download the PDFs directly above.`,
+      };
+    }
+
+    if (!response.ok || !data.success) {
+      return {
+        ...data,
+        success: false,
+        message: data.message || 'Unable to send catalogue email right now.',
+      };
+    }
+
+    return data;
+  } catch (error: any) {
+    return {
+      success: false,
+      backendUnavailable: true,
+      message:
+        error?.name === 'AbortError'
+          ? 'Email server timed out. Please download the PDFs directly above.'
+          : error?.message || 'Network error connecting to email service.',
+    };
+  }
+}
+
 export interface RegistrationEmailPayload {
   userId?: string;
   firstName?: string;

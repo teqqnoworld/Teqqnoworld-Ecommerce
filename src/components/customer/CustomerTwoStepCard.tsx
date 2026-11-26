@@ -21,6 +21,7 @@ import {
   startCustomerTotpSetup,
   toggleCustomerTwoStep,
 } from '../../services/customerTwoStepService';
+import { triggerCelebration } from '../../services/celebrationService';
 
 interface CustomerTwoStepCardProps {
   hasSupabaseSession: boolean | null;
@@ -146,6 +147,12 @@ export const CustomerTwoStepCard: React.FC<CustomerTwoStepCardProps> = ({
       setTotpUpdatedAt(res.totpUpdatedAt || new Date().toISOString());
       resetTotpFlow();
       onToast(res.message || 'Google Authenticator 2-Step Verification is now ACTIVE!', 'success');
+      triggerCelebration({
+        level: 'subtle',
+        sound: 'chime',
+        eventKey: `2fa-totp-enabled:${sessionEmail || fallbackEmail}`,
+        action: 'verification_successful',
+      });
     } finally {
       setTotpBusy(false);
     }
@@ -278,6 +285,14 @@ export const CustomerTwoStepCard: React.FC<CustomerTwoStepCardProps> = ({
             : 'Two-Step Verification turned OFF.'),
         'success'
       );
+      if (nextEnabled) {
+        triggerCelebration({
+          level: 'subtle',
+          sound: 'chime',
+          eventKey: `2fa-email-enabled:${res.twoStepEmail || sessionEmail || fallbackEmail}`,
+          action: 'email_verification_successful',
+        });
+      }
     } finally {
       setVerifying(false);
     }

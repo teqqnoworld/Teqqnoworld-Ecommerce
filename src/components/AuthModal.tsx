@@ -31,6 +31,7 @@ import {
   customerLoginStep1,
   customerLoginVerifyOtp,
 } from '../services/customerTwoStepService';
+import { triggerCelebration } from '../services/celebrationService';
 
 interface AuthModalProps {
   isOpen: boolean;
@@ -351,6 +352,13 @@ export const AuthModal: React.FC<AuthModalProps> = ({
 
     localStorage.setItem('teqqno_user', JSON.stringify(profile));
     localStorage.setItem(`teqqno_user_profile_${profile.id}`, JSON.stringify(profile));
+    triggerCelebration({
+      level: 'subtle',
+      sound: 'pop',
+      eventKey: `auth-session:${profile.id}`,
+      dedupeWindowMs: 12000,
+      action: 'customer_login',
+    });
     onLoginSuccess(profile);
     onClose();
   };
@@ -763,6 +771,13 @@ export const AuthModal: React.FC<AuthModalProps> = ({
       }
 
       setRegSuccessMessage('Congratulations! Account created & confirmation email sent. Opening your dashboard...');
+      triggerCelebration({
+        level: 'premium',
+        sound: 'celebration',
+        eventKey: `auth-session:${profile.id}`,
+        dedupeWindowMs: 12000,
+        action: 'customer_registration',
+      });
 
       setTimeout(() => {
         onLoginSuccess(profile);
@@ -890,6 +905,12 @@ export const AuthModal: React.FC<AuthModalProps> = ({
       setLoginEmail(cleanEmail);
       setLoginPassword('');
       setResetStep('done');
+      triggerCelebration({
+        level: 'subtle',
+        sound: 'chime',
+        eventKey: `password-reset:${cleanEmail}`,
+        action: 'password_changed',
+      });
     } catch (err: any) {
       console.error('Password reset error:', err);
       setResetError(err?.message || 'Failed to update password. Please try again.');

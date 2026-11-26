@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { triggerCelebration } from '../../services/celebrationService';
 import { MotionConfig, motion, AnimatePresence } from 'motion/react';
 import {
   AlertTriangle,
@@ -1073,6 +1074,13 @@ export const PlainPoloStudioModal: React.FC<PlainPoloStudioModalProps> = ({
     setSavedDesigns(nextList);
     persistSavedPlainPoloDesigns(nextList);
     showToast(`Saved "${designName}" to My Saved Designs`);
+    triggerCelebration({
+      level: 'premium',
+      sound: 'celebration',
+      eventKey: `polo-design-saved:${newSaved.id}`,
+      dedupeWindowMs: 1500,
+      action: 'product_customization_saved',
+    });
   };
 
   const handleLoadSavedDesign = (d: SavedPlainPoloDesign) => {

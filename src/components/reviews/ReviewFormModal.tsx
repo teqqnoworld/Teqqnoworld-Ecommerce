@@ -25,6 +25,7 @@ import {
   uploadReviewMediaFile,
 } from '../../services/reviewsService';
 import { StarRatingInput } from './StarRating';
+import { triggerCelebration } from '../../services/celebrationService';
 
 interface ReviewFormModalProps {
   isOpen: boolean;
@@ -319,6 +320,13 @@ export const ReviewFormModal: React.FC<ReviewFormModalProps> = ({
           return;
         }
         setSubmittedState({ message: res.message, status: res.review?.status });
+        triggerCelebration({
+          level: 'subtle',
+          sound: 'chime',
+          eventKey: `review-updated:${existingReview.id}:${Date.now()}`,
+          dedupeWindowMs: 2500,
+          action: 'review_updated',
+        });
         onSuccess(res);
       } else {
         const res = await submitProductReview({
@@ -349,6 +357,13 @@ export const ReviewFormModal: React.FC<ReviewFormModalProps> = ({
           // ignore
         }
         setSubmittedState({ message: res.message, status: res.review?.status });
+        triggerCelebration({
+          level: 'premium',
+          sound: 'celebration',
+          eventKey: `review-submitted:${res.review?.id || productId}:${Date.now()}`,
+          dedupeWindowMs: 3000,
+          action: 'review_submitted',
+        });
         onSuccess(res);
       }
     } catch (err: any) {

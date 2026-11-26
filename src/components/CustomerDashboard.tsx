@@ -94,6 +94,8 @@ import {
   OrderDetailDrawer,
 } from './customer/CustomerSections';
 import { CustomerReviewsView } from './customer/CustomerReviewsView';
+import { CelebrationSoundControl } from './CelebrationSoundControl';
+import { triggerCelebration } from '../services/celebrationService';
 
 export type DashboardTab = CustomerTab;
 
@@ -185,12 +187,25 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
     try {
       const res = await uploadBrandLogoToStorage(file, `avatar-${user.id}-${file.name}`);
       onUpdateUser({ ...user, avatarUrl: res.publicUrl });
-      pushToast('Profile photo updated', 'success');
+      pushToast('Profile photo uploaded to cloud storage', 'success');
+      triggerCelebration({
+        level: 'premium',
+        sound: 'celebration',
+        eventKey: `avatar-upload:${user.id}:${res.filePath || res.publicUrl}`,
+        dedupeWindowMs: 1500,
+        action: 'profile_picture_uploaded',
+      });
     } catch {
       const reader = new FileReader();
       reader.onload = () => {
         onUpdateUser({ ...user, avatarUrl: String(reader.result || '') });
-        pushToast('Profile photo updated locally', 'success');
+        pushToast(
+          'Cloud upload failed — saved as a local preview on this device only (not synced to cloud).',
+          'info'
+        );
+      };
+      reader.onerror = () => {
+        pushToast('Profile photo upload failed. Please try again.', 'error');
       };
       reader.readAsDataURL(file);
     } finally {
@@ -977,6 +992,9 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
                 )}
               </button>
             )}
+
+            {/* Celebration Sound Control */}
+            <CelebrationSoundControl variant="portal" />
 
             {/* Notifications Bell & Popover */}
             <div className="relative">

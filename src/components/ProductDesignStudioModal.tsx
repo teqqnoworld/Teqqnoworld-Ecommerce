@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { triggerCelebration } from '../services/celebrationService';
 import {
   AlertTriangle,
   Bookmark,
@@ -1004,6 +1005,13 @@ export const ProductDesignStudioModal: React.FC<ProductDesignStudioModalProps> =
     setSavedDesigns(next);
     persistSavedProductDesigns(product.id, next);
     showToast(`Saved "${name}"`);
+    triggerCelebration({
+      level: 'premium',
+      sound: 'celebration',
+      eventKey: `design-saved:${entry.id}`,
+      dedupeWindowMs: 1500,
+      action: 'product_customization_saved',
+    });
   };
 
   const handleLoadSavedDesign = (d: SavedProductDesign) => {

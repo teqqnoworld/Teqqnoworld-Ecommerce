@@ -6,6 +6,7 @@ import { WhatsAppIcon } from './WhatsAppIcon';
 import { SOCIAL_CHANNELS } from './SocialMediaIcons';
 import { DelhiveryPincodeCheckResult } from '../services/paymentAndLogisticsService';
 import { getSavedDelhiveryCheck, subscribeDelhiveryCheck } from '../services/delhiveryPincodeStore';
+import { CelebrationSoundControl } from './CelebrationSoundControl';
 
 interface NavbarProps {
   currentTab: string;
@@ -186,6 +187,9 @@ export const Navbar: React.FC<NavbarProps> = ({
               <span className="hidden lg:inline">WhatsApp Quote</span>
               <span className="lg:hidden">WhatsApp</span>
             </a>
+
+            {/* Celebration Sound Preference Control */}
+            <CelebrationSoundControl variant="navbar" />
 
             {/* Wishlist Trigger */}
             {onOpenWishlist && (

@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
+import { triggerCelebration } from '../../services/celebrationService';
 import {
   AlertCircle,
   ArrowRight,
@@ -673,7 +674,21 @@ export const CustomerBrandAssetsView: React.FC<{
           isCloudSynced,
           uploadedAt: new Date().toISOString().slice(0, 10),
         });
-        onToast(`Updated "${existing.title}" successfully`, 'success');
+        if (isCloudSynced) {
+          onToast(`Updated "${existing.title}" successfully`, 'success');
+          triggerCelebration({
+            level: 'premium',
+            sound: 'celebration',
+            eventKey: `brand-asset-replace:${replaceTargetId}:${storagePath || finalUrl}`,
+            dedupeWindowMs: 1500,
+            action: 'brand_asset_uploaded',
+          });
+        } else {
+          onToast(
+            'File preview saved locally only. It has not been uploaded or synced to the server.',
+            'info'
+          );
+        }
       }
     } else {
       const newAsset: CustomerArtwork = {
@@ -699,7 +714,21 @@ export const CustomerBrandAssetsView: React.FC<{
       };
       onAddAsset(newAsset);
       setTitleInput('');
-      onToast(`Uploaded "${newAsset.title}" (${newAsset.fileSize})`, 'success');
+      if (isCloudSynced) {
+        onToast(`Uploaded "${newAsset.title}" (${newAsset.fileSize})`, 'success');
+        triggerCelebration({
+          level: 'premium',
+          sound: 'celebration',
+          eventKey: `brand-asset-upload:${newAsset.id}`,
+          dedupeWindowMs: 1500,
+          action: 'brand_asset_uploaded',
+        });
+      } else {
+        onToast(
+          'File preview saved locally only. It has not been uploaded or synced to the server.',
+          'info'
+        );
+      }
     }
 
     setTimeout(() => setUploadProgress(null), 350);
@@ -1175,6 +1204,13 @@ export const CustomerAddressesView: React.FC<{
     }
     onSaveAddresses(next);
     setModalOpen(false);
+    triggerCelebration({
+      level: 'subtle',
+      sound: 'pop',
+      eventKey: `address-save:${editing ? editing.id : 'new'}:${Date.now()}`,
+      dedupeWindowMs: 1500,
+      action: editing ? 'address_updated' : 'address_added',
+    });
   };
 
   return (
@@ -1452,6 +1488,15 @@ export const CustomerGstInvoicesView: React.FC<{
       gstStateCode: cleaned ? cleaned.slice(0, 2) : undefined,
     });
     onToast(cleaned ? 'GSTIN & billing entity updated' : 'Cleared optional GSTIN', 'success');
+    if (cleaned) {
+      triggerCelebration({
+        level: 'subtle',
+        sound: 'pop',
+        eventKey: `gst-save:${cleaned}`,
+        dedupeWindowMs: 2500,
+        action: 'billing_gst_updated',
+      });
+    }
   };
 
   const handleDownloadInvoice = (inv: TaxInvoice) => {
@@ -1761,36 +1806,58 @@ export const CustomerBulkRfqView: React.FC<{
       return;
     }
     setIsSubmitting(true);
-    const res = await submitCustomOrderQuote({
-      customerName: user.name,
-      customerEmail: user.email,
-      company: user.companyName,
-      phone: user.mobile,
-      productId: PRODUCTS[0].id,
-      quantity: Math.max(10, qty),
-      customNotes: `[BULK RFQ: ${category}] Target: ${targetDate || 'Standard'} | ${details}`,
-    });
+    try {
+      const res = await submitCustomOrderQuote({
+        customerName: user.name,
+        customerEmail: user.email,
+        company: user.companyName,
+        phone: user.mobile,
+        productId: PRODUCTS[0].id,
+        quantity: Math.max(10, qty),
+        customNotes: `[BULK RFQ: ${category}] Target: ${targetDate || 'Standard'} | ${details}`,
+      });
 
-    const newRfq: BulkEnquirySubmission = {
-      id: res.orderId || `rfq-${Date.now()}`,
-      companyName: user.companyName || user.name,
-      contactPerson: user.name,
-      email: user.email,
-      phone: user.mobile,
-      productCategory: category,
-      estimatedQty: Math.max(10, qty),
-      targetDeliveryDate: targetDate || 'Flexible',
-      customizationDetails: details.trim(),
-      hasGst: Boolean(user.gstin),
-      gstin: user.gstin,
-      createdAt: new Date().toISOString().slice(0, 10),
-      status: 'Received',
-    };
+      if (!res.success) {
+        onToast(
+          res.message || 'Unable to submit Bulk RFQ enquiry. Please try again.',
+          'error'
+        );
+        return;
+      }
 
-    onAddRfq(newRfq);
-    setDetails('');
-    setIsSubmitting(false);
-    onToast('Bulk RFQ enquiry submitted to production desk', 'success');
+      const newRfq: BulkEnquirySubmission = {
+        id: res.orderId || `rfq-${Date.now()}`,
+        companyName: user.companyName || user.name,
+        contactPerson: user.name,
+        email: user.email,
+        phone: user.mobile,
+        productCategory: category,
+        estimatedQty: Math.max(10, qty),
+        targetDeliveryDate: targetDate || 'Flexible',
+        customizationDetails: details.trim(),
+        hasGst: Boolean(user.gstin),
+        gstin: user.gstin,
+        createdAt: new Date().toISOString().slice(0, 10),
+        status: 'Received',
+      };
+
+      onAddRfq(newRfq);
+      setDetails('');
+      onToast('Bulk RFQ enquiry submitted to production desk', 'success');
+      triggerCelebration({
+        level: 'premium',
+        sound: 'celebration',
+        eventKey: `bulk-rfq:${newRfq.id}`,
+        action: 'bulk_rfq_submitted',
+      });
+    } catch (err: any) {
+      onToast(
+        err?.message || 'Unable to submit Bulk RFQ enquiry. Please try again.',
+        'error'
+      );
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -2140,6 +2207,13 @@ export const CustomerAccountSecurityView: React.FC<{
       role: accountType === 'business' ? 'Corporate Admin' : 'Individual Shopper',
     });
     onToast('Profile & preferences saved', 'success');
+    triggerCelebration({
+      level: 'subtle',
+      sound: 'pop',
+      eventKey: `profile-save:${user.id}:${Date.now()}`,
+      dedupeWindowMs: 1500,
+      action: 'profile_updated',
+    });
   };
 
   const handleAvatarUpload = async (file: File) => {
@@ -2152,12 +2226,25 @@ export const CustomerAccountSecurityView: React.FC<{
     try {
       const uploaded = await uploadBrandLogoToStorage(file, `avatar-${user.id}-${file.name}`);
       onUpdateUser({ ...user, avatarUrl: uploaded.publicUrl });
-      onToast('Profile picture updated', 'success');
+      onToast('Profile picture uploaded to cloud storage', 'success');
+      triggerCelebration({
+        level: 'premium',
+        sound: 'celebration',
+        eventKey: `profile-avatar:${user.id}:${uploaded.filePath || uploaded.publicUrl}`,
+        dedupeWindowMs: 1500,
+        action: 'profile_picture_uploaded',
+      });
     } catch {
       const reader = new FileReader();
       reader.onload = () => {
         onUpdateUser({ ...user, avatarUrl: String(reader.result || '') });
-        onToast('Profile picture updated locally', 'success');
+        onToast(
+          'Cloud upload failed — saved as a local preview on this device only (not synced to cloud).',
+          'info'
+        );
+      };
+      reader.onerror = () => {
+        onToast('Profile picture upload failed. Please try again.', 'error');
       };
       reader.readAsDataURL(file);
     } finally {
@@ -2196,6 +2283,13 @@ export const CustomerAccountSecurityView: React.FC<{
     setNewPassword('');
     setConfirmPassword('');
     onToast('Account password updated securely via Supabase Auth', 'success');
+    triggerCelebration({
+      level: 'subtle',
+      sound: 'chime',
+      eventKey: `password-changed:${user.id}:${Date.now()}`,
+      dedupeWindowMs: 2500,
+      action: 'password_changed',
+    });
   };
 
   const handleSendResetEmail = async () => {

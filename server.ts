@@ -835,6 +835,127 @@ app.post('/api/test-email', async (req: Request, res: Response) => {
   }
 });
 
+// Send Corporate Catalogue Suite Email via Hostinger SMTP (with strict validation & rate limiting)
+const catalogueEmailCooldownByRecipient = new Map<string, number>();
+const catalogueEmailWindowByIp = new Map<string, number[]>();
+
+app.post('/api/send-catalogue-email', async (req: Request, res: Response) => {
+  try {
+    const rawEmail = typeof req.body?.email === 'string' ? req.body.email.trim() : '';
+    if (
+      !rawEmail ||
+      rawEmail.length > 254 ||
+      /[\r\n]/.test(rawEmail) ||
+      !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(rawEmail)
+    ) {
+      return res.status(400).json({
+        success: false,
+        message: 'Please enter a valid corporate or personal email address.',
+      });
+    }
+
+    const cleanEmail = rawEmail.toLowerCase();
+    const now = Date.now();
+
+    // Per-recipient 60-second cooldown
+    const lastSent = catalogueEmailCooldownByRecipient.get(cleanEmail) || 0;
+    if (now - lastSent < 60_000) {
+      const retryAfterSec = Math.max(1, Math.ceil((60_000 - (now - lastSent)) / 1000));
+      return res.status(429).json({
+        success: false,
+        retryAfterSec,
+        message: `Please wait ${retryAfterSec}s before sending the catalogue suite to this email again.`,
+      });
+    }
+
+    // Per-IP 15-minute sliding window (max 5 requests)
+    const clientIp = String(
+      (req.headers['x-forwarded-for'] as string)?.split(',')[0]?.trim() ||
+        req.socket?.remoteAddress ||
+        'unknown'
+    );
+    const ipHistory = (catalogueEmailWindowByIp.get(clientIp) || []).filter(
+      (ts) => now - ts < 15 * 60_000
+    );
+    if (ipHistory.length >= 5) {
+      return res.status(429).json({
+        success: false,
+        message: 'Too many catalogue email requests. Please download the PDFs directly or try again later.',
+      });
+    }
+
+    const cfg = getSmtpConfig();
+    const transporter = getSmtpTransporter();
+    if (!transporter) {
+      return res.status(503).json({
+        success: false,
+        configured: false,
+        message:
+          'Automated catalogue email delivery is not configured on the server right now. Please download the PDFs directly above.',
+      });
+    }
+
+    const siteOrigin = 'https://teqqnoworld.com';
+    const info = await transporter.sendMail({
+      from: `"TeqqnoWorld Corporate Desk" <${cfg.smtpUser}>`,
+      to: cleanEmail,
+      replyTo: cfg.smtpUser,
+      subject: 'TeqqnoWorld 2026 Corporate Catalogues & Technical Spec Sheets',
+      html: `<div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;max-width:600px;margin:0 auto;background:#ffffff;border:1px solid #e2e8f0;border-radius:16px;overflow:hidden;">
+        <div style="background:#071B35;color:#ffffff;padding:24px 28px;border-bottom:4px solid #FF7A00;">
+          <div style="font-size:20px;font-weight:800;letter-spacing:-0.02em;">Teqqno<span style="color:#FF7A00;">World</span></div>
+          <div style="font-size:12px;color:#cbd5e1;margin-top:4px;">Enterprise Procurement Library &bull; Corporate Merchandise &amp; Custom Printing</div>
+        </div>
+        <div style="padding:24px 28px;color:#0f172a;font-size:14px;line-height:1.6;">
+          <p style="margin-top:0;">Hello,</p>
+          <p>Thank you for requesting the <strong>TeqqnoWorld 2026 Corporate Catalogue Suite</strong> for <strong>${escapeHtml(cleanEmail)}</strong>.</p>
+          <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;padding:16px 18px;margin:18px 0;">
+            <div style="font-size:12px;font-weight:700;color:#071B35;text-transform:uppercase;letter-spacing:0.04em;margin-bottom:10px;">Included Corporate Guides</div>
+            <ul style="margin:0;padding-left:18px;color:#334155;font-size:13px;">
+              <li><strong>TeqqnoWorld 2026 Master Corporate Catalogue</strong> (48 Pages)</li>
+              <li><strong>Apparel &amp; Uniforms Technical Spec Sheet</strong> (18 Pages)</li>
+              <li><strong>Promotional Signage &amp; Event Displays Lookbook</strong> (24 Pages)</li>
+              <li><strong>300 GSM Visiting Cards &amp; Print Pre-Press Guide</strong> (12 Pages)</li>
+            </ul>
+          </div>
+          <p style="margin-bottom:20px;">Browse all customizable products, live bulk pricing tiers, and direct PDF downloads anytime at <a href="${siteOrigin}" style="color:#FF7A00;font-weight:700;text-decoration:none;">teqqnoworld.com</a>.</p>
+          <p style="font-size:12px;color:#64748b;margin-bottom:0;">Need custom bulk pricing or physical swatch samples? Reply directly to this email and our Hyderabad corporate production desk will respond promptly.</p>
+        </div>
+      </div>`,
+    });
+
+    const acceptedList = Array.isArray(info.accepted) ? info.accepted : [];
+    if (!info.messageId || acceptedList.length === 0) {
+      return res.status(502).json({
+        success: false,
+        message: 'SMTP server did not confirm email delivery acceptance. Please try downloading directly.',
+      });
+    }
+
+    catalogueEmailCooldownByRecipient.set(cleanEmail, now);
+    ipHistory.push(now);
+    catalogueEmailWindowByIp.set(clientIp, ipHistory);
+    if (catalogueEmailCooldownByRecipient.size > 500) {
+      for (const [k, ts] of catalogueEmailCooldownByRecipient.entries()) {
+        if (now - ts > 15 * 60_000) catalogueEmailCooldownByRecipient.delete(k);
+      }
+    }
+
+    return res.status(200).json({
+      success: true,
+      messageId: info.messageId,
+      recipient: cleanEmail,
+      message: `Catalogue suite email accepted for delivery to ${cleanEmail}.`,
+    });
+  } catch (err: any) {
+    console.error('[Hostinger SMTP Catalogue Email Error]:', err);
+    return res.status(500).json({
+      success: false,
+      message: err?.message || 'Failed to send catalogue email. Please download the PDFs directly above.',
+    });
+  }
+});
+
 // New Customer Registration Welcome (Customer) + Full Details Alert (Admin)
 app.post('/api/send-registration-email', async (req: Request, res: Response) => {
   try {

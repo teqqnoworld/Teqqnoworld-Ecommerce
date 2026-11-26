@@ -71,6 +71,8 @@ import {
   AffiliateEarningsAreaChart,
   AffiliateKpiCard,
 } from './AffiliateVisuals';
+import { CelebrationSoundControl } from '../CelebrationSoundControl';
+import { hasCelebrationPersisted, triggerCelebration } from '../../services/celebrationService';
 
 type AffiliateSectionId =
   | 'overview'
@@ -269,6 +271,39 @@ export const AffiliateDashboardView: React.FC<AffiliateDashboardViewProps> = ({
     loadDashboard();
   }, [user?.email, isDemoMode]);
 
+  const rewardsCelebrationSig = (data?.rewards || [])
+    .map((r) => `${r.id}:${String(r.status || '').toLowerCase()}`)
+    .join(',');
+
+  // One-time Grand Celebrations for newly activated live partners & newly unlocked rewards
+  useEffect(() => {
+    if (!data || isDemoMode) return;
+    if (data.partner.status === 'active') {
+      triggerCelebration({
+        level: 'grand',
+        sound: 'grand',
+        eventKey: `aff-partner-activated:${data.partner.affiliateId}`,
+        persistOnce: true,
+        action: 'affiliate_account_approved',
+      });
+    }
+    const unlockedRewards = (data.rewards || []).filter((r) =>
+      ['unlocked', 'awarded', 'paid', 'approved'].includes(String(r.status || '').toLowerCase())
+    );
+    const nextUncelebratedReward = unlockedRewards.find(
+      (r) => !hasCelebrationPersisted(`aff-reward-unlocked:${r.id}`)
+    );
+    if (nextUncelebratedReward) {
+      triggerCelebration({
+        level: 'grand',
+        sound: 'grand',
+        eventKey: `aff-reward-unlocked:${nextUncelebratedReward.id}`,
+        persistOnce: true,
+        action: 'affiliate_reward_unlocked',
+      });
+    }
+  }, [data?.partner.affiliateId, data?.partner.status, rewardsCelebrationSig, isDemoMode]);
+
   // Generate QR codes for verification + links when data updates
   useEffect(() => {
     if (!data) return;
@@ -294,11 +329,64 @@ export const AffiliateDashboardView: React.FC<AffiliateDashboardViewProps> = ({
       .catch(() => undefined);
   }, [data?.partner.verificationCode, data?.links.length]);
 
+  const copyTextWithVerifiedFallback = (value: string): boolean => {
+    if (typeof document === 'undefined') return false;
+    try {
+      const textarea = document.createElement('textarea');
+      textarea.value = value;
+      textarea.setAttribute('readonly', '');
+      textarea.style.position = 'fixed';
+      textarea.style.top = '-9999px';
+      textarea.style.left = '-9999px';
+      textarea.style.opacity = '0';
+      document.body.appendChild(textarea);
+      textarea.focus();
+      textarea.select();
+      textarea.setSelectionRange(0, value.length);
+      const copied = typeof document.execCommand === 'function' && document.execCommand('copy');
+      document.body.removeChild(textarea);
+      return Boolean(copied);
+    } catch {
+      return false;
+    }
+  };
+
   const handleCopy = (text: string, id: string) => {
-    navigator.clipboard?.writeText(text).catch(() => undefined);
-    setCopiedId(id);
-    showToast('Copied to clipboard');
-    setTimeout(() => setCopiedId(null), 1800);
+    const finishCopySuccess = () => {
+      setCopiedId(id);
+      showToast('Copied to clipboard');
+      if (!isDemoMode) {
+        triggerCelebration({
+          level: 'premium',
+          sound: 'celebration',
+          eventKey: `aff-link-copy:${id}:${Date.now()}`,
+          dedupeWindowMs: 1200,
+          action: 'affiliate_link_copied',
+        });
+      }
+      setTimeout(() => setCopiedId(null), 1800);
+    };
+
+    const handleCopyFailure = () => {
+      showToast('Unable to copy automatically. Please select and copy the link manually.', 'error');
+    };
+
+    if (navigator.clipboard && typeof navigator.clipboard.writeText === 'function') {
+      navigator.clipboard
+        .writeText(text)
+        .then(finishCopySuccess)
+        .catch(() => {
+          if (copyTextWithVerifiedFallback(text)) {
+            finishCopySuccess();
+          } else {
+            handleCopyFailure();
+          }
+        });
+    } else if (copyTextWithVerifiedFallback(text)) {
+      finishCopySuccess();
+    } else {
+      handleCopyFailure();
+    }
   };
 
   const handleCreateLink = async (linkType: 'website' | 'product', productId?: string) => {
@@ -347,6 +435,13 @@ export const AffiliateDashboardView: React.FC<AffiliateDashboardViewProps> = ({
       });
       setCampaignTag('');
       showToast('Affiliate link ready');
+      triggerCelebration({
+        level: 'subtle',
+        sound: 'chime',
+        eventKey: `aff-link-create:${productId || 'website'}:${Date.now()}`,
+        dedupeWindowMs: 1200,
+        action: 'affiliate_link_generated',
+      });
       await loadDashboard();
     } catch (err: any) {
       showToast(err?.message || 'Unable to create affiliate link', 'error');
@@ -374,6 +469,13 @@ export const AffiliateDashboardView: React.FC<AffiliateDashboardViewProps> = ({
       );
       setWithdrawAmountInr('');
       showToast(res.message || 'Withdrawal request submitted');
+      triggerCelebration({
+        level: 'premium',
+        sound: 'celebration',
+        eventKey: `aff-withdrawal:${Date.now()}`,
+        dedupeWindowMs: 2500,
+        action: 'affiliate_withdrawal_submitted',
+      });
       await loadDashboard();
     } catch (err: any) {
       showToast(err?.message || 'Withdrawal request failed', 'error');
@@ -395,13 +497,20 @@ export const AffiliateDashboardView: React.FC<AffiliateDashboardViewProps> = ({
         setData((prev) =>
           prev ? { ...prev, partner: { ...prev.partner, avatarUrl: dataUrl } } : prev
         );
-        showToast('Demo Digital ID Card portrait updated in preview');
+        showToast('Demo Digital ID Card portrait updated in preview (not saved)');
         return;
       }
       if (!user?.email) return;
       try {
         await uploadAffiliateIdCardPhoto(user.email, dataUrl);
         showToast('Digital ID Card portrait updated');
+        triggerCelebration({
+          level: 'premium',
+          sound: 'celebration',
+          eventKey: `aff-photo:${Date.now()}`,
+          dedupeWindowMs: 1500,
+          action: 'profile_picture_uploaded',
+        });
         await loadDashboard();
       } catch (err: any) {
         showToast(err?.message || 'Unable to upload portrait', 'error');
@@ -878,6 +987,8 @@ export const AffiliateDashboardView: React.FC<AffiliateDashboardViewProps> = ({
                   <span>{copiedId === 'header-copy' ? 'Copied!' : 'Copy Link'}</span>
                 </button>
               )}
+
+              <CelebrationSoundControl variant="portal" />
 
               <button
                 type="button"
@@ -1555,6 +1666,17 @@ export const AffiliateDashboardView: React.FC<AffiliateDashboardViewProps> = ({
                     <a
                       href={qrMap[link.id]}
                       download={`${data.partner.affiliateId}-${link.productSlug || 'website'}-qr.png`}
+                      onClick={() => {
+                        if (!isDemoMode) {
+                          triggerCelebration({
+                            level: 'premium',
+                            sound: 'celebration',
+                            eventKey: `aff-qr-download:${link.id}:${Date.now()}`,
+                            dedupeWindowMs: 1200,
+                            action: 'affiliate_qr_downloaded',
+                          });
+                        }
+                      }}
                       className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-[#071B35] text-white text-xs font-semibold"
                     >
                       <Download className="w-3.5 h-3.5" />
@@ -2257,9 +2379,22 @@ export const AffiliateDashboardView: React.FC<AffiliateDashboardViewProps> = ({
 
               <div className="flex flex-wrap items-center gap-3">
                 <button
-                  onClick={() =>
-                    downloadAffiliateCertificatePdf(data.partner, data.settings.officialDomain)
-                  }
+                  onClick={async () => {
+                    try {
+                      await downloadAffiliateCertificatePdf(data.partner, data.settings.officialDomain);
+                      if (!isDemoMode) {
+                        triggerCelebration({
+                          level: 'premium',
+                          sound: 'celebration',
+                          eventKey: `aff-cert-download:${data.partner.affiliateId}:${Date.now()}`,
+                          dedupeWindowMs: 1800,
+                          action: 'affiliate_certificate_downloaded',
+                        });
+                      }
+                    } catch {
+                      showToast('Unable to generate certificate PDF', 'error');
+                    }
+                  }}
                   className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-[#FF7A00] hover:bg-[#e56d00] text-white text-xs font-semibold cursor-pointer"
                 >
                   <Download className="w-4 h-4" />
@@ -2356,9 +2491,22 @@ export const AffiliateDashboardView: React.FC<AffiliateDashboardViewProps> = ({
                   />
                 </label>
                 <button
-                  onClick={() =>
-                    downloadAffiliateIdCardPdf(data.partner, data.settings.officialDomain)
-                  }
+                  onClick={async () => {
+                    try {
+                      await downloadAffiliateIdCardPdf(data.partner, data.settings.officialDomain);
+                      if (!isDemoMode) {
+                        triggerCelebration({
+                          level: 'premium',
+                          sound: 'celebration',
+                          eventKey: `aff-idcard-download:${data.partner.affiliateId}:${Date.now()}`,
+                          dedupeWindowMs: 1800,
+                          action: 'affiliate_id_card_downloaded',
+                        });
+                      }
+                    } catch {
+                      showToast('Unable to generate Digital ID Card PDF', 'error');
+                    }
+                  }}
                   className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-[#071B35] hover:bg-[#0d2c54] text-white text-xs font-semibold cursor-pointer"
                 >
                   <Download className="w-4 h-4" />
