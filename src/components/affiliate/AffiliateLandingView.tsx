@@ -7,6 +7,7 @@ import {
   ChevronDown,
   ChevronUp,
   Clock,
+  Eye,
   FileCheck2,
   KeyRound,
   Link2,
@@ -350,6 +351,21 @@ export const AffiliateLandingView: React.FC<AffiliateLandingViewProps> = ({
                     <ArrowRight className="w-4 h-4" />
                   </button>
                 )}
+
+                <button
+                  onClick={() => {
+                    try {
+                      sessionStorage.setItem('tw_affiliate_demo_mode', '1');
+                    } catch {
+                      // ignore storage restrictions
+                    }
+                    onNavigate('affiliate-dashboard');
+                  }}
+                  className="inline-flex items-center gap-2 px-5 py-3.5 rounded-xl bg-white/10 hover:bg-white/20 border border-white/25 text-white font-semibold text-sm transition-colors cursor-pointer"
+                >
+                  <Eye className="w-4 h-4 text-[#FF7A00]" />
+                  <span>Preview Demo Dashboard</span>
+                </button>
 
                 <a
                   href="#affiliate-how-it-works"
