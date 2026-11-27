@@ -1,6 +1,6 @@
-import React, { useEffect, useState } from 'react';
-import { X, Trash2, ShoppingBag, ArrowRight, ShieldCheck, Tag, Plus, Minus, Truck, Clock } from 'lucide-react';
-import { CartItem } from '../types';
+import React, { useEffect, useMemo, useState } from 'react';
+import { X, Trash2, ShoppingBag, ArrowRight, ShieldCheck, Tag, Plus, Minus, Truck, Clock, Lock, Sparkles } from 'lucide-react';
+import { CartItem, UserProfile } from '../types';
 import { DelhiveryPincodeCheckResult } from '../services/paymentAndLogisticsService';
 import { getSavedDelhiveryCheck, subscribeDelhiveryCheck } from '../services/delhiveryPincodeStore';
 import {
@@ -10,6 +10,12 @@ import {
   subscribeRecoveryCoupon,
 } from '../services/aisensyService';
 import { triggerCelebration } from '../services/celebrationService';
+import {
+  fetchMyPrivateOffers,
+  fetchPublicStorefrontOffers,
+  validateCouponServer,
+} from '../services/couponService';
+import type { CouponValidationResult, PublicCouponSummary } from '../types/coupon';
 
 interface CartDrawerProps {
   isOpen: boolean;
@@ -19,6 +25,7 @@ interface CartDrawerProps {
   onRemoveItem: (id: string) => void;
   onProceedToCheckout: () => void;
   onOpenDeliveryCheck?: () => void;
+  user?: UserProfile | null;
 }
 
 export const CartDrawer: React.FC<CartDrawerProps> = ({
@@ -29,6 +36,7 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
   onRemoveItem,
   onProceedToCheckout,
   onOpenDeliveryCheck,
+  user,
 }) => {
   const [couponCode, setCouponCode] = useState(() => {
     try {
@@ -45,6 +53,11 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
     }
   });
   const [couponMessage, setCouponMessage] = useState<string | null>(null);
+  const [couponError, setCouponError] = useState<string | null>(null);
+  const [validatingCoupon, setValidatingCoupon] = useState(false);
+  const [serverValidation, setServerValidation] = useState<CouponValidationResult | null>(null);
+  const [publicOffers, setPublicOffers] = useState<PublicCouponSummary[]>([]);
+  const [privateOffers, setPrivateOffers] = useState<PublicCouponSummary[]>([]);
   const [recoveryCoupon, setRecoveryCoupon] = useState<ActiveRecoveryCoupon | null>(() =>
     getActiveRecoveryCoupon()
   );
@@ -84,7 +97,9 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
         setRecoveryCountdown('');
         if (appliedCode === 'SAVE5NOW' || appliedCode === 'TEQQNO5') {
           setAppliedCode(null);
-          setCouponMessage('5% OFF limited-time coupon expired.');
+          setServerValidation(null);
+          setCouponMessage(null);
+          setCouponError('5% OFF limited-time coupon expired.');
         }
         return;
       }
@@ -95,84 +110,153 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
     return () => clearInterval(timer);
   }, [recoveryCoupon, appliedCode]);
 
-  if (!isOpen) return null;
+  const subtotal = useMemo(
+    () => items.reduce((sum, item) => sum + item.unitPrice * item.quantity, 0),
+    [items]
+  );
 
-  const subtotal = items.reduce((sum, item) => sum + item.unitPrice * item.quantity, 0);
-  const isRecovery5Active = Boolean(getActiveRecoveryCoupon());
-  const couponDiscount =
-    appliedCode === 'WELCOME10' || appliedCode === 'TEQQNO10'
-      ? Math.round(subtotal * 0.1)
-      : (appliedCode === 'SAVE5NOW' || appliedCode === 'TEQQNO5') && isRecovery5Active
-        ? Math.round(subtotal * 0.05)
-        : appliedCode === 'TEQQNOBULK'
-          ? Math.min(subtotal, 500)
-          : 0;
-  const freeShippingThreshold = 1999;
-  const shippingFee = subtotal >= freeShippingThreshold || subtotal === 0 ? 0 : 149;
-  const gstAmount = Math.round(Math.max(0, subtotal - couponDiscount) * 0.18);
-  const total = Math.max(0, subtotal - couponDiscount) + shippingFee + gstAmount;
+  const cartLinesForServer = useMemo(
+    () =>
+      items.map((item) => ({
+        productId: item.product.id,
+        productName: item.product.name,
+        category: item.product.category,
+        size: item.size,
+        unitPrice: item.unitPrice,
+        quantity: item.quantity,
+      })),
+    [items]
+  );
 
-  const applyCodeValue = (rawCode: string) => {
-    const code = rawCode.trim().toUpperCase();
-    if (code === 'WELCOME10' || code === 'TEQQNO10' || code === 'WELCOME12') {
-      const normalized = code === 'WELCOME12' ? 'WELCOME10' : code;
-      const discount = Math.round(subtotal * 0.1);
-      setAppliedCode(normalized);
-      setCouponCode(normalized);
-      try {
-        sessionStorage.setItem('teqqno_applied_coupon', normalized);
-      } catch {}
-      setCouponMessage(`🎉 First Order 10% OFF applied! Saved ₹${discount.toLocaleString('en-IN')}`);
-      triggerCelebration({
-        level: 'premium',
-        sound: 'celebration',
-        eventKey: `coupon-applied:${normalized}`,
-        dedupeWindowMs: 4000,
-        action: 'coupon_applied',
-      });
-    } else if (code === 'SAVE5NOW' || code === 'TEQQNO5') {
-      const active = getActiveRecoveryCoupon();
-      if (!active) {
-        setCouponMessage('Limited-time 5% OFF voucher has expired or unlocks only at checkout.');
-        return;
-      }
-      const discount = Math.round(subtotal * 0.05);
-      setAppliedCode('SAVE5NOW');
-      setCouponCode('SAVE5NOW');
-      try {
-        sessionStorage.setItem('teqqno_applied_coupon', 'SAVE5NOW');
-      } catch {}
-      setCouponMessage(`⚡ Limited-Time 5% OFF applied! Saved ₹${discount.toLocaleString('en-IN')}`);
-      triggerCelebration({
-        level: 'premium',
-        sound: 'celebration',
-        eventKey: 'coupon-applied:SAVE5NOW',
-        dedupeWindowMs: 4000,
-        action: 'discount_applied',
-      });
-    } else if (code === 'TEQQNOBULK') {
-      const discount = Math.min(subtotal, 500);
-      setAppliedCode('TEQQNOBULK');
-      setCouponCode('TEQQNOBULK');
-      try {
-        sessionStorage.setItem('teqqno_applied_coupon', 'TEQQNOBULK');
-      } catch {}
-      setCouponMessage(`Bulk voucher applied! Saved ₹${discount.toLocaleString('en-IN')}`);
-      triggerCelebration({
-        level: 'premium',
-        sound: 'celebration',
-        eventKey: 'coupon-applied:TEQQNOBULK',
-        dedupeWindowMs: 4000,
-        action: 'coupon_applied',
+  // Fetch eligible public offers & customer-specific private offers when drawer opens
+  useEffect(() => {
+    if (!isOpen) return;
+    let active = true;
+    fetchPublicStorefrontOffers().then((res) => {
+      if (active) setPublicOffers(res.coupons || []);
+    });
+    if (user?.id) {
+      fetchMyPrivateOffers().then((res) => {
+        if (active) setPrivateOffers(res.privateOffers || []);
       });
     } else {
-      setCouponMessage('Invalid code. Try "WELCOME10" or "TEQQNO10"');
+      setPrivateOffers([]);
     }
+    return () => {
+      active = false;
+    };
+  }, [isOpen, user?.id]);
+
+  // Keep applied coupon server-validated whenever cart contents or user changes
+  useEffect(() => {
+    if (!isOpen || !appliedCode || items.length === 0) {
+      if (!appliedCode) setServerValidation(null);
+      return;
+    }
+    let cancelled = false;
+    const activeRec = getActiveRecoveryCoupon();
+    validateCouponServer({
+      code: appliedCode,
+      subtotal,
+      items: cartLinesForServer,
+      recoveryToken: activeRec?.recoveryToken,
+    }).then((res) => {
+      if (cancelled) return;
+      if (res.valid) {
+        setServerValidation(res);
+        setCouponError(null);
+      } else {
+        setServerValidation(null);
+        setAppliedCode(null);
+        setCouponMessage(null);
+        setCouponError(res.message);
+        try {
+          sessionStorage.removeItem('teqqno_applied_coupon');
+        } catch {}
+      }
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [isOpen, appliedCode, subtotal, cartLinesForServer, user?.id, items.length]);
+
+  if (!isOpen) return null;
+
+  const freeShippingThreshold = 1999;
+  const couponDiscount = serverValidation?.valid ? serverValidation.discountAmount : 0;
+  const baseShippingFee = subtotal >= freeShippingThreshold || subtotal === 0 ? 0 : 149;
+  const shippingFee = serverValidation?.valid ? serverValidation.shippingFee : baseShippingFee;
+  const gstAmount = serverValidation?.valid
+    ? serverValidation.gstAmount
+    : Math.round(Math.max(0, subtotal - couponDiscount) * 0.18);
+  const total = serverValidation?.valid
+    ? serverValidation.finalTotal
+    : Math.max(0, subtotal - couponDiscount) + shippingFee + gstAmount;
+
+  const applyCodeValue = async (rawCode: string) => {
+    const code = rawCode.trim().toUpperCase();
+    if (!code) {
+      setCouponError('Please enter a coupon code.');
+      setCouponMessage(null);
+      return;
+    }
+    setValidatingCoupon(true);
+    setCouponError(null);
+    try {
+      const activeRec = getActiveRecoveryCoupon();
+      const res = await validateCouponServer({
+        code,
+        subtotal,
+        items: cartLinesForServer,
+        recoveryToken: activeRec?.recoveryToken,
+      });
+
+      if (!res.valid) {
+        setServerValidation(null);
+        setAppliedCode(null);
+        setCouponMessage(null);
+        setCouponError(res.message || 'Invalid or ineligible coupon code.');
+        try {
+          sessionStorage.removeItem('teqqno_applied_coupon');
+        } catch {}
+        return;
+      }
+
+      const canonical = res.code || code;
+      setServerValidation(res);
+      setAppliedCode(canonical);
+      setCouponCode(canonical);
+      setCouponError(null);
+      setCouponMessage(res.message);
+      try {
+        sessionStorage.setItem('teqqno_applied_coupon', canonical);
+      } catch {}
+      triggerCelebration({
+        level: 'premium',
+        sound: 'celebration',
+        eventKey: `coupon-applied:${canonical}`,
+        dedupeWindowMs: 4000,
+        action: canonical === 'SAVE5NOW' ? 'discount_applied' : 'coupon_applied',
+      });
+    } finally {
+      setValidatingCoupon(false);
+    }
+  };
+
+  const handleRemoveCoupon = () => {
+    setAppliedCode(null);
+    setCouponCode('');
+    setServerValidation(null);
+    setCouponMessage(null);
+    setCouponError(null);
+    try {
+      sessionStorage.removeItem('teqqno_applied_coupon');
+    } catch {}
   };
 
   const handleApplyCoupon = (e: React.FormEvent) => {
     e.preventDefault();
-    applyCodeValue(couponCode);
+    void applyCodeValue(couponCode);
   };
 
   const progressPercent = Math.min(100, Math.round((subtotal / freeShippingThreshold) * 100));
@@ -392,22 +476,33 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
           {items.length > 0 && (
             <div className="p-5 pb-[max(1.25rem,env(safe-area-inset-bottom,0px))] border-t border-[#E5E5EA] bg-[#FAF9FD] space-y-4">
               
-              {/* Promo code input + New Customer WELCOME10 1-click pill */}
+              {/* Promo code input + Server-verified Public & Private Offer Chips */}
               <div className="space-y-2">
                 <form onSubmit={handleApplyCoupon} className="flex gap-2">
                   <input
                     type="text"
                     placeholder="Voucher (e.g. WELCOME10)"
                     value={couponCode}
-                    onChange={(e) => setCouponCode(e.target.value)}
+                    onChange={(e) => setCouponCode(e.target.value.toUpperCase())}
                     className="flex-1 border border-zinc-300 rounded-lg px-3 py-1.5 text-xs uppercase font-mono outline-none focus:border-[#FF7A00] bg-white"
                   />
-                  <button
-                    type="submit"
-                    className="bg-[#0B0B0D] hover:bg-zinc-800 text-white text-xs font-semibold px-3 py-1.5 rounded-lg transition-colors cursor-pointer"
-                  >
-                    Apply
-                  </button>
+                  {appliedCode ? (
+                    <button
+                      type="button"
+                      onClick={handleRemoveCoupon}
+                      className="bg-zinc-200 hover:bg-zinc-300 text-zinc-800 text-xs font-semibold px-3 py-1.5 rounded-lg transition-colors cursor-pointer"
+                    >
+                      Remove
+                    </button>
+                  ) : (
+                    <button
+                      type="submit"
+                      disabled={validatingCoupon}
+                      className="bg-[#0B0B0D] hover:bg-zinc-800 disabled:opacity-60 text-white text-xs font-semibold px-3 py-1.5 rounded-lg transition-colors cursor-pointer"
+                    >
+                      {validatingCoupon ? '...' : 'Apply'}
+                    </button>
+                  )}
                 </form>
 
                 {recoveryCoupon && recoveryCountdown && (
@@ -421,7 +516,7 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
                     {appliedCode !== 'SAVE5NOW' ? (
                       <button
                         type="button"
-                        onClick={() => applyCodeValue('SAVE5NOW')}
+                        onClick={() => void applyCodeValue('SAVE5NOW')}
                         className="font-mono font-bold text-[#FF7A00] hover:underline shrink-0 cursor-pointer"
                       >
                         Apply 5% →
@@ -432,23 +527,75 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
                   </div>
                 )}
 
+                {/* Customer-Specific Private Offers (only visible to this logged-in customer) */}
+                {!appliedCode && privateOffers.length > 0 && (
+                  <div className="space-y-1.5">
+                    {privateOffers.slice(0, 2).map((offer) => (
+                      <button
+                        key={offer.id}
+                        type="button"
+                        onClick={() => void applyCodeValue(offer.code)}
+                        className="w-full flex items-center justify-between gap-2 px-3 py-2 rounded-lg bg-indigo-950 text-white border border-indigo-400/50 text-[11px] hover:border-[#FF7A00] transition-colors cursor-pointer"
+                      >
+                        <span className="flex items-center gap-1.5 font-medium truncate">
+                          <Lock className="w-3 h-3 text-[#FF7A00] shrink-0" />
+                          <span className="truncate">Exclusive for you: {offer.name}</span>
+                        </span>
+                        <span className="font-mono font-bold text-[#FFD700] shrink-0">
+                          {offer.code} →
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+
+                {/* Active Public Festival / Storefront Offers */}
                 {!appliedCode && !recoveryCoupon && (
-                  <button
-                    type="button"
-                    onClick={() => applyCodeValue('WELCOME10')}
-                    className="w-full flex items-center justify-between gap-2 px-3 py-1.5 rounded-lg bg-[#17171C] text-white border border-[#FF7A00]/45 text-[11px] hover:border-[#FF7A00] transition-colors cursor-pointer"
-                  >
-                    <span className="flex items-center gap-1.5 font-medium">
-                      <Tag className="w-3 h-3 text-[#FF7A00]" />
-                      <span>New Customer? Tap for <strong>10% OFF</strong></span>
-                    </span>
-                    <span className="font-mono font-bold text-[#FFD700]">WELCOME10 →</span>
-                  </button>
+                  <div className="space-y-1.5">
+                    {(publicOffers.length > 0 ? publicOffers.slice(0, 2) : []).map((offer) => (
+                      <button
+                        key={offer.id}
+                        type="button"
+                        onClick={() => void applyCodeValue(offer.code)}
+                        className="w-full flex items-center justify-between gap-2 px-3 py-1.5 rounded-lg bg-[#17171C] text-white border border-[#FF7A00]/45 text-[11px] hover:border-[#FF7A00] transition-colors cursor-pointer"
+                      >
+                        <span className="flex items-center gap-1.5 font-medium truncate">
+                          {offer.isFestival ? (
+                            <Sparkles className="w-3 h-3 text-[#FF7A00] shrink-0" />
+                          ) : (
+                            <Tag className="w-3 h-3 text-[#FF7A00] shrink-0" />
+                          )}
+                          <span className="truncate">{offer.name}</span>
+                        </span>
+                        <span className="font-mono font-bold text-[#FFD700] shrink-0">
+                          {offer.code} →
+                        </span>
+                      </button>
+                    ))}
+                    {publicOffers.length === 0 && (
+                      <button
+                        type="button"
+                        onClick={() => void applyCodeValue('WELCOME10')}
+                        className="w-full flex items-center justify-between gap-2 px-3 py-1.5 rounded-lg bg-[#17171C] text-white border border-[#FF7A00]/45 text-[11px] hover:border-[#FF7A00] transition-colors cursor-pointer"
+                      >
+                        <span className="flex items-center gap-1.5 font-medium">
+                          <Tag className="w-3 h-3 text-[#FF7A00]" />
+                          <span>New Customer? Tap for <strong>10% OFF</strong></span>
+                        </span>
+                        <span className="font-mono font-bold text-[#FFD700]">WELCOME10 →</span>
+                      </button>
+                    )}
+                  </div>
                 )}
 
                 {couponMessage && (
                   <div className="text-[11px] text-emerald-700 font-medium">
                     {couponMessage}
+                  </div>
+                )}
+                {couponError && (
+                  <div className="text-[11px] text-rose-600 font-medium">
+                    {couponError}
                   </div>
                 )}
               </div>
@@ -463,7 +610,7 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
                   <div className="flex justify-between text-emerald-600 font-medium">
                     <span>
                       Discount ({appliedCode}
-                      {appliedCode === 'SAVE5NOW' || appliedCode === 'TEQQNO5' ? ' · 5% OFF' : appliedCode === 'TEQQNOBULK' ? '' : ' · 10% OFF'}):
+                      {serverValidation?.badgeText ? ` · ${serverValidation.badgeText}` : ''}):
                     </span>
                     <span className="font-mono">-₹{couponDiscount.toLocaleString('en-IN')}</span>
                   </div>
@@ -471,7 +618,13 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
                 <div className="flex justify-between">
                   <span>Shipping (Express Air):</span>
                   <span className="font-mono text-zinc-800">
-                    {shippingFee === 0 ? <strong className="text-emerald-600 font-semibold">FREE</strong> : `₹${shippingFee}`}
+                    {shippingFee === 0 ? (
+                      <strong className="text-emerald-600 font-semibold">
+                        {serverValidation?.freeShippingApplied ? `FREE (${appliedCode})` : 'FREE'}
+                      </strong>
+                    ) : (
+                      `₹${shippingFee}`
+                    )}
                   </span>
                 </div>
                 <div className="flex justify-between">

@@ -73,6 +73,7 @@ export interface SendCheckoutRecoveryResponse {
   phone?: string;
   couponCode?: string;
   discountPercent?: number;
+  recoveryToken?: string;
   expiresAt?: string;
   resumeUrl?: string;
   previewMessage?: string;
@@ -85,6 +86,7 @@ export interface ActiveRecoveryCoupon {
   activatedAt: number;
   expiresAt: number;
   triggerReason: string;
+  recoveryToken?: string;
   whatsappDispatched?: boolean;
   whatsappPhone?: string;
   whatsappSimulated?: boolean;
@@ -115,6 +117,7 @@ export function activateRecoveryCoupon(params: {
   triggerReason: string;
   validMinutes?: number;
   autoApply?: boolean;
+  recoveryToken?: string;
   whatsappDispatched?: boolean;
   whatsappPhone?: string;
   whatsappSimulated?: boolean;
@@ -129,6 +132,7 @@ export function activateRecoveryCoupon(params: {
     activatedAt: existing?.activatedAt || now,
     expiresAt: existing && existing.expiresAt > now + 60_000 ? existing.expiresAt : now + validMs,
     triggerReason: params.triggerReason || existing?.triggerReason || 'checkout_drop',
+    recoveryToken: params.recoveryToken || existing?.recoveryToken,
     whatsappDispatched: params.whatsappDispatched ?? existing?.whatsappDispatched,
     whatsappPhone: params.whatsappPhone ?? existing?.whatsappPhone,
     whatsappSimulated: params.whatsappSimulated ?? existing?.whatsappSimulated,

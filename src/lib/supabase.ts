@@ -38,6 +38,18 @@ export interface CustomOrderRow {
   status: OrderStatus;
   courier_partner?: string | null;
   tracking_number?: string | null;
+  order_group_id?: string | null;
+  line_subtotal_inr?: number | null;
+  line_total_inr?: number | null;
+  coupon_code?: string | null;
+  discount_inr?: number | null;
+  shipping_saved_inr?: number | null;
+  final_total_inr?: number | null;
+  amount_paid_inr?: number | null;
+  balance_due_inr?: number | null;
+  razorpay_order_id?: string | null;
+  razorpay_payment_id?: string | null;
+  reservation_id?: string | null;
   created_at: string;
 }
 

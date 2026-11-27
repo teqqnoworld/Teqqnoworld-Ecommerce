@@ -27,6 +27,11 @@ import {
 } from '../config/seoRoutes';
 import { useReviewSummaries } from '../context/ReviewSummaryContext';
 import { ProductRatingBadge } from './reviews/ProductRatingBadge';
+import {
+  getCategoryBadgeImageAlt,
+  getCategoryKeywordEntry,
+  getProductCardImageAlt,
+} from '../data/seoKeywordMap';
 
 const SHOWCASE_BANNER_BY_PRODUCT_ID: Record<string, { src: string; fit: 'cover' | 'contain' }> = {
   'prod-ceramic-mug': {
@@ -106,6 +111,9 @@ export const ProductCatalogView: React.FC<ProductCatalogViewProps> = ({
   const [selectedCategory, setSelectedCategory] = useState<ProductCategory>(initialCategory);
   const activeCategorySeo =
     selectedCategory !== 'all' ? findCategoryBySlugOrAlias(selectedCategory) : undefined;
+  const activeCategoryKeywordSeo = activeCategorySeo
+    ? getCategoryKeywordEntry(activeCategorySeo.slug)
+    : undefined;
 
   const handleCategorySelect = (cat: ProductCategory) => {
     setSelectedCategory(cat);
@@ -472,7 +480,7 @@ export const ProductCatalogView: React.FC<ProductCatalogViewProps> = ({
                     <div className="relative aspect-[16/10] w-full rounded-xl overflow-hidden bg-slate-100">
                       <img
                         src={tile.image}
-                        alt={tile.title}
+                        alt={getProductCardImageAlt(tile.productId, tile.title)}
                         width={240}
                         height={150}
                         loading={idx < 2 ? 'eager' : 'lazy'}
@@ -543,7 +551,7 @@ export const ProductCatalogView: React.FC<ProductCatalogViewProps> = ({
                   >
                     <img
                       src={c.image}
-                      alt={c.label}
+                      alt={getCategoryBadgeImageAlt(c.id, c.label)}
                       width={72}
                       height={72}
                       loading="eager"
@@ -919,7 +927,7 @@ export const ProductCatalogView: React.FC<ProductCatalogViewProps> = ({
                       {showcaseConfig && activeCardView === 'studio' ? (
                         <img
                           src={showcaseConfig.src}
-                          alt={productDisplayTitle}
+                          alt={getProductCardImageAlt(product.id, productDisplayTitle)}
                           width={480}
                           height={300}
                           loading={idx < 3 ? 'eager' : 'lazy'}
@@ -1144,6 +1152,15 @@ export const ProductCatalogView: React.FC<ProductCatalogViewProps> = ({
                 ? activeCategorySeo.intro
                 : 'TeqqnoWorld supplies custom printed polo T-shirts, cotton caps, 325 ml ceramic mugs, 300 GSM visiting cards, rollup standees, promo tables, promotional umbrellas, and canopy kiosks with transparent INR slab pricing and 18% GST tax invoices.'}
             </p>
+            {activeCategoryKeywordSeo && activeCategoryKeywordSeo.buyingGuideParagraphs.length > 0 && (
+              <div className="space-y-2.5 pt-2 max-w-4xl">
+                {activeCategoryKeywordSeo.buyingGuideParagraphs.map((paragraph, idx) => (
+                  <p key={idx} className="text-xs sm:text-sm text-zinc-600 leading-relaxed">
+                    {paragraph}
+                  </p>
+                ))}
+              </div>
+            )}
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -1177,6 +1194,50 @@ export const ProductCatalogView: React.FC<ProductCatalogViewProps> = ({
               </div>
             ))}
           </div>
+
+          {activeCategoryKeywordSeo && (
+            <div className="space-y-5 pt-2">
+              <div className="rounded-xl bg-[#0B1530] text-white p-4 sm:p-5 space-y-3">
+                <h3 className="font-display text-sm sm:text-base font-bold text-white">
+                  Popular Indian Business &amp; Event Use Cases for {activeCategorySeo?.name}
+                </h3>
+                <ul className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5">
+                  {activeCategoryKeywordSeo.useCases.map((useCase) => (
+                    <li
+                      key={useCase}
+                      className="flex items-start gap-2 text-xs text-slate-200 bg-white/5 border border-white/10 rounded-lg px-3 py-2"
+                    >
+                      <span className="w-1.5 h-1.5 rounded-full bg-[#FF7900] mt-1.5 shrink-0" />
+                      <span>{useCase}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+
+              {activeCategoryKeywordSeo.faqs.length > 0 && (
+                <div className="space-y-3">
+                  <h3 className="font-display text-base font-bold text-[#0B1530]">
+                    Frequently Asked Questions — {activeCategorySeo?.name}
+                  </h3>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3.5">
+                    {activeCategoryKeywordSeo.faqs.map((faq) => (
+                      <div
+                        key={faq.question}
+                        className="rounded-xl bg-[#FAF9FD] border border-slate-200/90 p-4 space-y-1.5"
+                      >
+                        <h4 className="font-display text-xs sm:text-sm font-bold text-[#0B1530] leading-snug">
+                          {faq.question}
+                        </h4>
+                        <p className="text-xs text-zinc-600 leading-relaxed">
+                          {faq.answer}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
 
           <div className="pt-4 border-t border-slate-100 flex flex-wrap items-center gap-2 text-xs">
             <span className="font-semibold text-zinc-500 mr-1">
@@ -1224,6 +1285,18 @@ export const ProductCatalogView: React.FC<ProductCatalogViewProps> = ({
               className="px-3 py-1.5 rounded-lg bg-orange-50 hover:bg-[#FF7900] text-[#FF7900] hover:text-white border border-orange-200 transition-colors font-medium"
             >
               Bulk Quote Calculator
+            </a>
+            <a
+              href="/bundle-builder"
+              onClick={(e) => {
+                if (!e.metaKey && !e.ctrlKey && !e.shiftKey && !e.altKey && e.button === 0) {
+                  e.preventDefault();
+                  onNavigateRoute?.('bundle-builder');
+                }
+              }}
+              className="px-3 py-1.5 rounded-lg bg-slate-100 hover:bg-[#0B1530] text-[#0B1530] hover:text-white border border-slate-200 transition-colors font-medium"
+            >
+              Corporate Bundle Builder
             </a>
           </div>
         </section>

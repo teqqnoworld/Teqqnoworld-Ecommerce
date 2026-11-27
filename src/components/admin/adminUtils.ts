@@ -8,6 +8,7 @@ export type AdminSection =
   | 'products'
   | 'reviews'
   | 'affiliates'
+  | 'coupons'
   | 'customers'
   | 'marketing'
   | 'analytics'
@@ -221,7 +222,62 @@ export function getPaymentBadge(
   return { label: 'Pending', kind: 'pending' };
 }
 
+export function resolveAdminOrderGroupKey(
+  order: CustomOrderRow,
+  parsed?: ParsedOrderNotes
+): string {
+  const orderGroupId = String(order.order_group_id || '').trim();
+  if (orderGroupId) return `grp:${orderGroupId}`;
+  const rzpOrderId = String(order.razorpay_order_id || '').trim();
+  if (rzpOrderId) return `rzp:${rzpOrderId}`;
+  const reservationId = String(order.reservation_id || '').trim();
+  if (reservationId) return `res:${reservationId}`;
+  const noteRzpId = String((parsed ?? parseOrderNotes(order.custom_notes)).razorpayId || '').trim();
+  if (noteRzpId) return `rzp_note:${noteRzpId}`;
+  return `row:${order.id}`;
+}
+
+export function resolveAdminLineTotal(order: CustomOrderRow): number {
+  if (typeof order.line_total_inr === 'number' && Number.isFinite(order.line_total_inr) && order.line_total_inr > 0) {
+    return order.line_total_inr;
+  }
+  return getOrderEstimates(order).total;
+}
+
 export function buildDailyTrendSeries(orders: CustomOrderRow[], days = 7) {
+  // H4: Deduplicate multi-item custom_orders rows by order group so order count & revenue are never double-counted
+  const groupedOrders = new Map<
+    string,
+    { dayKey: string; orderTotal: number; lineTotalSum: number; hasExplicitOrderTotal: boolean }
+  >();
+  orders.forEach((o) => {
+    const parsed = parseOrderNotes(o.custom_notes);
+    const groupKey = resolveAdminOrderGroupKey(o, parsed);
+    const dayKey = (o.created_at || '').slice(0, 10);
+    const lineTotal = resolveAdminLineTotal(o);
+    const explicitOrderTotal =
+      typeof o.final_total_inr === 'number' && Number.isFinite(o.final_total_inr) && o.final_total_inr > 0
+        ? o.final_total_inr
+        : null;
+    const existing = groupedOrders.get(groupKey);
+    if (!existing) {
+      groupedOrders.set(groupKey, {
+        dayKey,
+        orderTotal: explicitOrderTotal ?? lineTotal,
+        lineTotalSum: lineTotal,
+        hasExplicitOrderTotal: explicitOrderTotal !== null,
+      });
+    } else {
+      existing.lineTotalSum += lineTotal;
+      if (explicitOrderTotal !== null) {
+        existing.orderTotal = explicitOrderTotal;
+        existing.hasExplicitOrderTotal = true;
+      } else if (!existing.hasExplicitOrderTotal) {
+        existing.orderTotal = existing.lineTotalSum;
+      }
+    }
+  });
+
   const result: Array<{ label: string; count: number; revenue: number }> = [];
   const now = new Date();
   for (let i = days - 1; i >= 0; i--) {
@@ -231,11 +287,10 @@ export function buildDailyTrendSeries(orders: CustomOrderRow[], days = 7) {
     const label = d.toLocaleDateString('en-IN', { day: '2-digit', month: 'short' });
     let count = 0;
     let revenue = 0;
-    orders.forEach((o) => {
-      const oDay = (o.created_at || '').slice(0, 10);
-      if (oDay === key) {
+    groupedOrders.forEach((grp) => {
+      if (grp.dayKey === key) {
         count += 1;
-        revenue += getOrderEstimates(o).total;
+        revenue += grp.orderTotal;
       }
     });
     result.push({ label, count, revenue });
@@ -260,11 +315,32 @@ export interface CustomerAggregate {
 
 export function aggregateCustomersFromOrders(orders: CustomOrderRow[]): CustomerAggregate[] {
   const map = new Map<string, CustomerAggregate>();
+  const seenCustomerGroups = new Map<string, Map<string, { hasExplicitTotal: boolean }>>();
+
   orders.forEach((order) => {
     const cleanPhone = (order.phone || '').replace(/[^0-9]/g, '').slice(-10);
     const key = cleanPhone || (order.customer_email || order.id).toLowerCase();
-    const { total } = getOrderEstimates(order);
     const parsed = parseOrderNotes(order.custom_notes);
+    const groupKey = resolveAdminOrderGroupKey(order, parsed);
+    const lineTotal = resolveAdminLineTotal(order);
+    const explicitOrderTotal =
+      typeof order.final_total_inr === 'number' &&
+      Number.isFinite(order.final_total_inr) &&
+      order.final_total_inr > 0
+        ? order.final_total_inr
+        : null;
+
+    let customerGroups = seenCustomerGroups.get(key);
+    if (!customerGroups) {
+      customerGroups = new Map();
+      seenCustomerGroups.set(key, customerGroups);
+    }
+    const existingGroup = customerGroups.get(groupKey);
+    const isNewGroup = !existingGroup;
+    if (isNewGroup) {
+      customerGroups.set(groupKey, { hasExplicitTotal: explicitOrderTotal !== null });
+    }
+
     const existing = map.get(key);
     if (!existing) {
       map.set(key, {
@@ -277,14 +353,18 @@ export function aggregateCustomersFromOrders(orders: CustomOrderRow[]): Customer
         city: parsed.parsedAddress.city || '',
         ordersCount: 1,
         totalUnits: order.quantity || 1,
-        totalSpent: total,
+        totalSpent: explicitOrderTotal ?? lineTotal,
         lastOrderDate: order.created_at,
         latestOrder: order,
       });
     } else {
-      existing.ordersCount += 1;
+      if (isNewGroup) {
+        existing.ordersCount += 1;
+        existing.totalSpent += explicitOrderTotal ?? lineTotal;
+      } else if (!existingGroup.hasExplicitTotal) {
+        existing.totalSpent += lineTotal;
+      }
       existing.totalUnits += order.quantity || 1;
-      existing.totalSpent += total;
       if (!existing.company && order.company) existing.company = order.company;
       if (!existing.gstin && parsed.gstin) existing.gstin = parsed.gstin;
       if (!existing.city && parsed.parsedAddress.city) existing.city = parsed.parsedAddress.city;

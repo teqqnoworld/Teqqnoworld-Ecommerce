@@ -12,6 +12,16 @@ import { registerProductFeedRoutes } from './server/productFeed.ts';
 import { createReviewsRouter } from './server/reviewsRoutes.ts';
 import { createAffiliateRouter } from './server/affiliateRoutes.ts';
 import {
+  createCouponRouter,
+  getSharedCouponEngine,
+  CouponStorageUnavailableError,
+  type VerifiedCustomerSession,
+} from './server/couponRoutes.ts';
+import {
+  fetchSupabaseProductCatalog,
+  resolveAuthoritativeCartPricing,
+} from './server/productPricing.ts';
+import {
   injectSeoIntoHtml,
   isNonHtmlRoutePath,
   registerSeoPublicEndpoints,
@@ -27,7 +37,14 @@ const __dirname = path.dirname(__filename);
 const app = express();
 const PORT = Number(process.env.PORT) || 3000;
 
-app.use(express.json({ limit: '10mb' }));
+app.use(
+  express.json({
+    limit: '10mb',
+    verify: (req: any, _res, buf) => {
+      req.rawBody = buf;
+    },
+  })
+);
 
 // ==============================================================================
 // 1. HOSTINGER SMTP TRANSPORTER CONFIGURATION
@@ -2093,13 +2110,303 @@ interface AdminOtpEntry {
   attempts: number;
 }
 
-function getAdminSecretSalt(): string {
+const EPHEMERAL_DEV_ADMIN_SECRET = crypto.randomBytes(32).toString('hex');
+
+function isProductionEnv(): boolean {
+  return String(process.env.NODE_ENV || '').trim().toLowerCase() === 'production';
+}
+
+function getConfiguredAdminSecret(): string {
   return (
+    process.env.ADMIN_AUTH_SECRET ||
     process.env.ADMIN_SECURITY_SECRET ||
+    ''
+  ).trim();
+}
+
+function validateProductionAdminSecrets(): { ok: boolean; error?: string } {
+  if (!isProductionEnv()) return { ok: true };
+  const secret = getConfiguredAdminSecret();
+  if (!secret || secret.length < 16) {
+    return {
+      ok: false,
+      error:
+        'ADMIN_AUTH_SECRET (minimum 16 characters) is mandatory in production. Refusing weak or default admin signing secret.',
+    };
+  }
+  const masterPin = (process.env.ADMIN_MASTER_PIN || '').trim();
+  if (!masterPin || masterPin === '9949') {
+    return {
+      ok: false,
+      error:
+        'ADMIN_MASTER_PIN must be explicitly configured to a strong non-default PIN in production (default PIN 9949 is disabled).',
+    };
+  }
+  const pinErr = validateNewAdminPin(masterPin);
+  if (pinErr) {
+    return {
+      ok: false,
+      error: `ADMIN_MASTER_PIN is too weak for production: ${pinErr}`,
+    };
+  }
+  return { ok: true };
+}
+
+function getAdminSecretSalt(): string {
+  const configured = getConfiguredAdminSecret();
+  if (configured) return configured;
+  if (isProductionEnv()) {
+    throw new Error(
+      'ADMIN_AUTH_SECRET is required in production. Configure ADMIN_AUTH_SECRET in server environment.'
+    );
+  }
+  return (
     process.env.HOSTINGER_SMTP_PASSWORD ||
     process.env.SUPABASE_SERVICE_ROLE_KEY ||
-    'teqqno_admin_vault_salt_2026'
+    EPHEMERAL_DEV_ADMIN_SECRET
   ).trim();
+}
+
+function getRecoverySigningKey(): string {
+  const configured = getConfiguredAdminSecret();
+  if (configured) return `recovery:${configured}`;
+  const serviceKey = (process.env.SUPABASE_SERVICE_ROLE_KEY || '').trim();
+  if (serviceKey) return `recovery:${serviceKey}`;
+  return `recovery:${EPHEMERAL_DEV_ADMIN_SECRET}`;
+}
+
+function issueSignedRecoveryToken(params: {
+  checkoutSessionId?: string;
+  phone?: string;
+  couponCode?: string;
+  validMinutes?: number;
+}): { token: string; expiresAt: string; expiresAtMs: number } {
+  const validMs = Math.max(1, Math.min(60, Number(params.validMinutes || 15))) * 60 * 1000;
+  const expiresAtMs = Date.now() + validMs;
+  const payload = Buffer.from(
+    JSON.stringify({
+      typ: 'recovery_5off',
+      code: String(params.couponCode || 'SAVE5NOW').trim().toUpperCase(),
+      sid: String(params.checkoutSessionId || '').slice(0, 80),
+      ph: String(params.phone || '').replace(/[^0-9]/g, '').slice(-10),
+      exp: expiresAtMs,
+      jti: crypto.randomBytes(8).toString('hex'),
+    })
+  ).toString('base64url');
+  const sig = crypto
+    .createHmac('sha256', getRecoverySigningKey())
+    .update(`rec:${payload}`)
+    .digest('base64url');
+  return {
+    token: `${payload}.${sig}`,
+    expiresAt: new Date(expiresAtMs).toISOString(),
+    expiresAtMs,
+  };
+}
+
+function verifySignedRecoveryToken(token?: string | null): {
+  valid: boolean;
+  code?: string;
+  checkoutSessionId?: string;
+  phone?: string;
+  expiresAtMs?: number;
+} {
+  try {
+    const clean = String(token || '').trim();
+    const parts = clean.split('.');
+    if (parts.length !== 2) return { valid: false };
+    const [payload, sig] = parts;
+    const expectedSig = crypto
+      .createHmac('sha256', getRecoverySigningKey())
+      .update(`rec:${payload}`)
+      .digest('base64url');
+    const a = Buffer.from(sig, 'utf8');
+    const b = Buffer.from(expectedSig, 'utf8');
+    if (a.length !== b.length || !crypto.timingSafeEqual(a, b)) return { valid: false };
+    const parsed = JSON.parse(Buffer.from(payload, 'base64url').toString('utf8'));
+    if (parsed?.typ !== 'recovery_5off') return { valid: false };
+    if (!parsed?.exp || Date.now() > Number(parsed.exp)) return { valid: false };
+    return {
+      valid: true,
+      code: typeof parsed.code === 'string' ? parsed.code : 'SAVE5NOW',
+      checkoutSessionId: typeof parsed.sid === 'string' ? parsed.sid : undefined,
+      phone: typeof parsed.ph === 'string' ? parsed.ph : undefined,
+      expiresAtMs: Number(parsed.exp),
+    };
+  } catch {
+    return { valid: false };
+  }
+}
+
+// H1: Server-signed reservation release proof bound to a specific Razorpay order / reservation
+function issueSignedReleaseToken(params: {
+  reservationId?: string | null;
+  razorpayOrderId: string;
+  customerId?: string | null;
+  checkoutSessionId?: string | null;
+  validMinutes?: number;
+}): string {
+  const validMs = Math.max(5, Math.min(60, Number(params.validMinutes || 25))) * 60 * 1000;
+  const payload = Buffer.from(
+    JSON.stringify({
+      typ: 'rzp_release',
+      rid: String(params.reservationId || '').trim(),
+      oid: String(params.razorpayOrderId || '').trim(),
+      cid: String(params.customerId || '').trim(),
+      sid: String(params.checkoutSessionId || '').trim().slice(0, 80),
+      exp: Date.now() + validMs,
+    })
+  ).toString('base64url');
+  const sig = crypto
+    .createHmac('sha256', getRecoverySigningKey())
+    .update(`rel:${payload}`)
+    .digest('base64url');
+  return `${payload}.${sig}`;
+}
+
+function verifySignedReleaseToken(token?: string | null): {
+  valid: boolean;
+  reservationId?: string;
+  razorpayOrderId?: string;
+  customerId?: string;
+  checkoutSessionId?: string;
+} {
+  try {
+    const clean = String(token || '').trim();
+    const parts = clean.split('.');
+    if (parts.length !== 2) return { valid: false };
+    const [payload, sig] = parts;
+    const expectedSig = crypto
+      .createHmac('sha256', getRecoverySigningKey())
+      .update(`rel:${payload}`)
+      .digest('base64url');
+    const a = Buffer.from(sig, 'utf8');
+    const b = Buffer.from(expectedSig, 'utf8');
+    if (a.length !== b.length || !crypto.timingSafeEqual(a, b)) return { valid: false };
+    const parsed = JSON.parse(Buffer.from(payload, 'base64url').toString('utf8'));
+    if (parsed?.typ !== 'rzp_release') return { valid: false };
+    if (!parsed?.exp || Date.now() > Number(parsed.exp)) return { valid: false };
+    return {
+      valid: true,
+      reservationId: typeof parsed.rid === 'string' && parsed.rid ? parsed.rid : undefined,
+      razorpayOrderId: typeof parsed.oid === 'string' && parsed.oid ? parsed.oid : undefined,
+      customerId: typeof parsed.cid === 'string' && parsed.cid ? parsed.cid : undefined,
+      checkoutSessionId: typeof parsed.sid === 'string' && parsed.sid ? parsed.sid : undefined,
+    };
+  } catch {
+    return { valid: false };
+  }
+}
+
+// H2: Sliding-window rate limiter for checkout recovery token issuance
+const recoverySessionRateStore = new Map<string, number[]>();
+
+function checkRecoveryRateLimit(key: string, maxRequests: number, windowMs: number): {
+  allowed: boolean;
+  retryAfterSec: number;
+} {
+  const now = Date.now();
+  const prev = (recoverySessionRateStore.get(key) || []).filter((ts) => now - ts < windowMs);
+  if (prev.length >= maxRequests) {
+    const oldest = prev[0] || now;
+    const retryAfterSec = Math.max(1, Math.ceil((windowMs - (now - oldest)) / 1000));
+    recoverySessionRateStore.set(key, prev);
+    return { allowed: false, retryAfterSec };
+  }
+  prev.push(now);
+  recoverySessionRateStore.set(key, prev);
+  return { allowed: true, retryAfterSec: 0 };
+}
+
+function verifyRecoveryEligibility(params: {
+  recoveryToken?: string;
+  checkoutSessionId?: string;
+  customerPhone?: string;
+  customerEmail?: string;
+}): boolean {
+  if (params.recoveryToken) {
+    const checked = verifySignedRecoveryToken(params.recoveryToken);
+    if (checked.valid) return true;
+  }
+  // Also allow server-recorded AiSensy recovery session tied to checkoutSessionId or verified customer phone
+  try {
+    const ledger = loadAiSensyLedger();
+    const nowMs = Date.now();
+    const sid = String(params.checkoutSessionId || '').trim();
+    const verifiedPhone = String(params.customerPhone || '').replace(/[^0-9]/g, '').slice(-10);
+    for (const [sessionKey, rec] of Object.entries(ledger.recoverySentSessions || {})) {
+      if (!rec || Number(rec.expiresAt || 0) < nowMs) continue;
+      if (sid && sessionKey.startsWith(`${sid}_`)) return true;
+      if (verifiedPhone && sessionKey.endsWith(verifiedPhone)) return true;
+    }
+  } catch {
+    // ignore ledger read failure
+  }
+  return false;
+}
+
+const customerJwtCache = new Map<string, { session: VerifiedCustomerSession | null; expiresAt: number }>();
+
+async function verifySupabaseCustomerJwt(req: Request): Promise<VerifiedCustomerSession | null> {
+  const authHeader = String(req.headers.authorization || '').trim();
+  if (!authHeader.toLowerCase().startsWith('bearer ')) return null;
+  const token = authHeader.slice(7).trim();
+  if (!token || token.length < 20) return null;
+
+  const cacheKey = crypto.createHash('sha256').update(token).digest('hex');
+  const cached = customerJwtCache.get(cacheKey);
+  if (cached && cached.expiresAt > Date.now()) {
+    return cached.session;
+  }
+
+  const adminCfg = getSupabaseAdminConfig();
+  const pubCfg = getSupabasePublicConfig();
+  const supabaseUrl = (adminCfg.url || pubCfg.url || '').trim().replace(/\/+$/, '');
+  const apiKey = (adminCfg.serviceRoleKey || pubCfg.anonKey || '').trim();
+  if (!supabaseUrl || !apiKey) return null;
+
+  try {
+    const resp = await fetch(`${supabaseUrl}/auth/v1/user`, {
+      method: 'GET',
+      headers: {
+        apikey: apiKey,
+        Authorization: `Bearer ${token}`,
+      },
+    });
+    if (!resp.ok) {
+      customerJwtCache.set(cacheKey, { session: null, expiresAt: Date.now() + 5_000 });
+      return null;
+    }
+    const user: any = await resp.json().catch(() => null);
+    if (!user || typeof user.id !== 'string' || !user.id.trim()) {
+      return null;
+    }
+    const meta = (user.user_metadata || {}) as Record<string, any>;
+    const email = String(user.email || '').trim().toLowerCase();
+    const rawPhone = String(user.phone || meta.mobile || meta.phone || '').replace(/[^0-9]/g, '');
+    const phone = rawPhone.length >= 10 ? rawPhone.slice(-10) : undefined;
+    const rawAcct = String(meta.account_type || meta.accountType || '').trim().toLowerCase();
+    const accountType: 'individual' | 'business' =
+      rawAcct === 'business' ? 'business' : 'individual';
+    const session: VerifiedCustomerSession = {
+      customerId: user.id.trim(),
+      email,
+      phone,
+      accountType,
+      fullName: String(meta.full_name || meta.name || '').trim() || undefined,
+    };
+    customerJwtCache.set(cacheKey, { session, expiresAt: Date.now() + 10_000 });
+    if (customerJwtCache.size > 500) {
+      const now = Date.now();
+      for (const [k, v] of customerJwtCache.entries()) {
+        if (v.expiresAt <= now) customerJwtCache.delete(k);
+      }
+    }
+    return session;
+  } catch (err) {
+    console.warn('[Customer JWT Verification Warning]:', (err as any)?.message || err);
+    return null;
+  }
 }
 
 function hashAdminPin(pin: string): string {
@@ -2170,7 +2477,12 @@ function maskEmailForPublic(email: string): string {
 }
 
 function loadAdminSecurityState(): AdminSecurityState {
-  const defaultSeedPin = (process.env.ADMIN_MASTER_PIN || '9949').trim();
+  const prodCheck = validateProductionAdminSecrets();
+  if (!prodCheck.ok) {
+    throw new Error(prodCheck.error || 'Admin security secrets are not properly configured for production.');
+  }
+  const envMasterPin = (process.env.ADMIN_MASTER_PIN || '').trim();
+  const defaultSeedPin = isProductionEnv() ? envMasterPin : envMasterPin || '9949';
   try {
     if (fs.existsSync(ADMIN_SECURITY_STORE_PATH)) {
       const parsed = JSON.parse(fs.readFileSync(ADMIN_SECURITY_STORE_PATH, 'utf8'));
@@ -2406,6 +2718,14 @@ function verifyStoredAdminOtp(
 
 // 1. Public Admin Gate Status (never reveals PIN or full email)
 app.get('/api/admin/auth/status', (_req: Request, res: Response) => {
+  const prodCheck = validateProductionAdminSecrets();
+  if (!prodCheck.ok) {
+    return res.status(503).json({
+      success: false,
+      misconfigured: true,
+      message: prodCheck.error,
+    });
+  }
   const state = loadAdminSecurityState();
   const cfg = getSmtpConfig();
   return res.json({
@@ -2421,6 +2741,13 @@ app.get('/api/admin/auth/status', (_req: Request, res: Response) => {
 // 2. Step 1 Admin Login: Verify Master PIN (strict 3-wrong-PIN lockout + 2FA Email OTP trigger)
 app.post('/api/admin/auth/verify-pin', async (req: Request, res: Response) => {
   try {
+    const prodCheck = validateProductionAdminSecrets();
+    if (!prodCheck.ok) {
+      return res.status(503).json({
+        success: false,
+        message: prodCheck.error,
+      });
+    }
     const pin = String(req.body?.pin || '').trim();
     const state = loadAdminSecurityState();
     const cfg = getSmtpConfig();
@@ -4506,7 +4833,134 @@ app.get('/api/razorpay/test', async (_req: Request, res: Response) => {
   }
 });
 
+const verifiedRazorpayPayments = new Map<
+  string,
+  {
+    razorpayOrderId: string;
+    razorpayPaymentId: string;
+    amountPaise: number;
+    status: string;
+    verifiedAt: number;
+    reservationId?: string;
+  }
+>();
+
+interface RazorpayGatewayVerificationResult {
+  verified: boolean;
+  status?: string;
+  amountPaise?: number;
+  razorpayOrderId?: string;
+  message?: string;
+}
+
+async function verifyRazorpayPaymentServerSide(params: {
+  razorpayOrderId: string;
+  razorpayPaymentId: string;
+  razorpaySignature?: string;
+  expectedAmountPaise?: number;
+  requireSignature?: boolean;
+}): Promise<RazorpayGatewayVerificationResult> {
+  const rzp = getRazorpayConfig();
+  if (!rzp.keyId || !rzp.keySecret) {
+    return {
+      verified: false,
+      message: 'Razorpay credentials are not configured on server.',
+    };
+  }
+
+  if (params.requireSignature !== false) {
+    if (!params.razorpaySignature) {
+      return { verified: false, message: 'Missing Razorpay verification signature.' };
+    }
+    const expectedSignature = crypto
+      .createHmac('sha256', rzp.keySecret)
+      .update(`${params.razorpayOrderId}|${params.razorpayPaymentId}`)
+      .digest('hex');
+
+    const sigBufExpected = Buffer.from(expectedSignature, 'utf8');
+    const sigBufReceived = Buffer.from(String(params.razorpaySignature), 'utf8');
+    const isValid =
+      sigBufExpected.length === sigBufReceived.length &&
+      crypto.timingSafeEqual(sigBufExpected, sigBufReceived);
+
+    if (!isValid) {
+      return {
+        verified: false,
+        message: 'Payment signature mismatch. Possible tampering detected.',
+      };
+    }
+  }
+
+  // Verify live payment object directly from Razorpay API
+  try {
+    const authHeader = 'Basic ' + Buffer.from(`${rzp.keyId}:${rzp.keySecret}`).toString('base64');
+    const resp = await fetch(
+      `https://api.razorpay.com/v1/payments/${encodeURIComponent(params.razorpayPaymentId)}`,
+      {
+        method: 'GET',
+        headers: { Authorization: authHeader },
+      }
+    );
+    const data: any = await resp.json().catch(() => ({}));
+    if (!resp.ok || !data?.id) {
+      return {
+        verified: false,
+        message:
+          data?.error?.description || 'Unable to confirm payment status with Razorpay API.',
+      };
+    }
+    if (String(data.order_id || '') !== String(params.razorpayOrderId)) {
+      return {
+        verified: false,
+        message: 'Payment order_id does not match the verified Razorpay order.',
+      };
+    }
+    const paymentStatus = String(data.status || '').toLowerCase();
+    if (!['captured', 'authorized'].includes(paymentStatus)) {
+      return {
+        verified: false,
+        status: paymentStatus,
+        message: `Razorpay payment is not settled (status: ${paymentStatus || 'unknown'}).`,
+      };
+    }
+    const paidAmountPaise = Number(data.amount || 0);
+    if (
+      params.expectedAmountPaise != null &&
+      Math.abs(paidAmountPaise - Math.round(params.expectedAmountPaise)) > 0
+    ) {
+      return {
+        verified: false,
+        status: paymentStatus,
+        amountPaise: paidAmountPaise,
+        message: `Paid amount mismatch (expected ${Math.round(params.expectedAmountPaise)} paise, got ${paidAmountPaise} paise).`,
+      };
+    }
+
+    verifiedRazorpayPayments.set(params.razorpayPaymentId, {
+      razorpayOrderId: params.razorpayOrderId,
+      razorpayPaymentId: params.razorpayPaymentId,
+      amountPaise: paidAmountPaise,
+      status: paymentStatus,
+      verifiedAt: Date.now(),
+    });
+
+    return {
+      verified: true,
+      status: paymentStatus,
+      amountPaise: paidAmountPaise,
+      razorpayOrderId: params.razorpayOrderId,
+    };
+  } catch (err: any) {
+    return {
+      verified: false,
+      message: err?.message || 'Unable to reach Razorpay API for payment verification.',
+    };
+  }
+}
+
 app.post('/api/razorpay/create-order', async (req: Request, res: Response) => {
+  let reservedCouponId: string | undefined;
+  const couponEngine = getSharedCouponEngine();
   try {
     const rzp = getRazorpayConfig();
     if (!rzp.keyId || !rzp.keySecret) {
@@ -4516,12 +4970,139 @@ app.post('/api/razorpay/create-order', async (req: Request, res: Response) => {
       });
     }
 
-    const { amountInr, totalOrderValue, balanceDue, paymentPlan, receipt, customerName, customerEmail, customerPhone } = req.body || {};
-    const numericAmount = Number(amountInr);
-    if (!Number.isFinite(numericAmount) || numericAmount < 1) {
+    const {
+      paymentPlan,
+      receipt,
+      customerName,
+      customerEmail,
+      customerPhone,
+      couponCode,
+      items,
+      recoveryToken,
+      checkoutSessionId,
+    } = req.body || {};
+
+    // C2: Strictly require cart items — NEVER trust client-supplied amountInr or unitPrice
+    if (!Array.isArray(items) || items.length === 0) {
       return res.status(400).json({
         success: false,
-        message: 'Invalid payable amount for Razorpay order.',
+        code: 'INVALID_CART_ITEMS',
+        message: 'Cart items are required to create a Razorpay order. Client-supplied amounts are not accepted.',
+      });
+    }
+
+    // C1: Derive customer identity strictly from verified Supabase Auth JWT (never body fields)
+    const verifiedCustomer = await verifySupabaseCustomerJwt(req);
+    const normalizedPlan: 'prepaid_100' | 'partial_50' =
+      paymentPlan === 'partial_50' ? 'partial_50' : 'prepaid_100';
+
+    // C2: Resolve authoritative catalog & bulk-tier pricing from server/Supabase catalog
+    const supaCfg = getSupabaseAdminConfig();
+    const authoritativePricing = await resolveAuthoritativeCartPricing(items, {
+      fetcher: {
+        fetchProductsFromSupabase: () =>
+          fetchSupabaseProductCatalog(
+            () => ({
+              configured: Boolean(supaCfg.url && supaCfg.serviceRoleKey),
+              url: supaCfg.url,
+              serviceRoleKey: supaCfg.serviceRoleKey,
+            }),
+            (key) => buildSupabaseAdminHeaders(key, false)
+          ),
+      },
+    });
+
+    if (!authoritativePricing.valid) {
+      return res.status(400).json({
+        success: false,
+        code: 'INVALID_CART_ITEMS',
+        message: authoritativePricing.message || 'One or more cart items are invalid or unavailable.',
+      });
+    }
+
+    let verifiedSubtotal = authoritativePricing.subtotal;
+    let verifiedDiscountInr = 0;
+    let verifiedShippingFee = authoritativePricing.baseShippingFee;
+    let verifiedShippingSaved = 0;
+    let verifiedFreeShipping = false;
+    let verifiedGstAmount = authoritativePricing.baseGstAmount;
+    let verifiedTotalOrderValue = authoritativePricing.baseFinalTotal;
+    let verifiedPayableInr =
+      normalizedPlan === 'partial_50'
+        ? Math.round(verifiedTotalOrderValue * 0.5)
+        : verifiedTotalOrderValue;
+    let verifiedBalanceDue =
+      normalizedPlan === 'partial_50'
+        ? Math.max(0, verifiedTotalOrderValue - verifiedPayableInr)
+        : 0;
+    let verifiedCouponCode = '';
+    let verifiedCouponRecordId: string | undefined;
+
+    // C3: Atomically reserve coupon capacity BEFORE creating the Razorpay order
+    if (couponCode && String(couponCode).trim()) {
+      if (!couponEngine) {
+        return res.status(503).json({
+          success: false,
+          code: 'STORAGE_UNAVAILABLE',
+          message: 'Coupon validation engine is unavailable right now.',
+        });
+      }
+      const recoveryVerified = verifyRecoveryEligibility({
+        recoveryToken: typeof recoveryToken === 'string' ? recoveryToken : undefined,
+        checkoutSessionId: typeof checkoutSessionId === 'string' ? checkoutSessionId : undefined,
+        customerPhone: verifiedCustomer?.phone,
+        customerEmail: verifiedCustomer?.email,
+      });
+
+      const reserveOutcome = await couponEngine.reserveCouponAtomic({
+        code: String(couponCode),
+        items,
+        verifiedCustomer,
+        recoveryToken: typeof recoveryToken === 'string' ? recoveryToken : undefined,
+        recoveryVerified,
+        paymentPlan: normalizedPlan,
+        checkoutSessionId: typeof checkoutSessionId === 'string' ? checkoutSessionId : undefined,
+      });
+
+      if (!reserveOutcome.success || !reserveOutcome.reservation || !reserveOutcome.validation) {
+        return res.status(reserveOutcome.httpStatus || 400).json({
+          success: false,
+          message: reserveOutcome.validation?.message || 'Coupon validation or reservation failed.',
+          reasonCode: reserveOutcome.validation?.reasonCode,
+        });
+      }
+
+      reservedCouponId = reserveOutcome.reservation.id;
+      verifiedCouponRecordId = reserveOutcome.reservation.couponId;
+      verifiedCouponCode = reserveOutcome.reservation.couponCode;
+      verifiedSubtotal = reserveOutcome.validation.subtotal;
+      verifiedDiscountInr = reserveOutcome.validation.discountAmount;
+      verifiedShippingFee = reserveOutcome.validation.shippingFee;
+      verifiedShippingSaved = reserveOutcome.validation.shippingSaved;
+      verifiedFreeShipping = reserveOutcome.validation.freeShippingApplied;
+      verifiedGstAmount = reserveOutcome.validation.gstAmount;
+      verifiedTotalOrderValue = reserveOutcome.validation.finalTotal;
+      verifiedPayableInr =
+        normalizedPlan === 'partial_50'
+          ? reserveOutcome.validation.advanceAmount50
+          : reserveOutcome.validation.finalTotal;
+      verifiedBalanceDue =
+        normalizedPlan === 'partial_50'
+          ? reserveOutcome.validation.balanceAmount50
+          : 0;
+    }
+
+    const numericAmount = Number(verifiedPayableInr);
+    if (!Number.isFinite(numericAmount) || numericAmount < 1) {
+      if (reservedCouponId && couponEngine) {
+        await couponEngine.releaseReservationAtomic({
+          reservationId: reservedCouponId,
+          reason: 'invalid_payable_amount',
+        }).catch(() => {});
+      }
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid payable amount computed for Razorpay order.',
       });
     }
 
@@ -4539,24 +5120,50 @@ app.post('/api/razorpay/create-order', async (req: Request, res: Response) => {
         currency: 'INR',
         receipt: String(receipt || `tq_${Date.now()}`).slice(0, 40),
         notes: {
-          payment_plan: paymentPlan || 'prepaid_100',
-          total_order_value_inr: String(totalOrderValue || numericAmount),
+          payment_plan: normalizedPlan,
+          subtotal_inr: String(verifiedSubtotal),
+          total_order_value_inr: String(verifiedTotalOrderValue),
           advance_paid_inr: String(numericAmount),
-          balance_due_inr: String(balanceDue || 0),
-          customer_name: String(customerName || ''),
-          customer_email: String(customerEmail || ''),
-          customer_phone: String(customerPhone || ''),
+          balance_due_inr: String(verifiedBalanceDue),
+          coupon_code: verifiedCouponCode,
+          coupon_discount_inr: String(verifiedDiscountInr),
+          shipping_saved_inr: String(verifiedShippingSaved),
+          free_shipping_applied: verifiedFreeShipping ? 'true' : 'false',
+          reservation_id: reservedCouponId || '',
+          customer_id: verifiedCustomer?.customerId || '',
+          customer_name: String(customerName || verifiedCustomer?.fullName || ''),
+          customer_email: String(verifiedCustomer?.email || customerEmail || ''),
+          customer_phone: String(verifiedCustomer?.phone || customerPhone || ''),
         },
       }),
     });
 
     const rzpData: any = await rzpResp.json();
     if (!rzpResp.ok || !rzpData?.id) {
+      if (reservedCouponId && couponEngine) {
+        await couponEngine.releaseReservationAtomic({
+          reservationId: reservedCouponId,
+          reason: 'razorpay_order_creation_failed',
+        }).catch(() => {});
+      }
       return res.status(rzpResp.status || 500).json({
         success: false,
         message: rzpData?.error?.description || 'Failed to create Razorpay order.',
       });
     }
+
+    if (reservedCouponId && couponEngine) {
+      await couponEngine.attachRazorpayOrderToReservation(reservedCouponId, String(rzpData.id));
+    }
+
+    // H1: Issue a server-signed release token bound to this Razorpay order & reservation
+    const releaseToken = issueSignedReleaseToken({
+      reservationId: reservedCouponId || null,
+      razorpayOrderId: String(rzpData.id),
+      customerId: verifiedCustomer?.customerId || null,
+      checkoutSessionId: typeof checkoutSessionId === 'string' ? checkoutSessionId : null,
+      validMinutes: 25,
+    });
 
     return res.json({
       success: true,
@@ -4564,8 +5171,37 @@ app.post('/api/razorpay/create-order', async (req: Request, res: Response) => {
       amount: rzpData.amount,
       currency: rzpData.currency,
       keyId: rzp.keyId,
+      reservationId: reservedCouponId || null,
+      releaseToken,
+      pricing: {
+        subtotal: verifiedSubtotal,
+        discountAmount: verifiedDiscountInr,
+        shippingFee: verifiedShippingFee,
+        shippingSaved: verifiedShippingSaved,
+        freeShippingApplied: verifiedFreeShipping,
+        gstAmount: verifiedGstAmount,
+        finalTotal: verifiedTotalOrderValue,
+        payableNow: verifiedPayableInr,
+        balanceDue: verifiedBalanceDue,
+        paymentPlan: normalizedPlan,
+        couponCode: verifiedCouponCode || null,
+        couponId: verifiedCouponRecordId || null,
+      },
     });
   } catch (err: any) {
+    if (reservedCouponId && couponEngine) {
+      await couponEngine.releaseReservationAtomic({
+        reservationId: reservedCouponId,
+        reason: 'razorpay_create_order_exception',
+      }).catch(() => {});
+    }
+    if (err instanceof CouponStorageUnavailableError) {
+      return res.status(503).json({
+        success: false,
+        code: 'STORAGE_UNAVAILABLE',
+        message: err.message,
+      });
+    }
     console.error('[Razorpay Create Order Error]:', err);
     return res.status(500).json({
       success: false,
@@ -4574,18 +5210,153 @@ app.post('/api/razorpay/create-order', async (req: Request, res: Response) => {
   }
 });
 
-app.post('/api/razorpay/verify-payment', (req: Request, res: Response) => {
+// C3 + H1: Release coupon reservation when customer cancels/fails Razorpay checkout (ownership-verified)
+app.post('/api/razorpay/release-reservation', async (req: Request, res: Response) => {
   try {
-    const rzp = getRazorpayConfig();
-    if (!rzp.keySecret) {
+    const {
+      reservationId,
+      razorpayOrderId,
+      releaseToken,
+      reason,
+      checkoutSessionId,
+      phone,
+    } = req.body || {};
+
+    const cleanResId = typeof reservationId === 'string' ? reservationId.trim() : '';
+    const cleanRzpOrderId = typeof razorpayOrderId === 'string' ? razorpayOrderId.trim() : '';
+    if (!cleanResId && !cleanRzpOrderId) {
       return res.status(400).json({
         success: false,
-        verified: false,
-        message: 'RAZORPAY_KEY_SECRET not configured on server.',
+        code: 'MISSING_RESERVATION_REF',
+        message: 'A reservationId or razorpayOrderId is required.',
       });
     }
 
-    const { razorpay_order_id, razorpay_payment_id, razorpay_signature } = req.body || {};
+    const isAdmin = verifySignedAdminToken(extractAdminBearerToken(req), 'session');
+    const parsedRelease = verifySignedReleaseToken(
+      typeof releaseToken === 'string' ? releaseToken : undefined
+    );
+    const verifiedCustomer = isAdmin ? null : await verifySupabaseCustomerJwt(req);
+
+    // Check whether the signed releaseToken cryptographically matches the requested identifiers
+    const tokenMatchesRequest = Boolean(
+      parsedRelease.valid &&
+        (!cleanResId || !parsedRelease.reservationId || parsedRelease.reservationId === cleanResId) &&
+        (!cleanRzpOrderId ||
+          !parsedRelease.razorpayOrderId ||
+          parsedRelease.razorpayOrderId === cleanRzpOrderId) &&
+        Boolean(
+          (cleanResId && parsedRelease.reservationId === cleanResId) ||
+            (cleanRzpOrderId && parsedRelease.razorpayOrderId === cleanRzpOrderId)
+        )
+    );
+
+    const couponEngine = getSharedCouponEngine();
+    const existingReservation = couponEngine
+      ? await couponEngine.getReservation({
+          reservationId: cleanResId || undefined,
+          razorpayOrderId: cleanRzpOrderId || undefined,
+        })
+      : null;
+
+    let authorized = isAdmin;
+
+    if (!authorized && existingReservation) {
+      const tokenMatchesReservation = Boolean(
+        tokenMatchesRequest &&
+          (!parsedRelease.reservationId || parsedRelease.reservationId === existingReservation.id) &&
+          (!parsedRelease.razorpayOrderId ||
+            !existingReservation.razorpayOrderId ||
+            parsedRelease.razorpayOrderId === existingReservation.razorpayOrderId)
+      );
+
+      const customerOwnsReservation = Boolean(
+        verifiedCustomer &&
+          ((verifiedCustomer.customerId &&
+            existingReservation.customerId &&
+            verifiedCustomer.customerId === existingReservation.customerId) ||
+            (verifiedCustomer.email &&
+              existingReservation.customerEmail &&
+              verifiedCustomer.email.toLowerCase() ===
+                existingReservation.customerEmail.toLowerCase()))
+      );
+
+      authorized = tokenMatchesReservation || customerOwnsReservation;
+    } else if (!authorized && !existingReservation) {
+      // Non-coupon Razorpay checkout cancel still requires a valid server-signed releaseToken
+      authorized = tokenMatchesRequest;
+    }
+
+    if (!authorized) {
+      return res.status(403).json({
+        success: false,
+        code: 'FORBIDDEN_RESERVATION_RELEASE',
+        message: 'You are not authorized to release this coupon reservation.',
+      });
+    }
+
+    let released = false;
+    if (couponEngine && existingReservation) {
+      const outcome = await couponEngine.releaseReservationAtomic({
+        reservationId: existingReservation.id,
+        razorpayOrderId: cleanRzpOrderId || existingReservation.razorpayOrderId,
+        reason: String(reason || 'checkout_cancelled'),
+      });
+      released = outcome.released;
+    }
+
+    // H1: Only issue a SAVE5NOW recovery token on verified payment-drop reasons with verified ownership
+    const normalizedReason = String(reason || '').trim().toLowerCase();
+    const eligibleDropReasons = new Set([
+      'razorpay_modal_dismissed',
+      'razorpay_payment_failed',
+      'payment_cancelled',
+      'payment_failed',
+    ]);
+    const shouldIssueRecovery =
+      eligibleDropReasons.has(normalizedReason) && (released || tokenMatchesRequest);
+
+    const signedRecovery = shouldIssueRecovery
+      ? issueSignedRecoveryToken({
+          checkoutSessionId:
+            typeof checkoutSessionId === 'string' && checkoutSessionId.trim()
+              ? checkoutSessionId.trim()
+              : parsedRelease.checkoutSessionId,
+          phone: typeof phone === 'string' && phone.trim() ? phone.trim() : undefined,
+          couponCode: 'SAVE5NOW',
+          validMinutes: 15,
+        })
+      : null;
+
+    return res.json({
+      success: true,
+      released,
+      ...(signedRecovery
+        ? {
+            recoveryToken: signedRecovery.token,
+            recoveryExpiresAt: signedRecovery.expiresAt,
+          }
+        : {}),
+    });
+  } catch (err: any) {
+    if (err instanceof CouponStorageUnavailableError) {
+      return res.status(503).json({
+        success: false,
+        code: 'STORAGE_UNAVAILABLE',
+        message: err.message,
+      });
+    }
+    return res.status(500).json({
+      success: false,
+      message: err?.message || 'Unable to release reservation.',
+    });
+  }
+});
+
+app.post('/api/razorpay/verify-payment', async (req: Request, res: Response) => {
+  try {
+    const { razorpay_order_id, razorpay_payment_id, razorpay_signature, reservationId } =
+      req.body || {};
     if (!razorpay_order_id || !razorpay_payment_id || !razorpay_signature) {
       return res.status(400).json({
         success: false,
@@ -4594,22 +5365,31 @@ app.post('/api/razorpay/verify-payment', (req: Request, res: Response) => {
       });
     }
 
-    const expectedSignature = crypto
-      .createHmac('sha256', rzp.keySecret)
-      .update(`${razorpay_order_id}|${razorpay_payment_id}`)
-      .digest('hex');
+    let expectedAmountPaise: number | undefined;
+    const couponEngine = getSharedCouponEngine();
+    if (couponEngine && (reservationId || razorpay_order_id)) {
+      const reservation = await couponEngine.getReservation({
+        reservationId: reservationId ? String(reservationId) : undefined,
+        razorpayOrderId: String(razorpay_order_id),
+      });
+      if (reservation && reservation.payableInr > 0) {
+        expectedAmountPaise = Math.round(reservation.payableInr * 100);
+      }
+    }
 
-    const sigBufExpected = Buffer.from(expectedSignature, 'utf8');
-    const sigBufReceived = Buffer.from(String(razorpay_signature), 'utf8');
-    const isValid =
-      sigBufExpected.length === sigBufReceived.length &&
-      crypto.timingSafeEqual(sigBufExpected, sigBufReceived);
+    const gatewayCheck = await verifyRazorpayPaymentServerSide({
+      razorpayOrderId: String(razorpay_order_id),
+      razorpayPaymentId: String(razorpay_payment_id),
+      razorpaySignature: String(razorpay_signature),
+      expectedAmountPaise,
+      requireSignature: true,
+    });
 
-    if (!isValid) {
+    if (!gatewayCheck.verified) {
       return res.status(400).json({
         success: false,
         verified: false,
-        message: 'Payment signature mismatch. Possible tampering detected.',
+        message: gatewayCheck.message || 'Payment verification failed.',
       });
     }
 
@@ -4618,6 +5398,7 @@ app.post('/api/razorpay/verify-payment', (req: Request, res: Response) => {
       verified: true,
       orderId: razorpay_order_id,
       paymentId: razorpay_payment_id,
+      paymentStatus: gatewayCheck.status || 'captured',
     });
   } catch (err: any) {
     console.error('[Razorpay Verify Error]:', err);
@@ -4625,6 +5406,850 @@ app.post('/api/razorpay/verify-payment', (req: Request, res: Response) => {
       success: false,
       verified: false,
       message: err?.message || 'Payment verification failed.',
+    });
+  }
+});
+
+// C3 + H3: Server-to-Server Razorpay Webhook (HMAC verified on rawBody)
+app.post('/api/razorpay/webhook', async (req: Request, res: Response) => {
+  try {
+    const webhookSecret = (process.env.RAZORPAY_WEBHOOK_SECRET || '').trim();
+    if (!webhookSecret) {
+      return res.status(503).json({
+        success: false,
+        message: 'RAZORPAY_WEBHOOK_SECRET is not configured on the server.',
+      });
+    }
+
+    const receivedSig = String(req.headers['x-razorpay-signature'] || '').trim();
+    const rawBody: Buffer =
+      (req as any).rawBody instanceof Buffer
+        ? (req as any).rawBody
+        : Buffer.from(JSON.stringify(req.body || {}), 'utf8');
+
+    const expectedSig = crypto
+      .createHmac('sha256', webhookSecret)
+      .update(rawBody)
+      .digest('hex');
+
+    const a = Buffer.from(receivedSig, 'utf8');
+    const b = Buffer.from(expectedSig, 'utf8');
+    if (!receivedSig || a.length !== b.length || !crypto.timingSafeEqual(a, b)) {
+      return res.status(401).json({
+        success: false,
+        message: 'Invalid Razorpay webhook signature.',
+      });
+    }
+
+    const event = String(req.body?.event || '').trim();
+    const paymentEntity = req.body?.payload?.payment?.entity;
+    const orderEntity = req.body?.payload?.order?.entity;
+    const refundEntity = req.body?.payload?.refund?.entity;
+    const couponEngine = getSharedCouponEngine();
+
+    if (event === 'payment.captured' || event === 'order.paid') {
+      const rzpOrderId = String(paymentEntity?.order_id || orderEntity?.id || '').trim();
+      const rzpPaymentId = String(paymentEntity?.id || '').trim();
+      const amountPaise = Number(paymentEntity?.amount || orderEntity?.amount_paid || 0);
+      if (rzpPaymentId && rzpOrderId) {
+        verifiedRazorpayPayments.set(rzpPaymentId, {
+          razorpayOrderId: rzpOrderId,
+          razorpayPaymentId: rzpPaymentId,
+          amountPaise,
+          status: 'captured',
+          verifiedAt: Date.now(),
+        });
+      }
+      if (couponEngine && rzpOrderId) {
+        const reservation = await couponEngine.getReservation({ razorpayOrderId: rzpOrderId });
+        if (
+          reservation &&
+          (reservation.status === 'reserved' ||
+            reservation.status === 'finalized' ||
+            reservation.status === 'expired')
+        ) {
+          // Verify captured payment amount matches reserved payable amount before finalizing
+          const expectedPaise = Math.round(Number(reservation.payableInr || 0) * 100);
+          if (amountPaise > 0 && expectedPaise > 0 && Math.abs(amountPaise - expectedPaise) > 100) {
+            return res.status(409).json({
+              success: false,
+              event,
+              code: 'PAYMENT_AMOUNT_MISMATCH',
+              message: 'Webhook payment amount does not match reserved checkout total.',
+            });
+          }
+          const notesOrderId =
+            String(paymentEntity?.notes?.app_order_id || orderEntity?.notes?.app_order_id || '').trim() ||
+            reservation.orderId ||
+            `RZP-${rzpOrderId}`;
+          const outcome = await couponEngine.finalizeReservationAtomic({
+            reservationId: reservation.id,
+            orderId: notesOrderId,
+            orderNumber: String(paymentEntity?.notes?.order_number || notesOrderId),
+            paymentId: rzpPaymentId || undefined,
+            customerName: String(paymentEntity?.notes?.customer_name || ''),
+            paymentStatus: 'paid',
+          });
+          return res.status(outcome.success ? 200 : outcome.httpStatus || 409).json({
+            success: outcome.success,
+            event,
+            finalized: outcome.success,
+            alreadyFinalized: Boolean(outcome.alreadyFinalized),
+            reconciled: Boolean(outcome.reconciled),
+            orderId: outcome.orderId,
+            message: outcome.message,
+          });
+        }
+      }
+      return res.json({ success: true, event, processed: true });
+    }
+
+    if (event === 'payment.failed') {
+      const rzpOrderId = String(paymentEntity?.order_id || '').trim();
+      if (couponEngine && rzpOrderId) {
+        const outcome = await couponEngine.releaseReservationAtomic({
+          razorpayOrderId: rzpOrderId,
+          reason: 'razorpay_webhook_payment_failed',
+        });
+        return res.json({ success: true, event, released: outcome.released });
+      }
+      return res.json({ success: true, event, released: false });
+    }
+
+    if (event === 'refund.created' || event === 'refund.processed') {
+      const paymentId = String(refundEntity?.payment_id || paymentEntity?.id || '').trim();
+      const rzpOrderId = String(
+        paymentEntity?.order_id || refundEntity?.notes?.razorpay_order_id || ''
+      ).trim();
+      const appOrderId = String(
+        refundEntity?.notes?.app_order_id || paymentEntity?.notes?.app_order_id || ''
+      ).trim();
+      if (couponEngine && (paymentId || rzpOrderId || appOrderId)) {
+        const restoreOutcome = await couponEngine.handleOrderCancelledOrRefunded({
+          orderId: appOrderId || undefined,
+          paymentId: paymentId || undefined,
+          razorpayOrderId: rzpOrderId || undefined,
+          actor: 'razorpay_webhook',
+          reason: event,
+        });
+        return res.json({
+          success: true,
+          event,
+          restoredCount: restoreOutcome.restoredCount,
+          policyEnabled: restoreOutcome.policyEnabled,
+        });
+      }
+      return res.json({ success: true, event, restoredCount: 0 });
+    }
+
+    return res.json({ success: true, event, ignored: true });
+  } catch (err: any) {
+    if (err instanceof CouponStorageUnavailableError) {
+      return res.status(503).json({
+        success: false,
+        code: 'STORAGE_UNAVAILABLE',
+        message: err.message,
+      });
+    }
+    console.error('[Razorpay Webhook Error]:', err);
+    return res.status(500).json({
+      success: false,
+      message: err?.message || 'Webhook processing error.',
+    });
+  }
+});
+
+// C1 + H2: Issue server-signed recovery token ONLY for verified abandoned checkout state + rate limits
+app.post('/api/coupons/recovery-session', async (req: Request, res: Response) => {
+  try {
+    const {
+      checkoutSessionId,
+      phone,
+      items,
+      triggerReason,
+      validMinutes = 15,
+    } = req.body || {};
+
+    const cleanSid = String(checkoutSessionId || '').trim();
+    if (!/^[a-zA-Z0-9_-]{8,80}$/.test(cleanSid)) {
+      return res.status(400).json({
+        success: false,
+        code: 'INVALID_CHECKOUT_SESSION',
+        message: 'A valid checkoutSessionId is required to request a recovery offer.',
+      });
+    }
+
+    const allowedTriggers = new Set([
+      'checkout_hesitation',
+      'exit_intent',
+      'payment_cancelled',
+      'payment_failed',
+      'abandoned_checkout',
+    ]);
+    const cleanTrigger = String(triggerReason || '').trim().toLowerCase();
+    if (!allowedTriggers.has(cleanTrigger)) {
+      return res.status(400).json({
+        success: false,
+        code: 'INVALID_RECOVERY_TRIGGER',
+        message: 'A valid checkout recovery triggerReason is required.',
+      });
+    }
+
+    if (!Array.isArray(items) || items.length === 0) {
+      return res.status(400).json({
+        success: false,
+        code: 'INVALID_CART_ITEMS',
+        message: 'Active cart items are required to verify abandoned checkout eligibility.',
+      });
+    }
+
+    // Require verified customer JWT OR valid 10-digit Indian phone OR existing server-side AiSensy recovery session
+    const verifiedCustomer = await verifySupabaseCustomerJwt(req);
+    const cleanPhone = String(verifiedCustomer?.phone || phone || '')
+      .replace(/[^0-9]/g, '')
+      .slice(-10);
+    const hasValidPhone = /^[6-9]\d{9}$/.test(cleanPhone);
+
+    let hasRecordedSession = false;
+    try {
+      const ledger = loadAiSensyLedger();
+      hasRecordedSession = Object.keys(ledger.recoverySentSessions || {}).some((k) =>
+        k.startsWith(`${cleanSid}_`)
+      );
+    } catch {
+      hasRecordedSession = false;
+    }
+
+    if (!verifiedCustomer && !hasValidPhone && !hasRecordedSession) {
+      return res.status(403).json({
+        success: false,
+        code: 'CUSTOMER_BINDING_REQUIRED',
+        message:
+          'Recovery offers require a signed-in customer session or a valid checkout contact phone.',
+      });
+    }
+
+    // Per-IP and per-session rate limiting (prevents bulk automated token harvesting)
+    const clientIp =
+      String(req.headers['x-forwarded-for'] || req.socket.remoteAddress || 'unknown')
+        .split(',')[0]
+        .trim();
+    const ipLimit = checkRecoveryRateLimit(`rec_ip:${clientIp}`, 3, 15 * 60 * 1000);
+    if (!ipLimit.allowed) {
+      return res.status(429).json({
+        success: false,
+        code: 'RATE_LIMIT_EXCEEDED',
+        retryAfterSec: ipLimit.retryAfterSec,
+        message: 'Too many recovery session requests. Please try again later.',
+      });
+    }
+    const sidLimit = checkRecoveryRateLimit(`rec_sid:${cleanSid}`, 2, 15 * 60 * 1000);
+    if (!sidLimit.allowed) {
+      return res.status(429).json({
+        success: false,
+        code: 'RATE_LIMIT_EXCEEDED',
+        retryAfterSec: sidLimit.retryAfterSec,
+        message: 'Recovery voucher was already issued for this checkout session.',
+      });
+    }
+
+    // Verify cart items against authoritative catalog pricing before minting a recovery token
+    const supaCfg = getSupabaseAdminConfig();
+    const pricing = await resolveAuthoritativeCartPricing(items, {
+      fetcher: {
+        fetchProductsFromSupabase: () =>
+          fetchSupabaseProductCatalog(
+            () => ({
+              configured: Boolean(supaCfg.url && supaCfg.serviceRoleKey),
+              url: supaCfg.url,
+              serviceRoleKey: supaCfg.serviceRoleKey,
+            }),
+            (key) => buildSupabaseAdminHeaders(key, false)
+          ),
+      },
+    });
+    if (!pricing.valid || pricing.subtotal <= 0) {
+      return res.status(400).json({
+        success: false,
+        code: 'INVALID_CART_ITEMS',
+        message: pricing.message || 'Valid cart items are required for checkout recovery.',
+      });
+    }
+
+    const signed = issueSignedRecoveryToken({
+      checkoutSessionId: cleanSid,
+      phone: hasValidPhone ? cleanPhone : undefined,
+      couponCode: 'SAVE5NOW',
+      validMinutes: Math.max(5, Math.min(15, Number(validMinutes) || 15)),
+    });
+    return res.json({
+      success: true,
+      couponCode: 'SAVE5NOW',
+      recoveryToken: signed.token,
+      expiresAt: signed.expiresAt,
+    });
+  } catch (err: any) {
+    return res.status(500).json({
+      success: false,
+      message: err?.message || 'Unable to issue checkout recovery session.',
+    });
+  }
+});
+
+// C2 + C3 + C4 + H2: Authoritative Server-Side Order Placement & Atomic Coupon Finalization
+app.post('/api/orders/place', async (req: Request, res: Response) => {
+  const couponEngine = getSharedCouponEngine();
+  let newlyCreatedReservationId: string | undefined;
+  try {
+    const body = req.body || {};
+    const {
+      items,
+      orderRows,
+      customerName,
+      customerEmail,
+      customerPhone,
+      companyName,
+      paymentPlan,
+      paymentModeLabel,
+      couponCode,
+      reservationId,
+      recoveryToken,
+      checkoutSessionId,
+      razorpayOrderId,
+      razorpayPaymentId,
+      razorpaySignature,
+    } = body;
+
+    if (!Array.isArray(items) || items.length === 0) {
+      return res.status(400).json({
+        success: false,
+        code: 'INVALID_CART_ITEMS',
+        message: 'Cart items are required to place an order.',
+      });
+    }
+
+    const verifiedCustomer = await verifySupabaseCustomerJwt(req);
+    const normalizedPlan: 'prepaid_100' | 'partial_50' =
+      paymentPlan === 'partial_50' ? 'partial_50' : 'prepaid_100';
+
+    const supaCfg = getSupabaseAdminConfig();
+    const authoritativePricing = await resolveAuthoritativeCartPricing(items, {
+      fetcher: {
+        fetchProductsFromSupabase: () =>
+          fetchSupabaseProductCatalog(
+            () => ({
+              configured: Boolean(supaCfg.url && supaCfg.serviceRoleKey),
+              url: supaCfg.url,
+              serviceRoleKey: supaCfg.serviceRoleKey,
+            }),
+            (key) => buildSupabaseAdminHeaders(key, false)
+          ),
+      },
+    });
+
+    if (!authoritativePricing.valid) {
+      return res.status(400).json({
+        success: false,
+        code: 'INVALID_CART_ITEMS',
+        message: authoritativePricing.message || 'Invalid cart items.',
+      });
+    }
+
+    const rzpCfg = getRazorpayConfig();
+    const isRazorpayConfigured = Boolean(rzpCfg.keyId && rzpCfg.keySecret);
+
+    let activeReservationId: string | undefined = reservationId
+      ? String(reservationId).trim()
+      : undefined;
+    let resolvedCouponCode: string | null = null;
+    let resolvedCouponId: string | null = null;
+    let resolvedSubtotal = authoritativePricing.subtotal;
+    let resolvedDiscount = 0;
+    let resolvedShippingFee = authoritativePricing.baseShippingFee;
+    let resolvedShippingSaved = 0;
+    let resolvedFreeShipping = false;
+    let resolvedGst = authoritativePricing.baseGstAmount;
+    let resolvedTotal = authoritativePricing.baseFinalTotal;
+    let resolvedPayable =
+      normalizedPlan === 'partial_50' ? Math.round(resolvedTotal * 0.5) : resolvedTotal;
+    let resolvedBalance =
+      normalizedPlan === 'partial_50' ? Math.max(0, resolvedTotal - resolvedPayable) : 0;
+
+    // 1. Resolve / verify coupon reservation
+    if (activeReservationId && couponEngine) {
+      const existingRes = await couponEngine.getReservation({
+        reservationId: activeReservationId,
+        razorpayOrderId: razorpayOrderId ? String(razorpayOrderId) : undefined,
+      });
+      if (!existingRes) {
+        return res.status(400).json({
+          success: false,
+          message: 'Coupon reservation was not found or has expired. Please re-apply your coupon.',
+        });
+      }
+      if (existingRes.status === 'released' || existingRes.status === 'expired') {
+        return res.status(409).json({
+          success: false,
+          message: 'Coupon reservation expired before payment completed. Please retry checkout.',
+        });
+      }
+      // Verify reservation belongs to the same customer when reservation is bound to a customer
+      if (
+        existingRes.customerId &&
+        verifiedCustomer?.customerId &&
+        existingRes.customerId !== verifiedCustomer.customerId
+      ) {
+        return res.status(403).json({
+          success: false,
+          message: 'Coupon reservation belongs to a different authenticated customer.',
+        });
+      }
+      resolvedCouponCode = existingRes.couponCode;
+      resolvedCouponId = existingRes.couponId;
+      resolvedSubtotal = existingRes.subtotalInr;
+      resolvedDiscount = existingRes.discountInr;
+      resolvedShippingFee = existingRes.shippingFeeInr;
+      resolvedShippingSaved = existingRes.shippingSavedInr;
+      resolvedFreeShipping = existingRes.freeShippingApplied;
+      resolvedGst = existingRes.gstInr;
+      resolvedTotal = existingRes.finalTotalInr;
+      resolvedPayable = existingRes.payableInr;
+      resolvedBalance = Math.max(0, resolvedTotal - resolvedPayable);
+    } else if (couponCode && String(couponCode).trim()) {
+      if (!couponEngine) {
+        return res.status(503).json({
+          success: false,
+          code: 'STORAGE_UNAVAILABLE',
+          message: 'Coupon service is currently unavailable.',
+        });
+      }
+      if (isRazorpayConfigured) {
+        return res.status(400).json({
+          success: false,
+          message: 'Discounted Razorpay orders require a verified server reservation from /api/razorpay/create-order.',
+        });
+      }
+      const recoveryVerified = verifyRecoveryEligibility({
+        recoveryToken: typeof recoveryToken === 'string' ? recoveryToken : undefined,
+        checkoutSessionId: typeof checkoutSessionId === 'string' ? checkoutSessionId : undefined,
+        customerPhone: verifiedCustomer?.phone,
+        customerEmail: verifiedCustomer?.email,
+      });
+      const reserveOutcome = await couponEngine.reserveCouponAtomic({
+        code: String(couponCode),
+        items,
+        verifiedCustomer,
+        recoveryToken: typeof recoveryToken === 'string' ? recoveryToken : undefined,
+        recoveryVerified,
+        paymentPlan: normalizedPlan,
+        checkoutSessionId: typeof checkoutSessionId === 'string' ? checkoutSessionId : undefined,
+      });
+      if (!reserveOutcome.success || !reserveOutcome.reservation || !reserveOutcome.validation) {
+        return res.status(reserveOutcome.httpStatus || 400).json({
+          success: false,
+          message: reserveOutcome.validation?.message || 'Coupon validation failed.',
+          reasonCode: reserveOutcome.validation?.reasonCode,
+        });
+      }
+      activeReservationId = reserveOutcome.reservation.id;
+      newlyCreatedReservationId = reserveOutcome.reservation.id;
+      resolvedCouponCode = reserveOutcome.reservation.couponCode;
+      resolvedCouponId = reserveOutcome.reservation.couponId;
+      resolvedSubtotal = reserveOutcome.validation.subtotal;
+      resolvedDiscount = reserveOutcome.validation.discountAmount;
+      resolvedShippingFee = reserveOutcome.validation.shippingFee;
+      resolvedShippingSaved = reserveOutcome.validation.shippingSaved;
+      resolvedFreeShipping = reserveOutcome.validation.freeShippingApplied;
+      resolvedGst = reserveOutcome.validation.gstAmount;
+      resolvedTotal = reserveOutcome.validation.finalTotal;
+      resolvedPayable =
+        normalizedPlan === 'partial_50'
+          ? reserveOutcome.validation.advanceAmount50
+          : reserveOutcome.validation.finalTotal;
+      resolvedBalance =
+        normalizedPlan === 'partial_50' ? reserveOutcome.validation.balanceAmount50 : 0;
+    }
+
+    // 2. Verify Razorpay payment server-side whenever Razorpay is configured (or payment IDs supplied)
+    let paymentStatus: 'paid' | 'sandbox' = 'sandbox';
+    if (isRazorpayConfigured || razorpayPaymentId || razorpayOrderId) {
+      if (!isRazorpayConfigured) {
+        return res.status(400).json({
+          success: false,
+          message: 'Razorpay payment fields provided but Razorpay is not configured on server.',
+        });
+      }
+      if (!razorpayOrderId || !razorpayPaymentId || !razorpaySignature) {
+        return res.status(400).json({
+          success: false,
+          message: 'Verified Razorpay payment confirmation is required before placing an order.',
+        });
+      }
+      const cachedPay = verifiedRazorpayPayments.get(String(razorpayPaymentId));
+      const expectedPaise = Math.round(resolvedPayable * 100);
+      if (
+        cachedPay &&
+        cachedPay.razorpayOrderId === String(razorpayOrderId) &&
+        cachedPay.amountPaise === expectedPaise &&
+        Date.now() - cachedPay.verifiedAt < 30 * 60 * 1000
+      ) {
+        paymentStatus = 'paid';
+      } else {
+        const gatewayCheck = await verifyRazorpayPaymentServerSide({
+          razorpayOrderId: String(razorpayOrderId),
+          razorpayPaymentId: String(razorpayPaymentId),
+          razorpaySignature: String(razorpaySignature),
+          expectedAmountPaise: expectedPaise,
+          requireSignature: true,
+        });
+        if (!gatewayCheck.verified) {
+          return res.status(403).json({
+            success: false,
+            message: gatewayCheck.message || 'Unverified or mismatched Razorpay payment.',
+          });
+        }
+        paymentStatus = 'paid';
+      }
+    } else if (isProductionEnv()) {
+      return res.status(503).json({
+        success: false,
+        message: 'Payment gateway is not configured in production.',
+      });
+    }
+
+    // 3. Persist authoritative order rows in Supabase custom_orders (server-side Service Role)
+    const insertedOrderIds: string[] = [];
+    const safeEmail = verifiedCustomer?.email || String(customerEmail || '').trim();
+    const safePhone = String(customerPhone || verifiedCustomer?.phone || '').trim();
+    const safeName = String(customerName || verifiedCustomer?.fullName || 'Customer').trim();
+
+    const pricingSummaryNoteParts: string[] = [];
+    if (resolvedCouponCode) {
+      if (resolvedFreeShipping && resolvedDiscount > 0) {
+        pricingSummaryNoteParts.push(
+          `Promo: ${resolvedCouponCode} (-₹${resolvedDiscount} + Free Shipping ₹${resolvedShippingSaved} saved)`
+        );
+      } else if (resolvedFreeShipping) {
+        pricingSummaryNoteParts.push(
+          `Promo: ${resolvedCouponCode} (Free Shipping - ₹${resolvedShippingSaved} saved)`
+        );
+      } else {
+        pricingSummaryNoteParts.push(`Promo: ${resolvedCouponCode} (-₹${resolvedDiscount})`);
+      }
+    }
+    pricingSummaryNoteParts.push(
+      `Payment Plan: ${paymentModeLabel || (normalizedPlan === 'partial_50' ? 'Partial Payment (50% Advance)' : 'Full Prepaid (100% Online)')}`
+    );
+    pricingSummaryNoteParts.push(
+      `Subtotal: ₹${resolvedSubtotal} | GST: ₹${resolvedGst} | Shipping: ₹${resolvedShippingFee} | Total: ₹${resolvedTotal} | Paid: ₹${resolvedPayable} | Balance Due: ₹${resolvedBalance}`
+    );
+    if (razorpayPaymentId) {
+      pricingSummaryNoteParts.push(`Razorpay ID: ${razorpayPaymentId}`);
+    } else {
+      pricingSummaryNoteParts.push('Gateway Mode: Sandbox (Awaiting Razorpay API Keys)');
+    }
+    const serverPricingFooter = pricingSummaryNoteParts.join(' | ');
+
+    const orderGroupId =
+      (razorpayOrderId ? String(razorpayOrderId).trim() : '') ||
+      (activeReservationId ? String(activeReservationId).trim() : '') ||
+      `ORDG-${Date.now().toString(36).toUpperCase()}-${crypto.randomBytes(4).toString('hex')}`;
+
+    const rowsToInsert = authoritativePricing.items.map((line, idx) => {
+      const clientRow = Array.isArray(orderRows) ? orderRows[idx] || {} : {};
+      const baseNotes = String(clientRow.customNotes || '').trim();
+      const combinedNotes = [baseNotes, serverPricingFooter].filter(Boolean).join(' | ');
+      const lineSub = Math.round(Number(line.lineTotal || 0) * 100) / 100;
+      const lineShare =
+        resolvedSubtotal > 0 ? Math.min(1, Math.max(0, lineSub / resolvedSubtotal)) : 1 / authoritativePricing.items.length;
+      const lineAllocatedTotal = Math.round(resolvedTotal * lineShare * 100) / 100;
+      const baseRecord = {
+        customer_name: safeName,
+        customer_email: safeEmail,
+        company: companyName ? String(companyName).trim() : null,
+        phone: safePhone,
+        product_id: line.productId,
+        quantity: line.quantity,
+        logo_url: clientRow.logoUrl ? String(clientRow.logoUrl) : null,
+        custom_notes: combinedNotes || 'Order placed via checkout',
+        status: 'pending',
+      };
+      const extendedRecord = {
+        ...baseRecord,
+        order_group_id: orderGroupId,
+        line_subtotal_inr: lineSub,
+        line_total_inr: lineAllocatedTotal,
+        coupon_code: resolvedCouponCode,
+        coupon_id: resolvedCouponId,
+        subtotal_inr: resolvedSubtotal,
+        discount_inr: resolvedDiscount,
+        shipping_fee_inr: resolvedShippingFee,
+        shipping_saved_inr: resolvedShippingSaved,
+        free_shipping_applied: resolvedFreeShipping,
+        gst_inr: resolvedGst,
+        final_total_inr: resolvedTotal,
+        amount_paid_inr: resolvedPayable,
+        balance_due_inr: resolvedBalance,
+        payment_plan: normalizedPlan,
+        razorpay_order_id: razorpayOrderId ? String(razorpayOrderId) : null,
+        razorpay_payment_id: razorpayPaymentId ? String(razorpayPaymentId) : null,
+        reservation_id: activeReservationId || null,
+      };
+      return { baseRecord, extendedRecord };
+    });
+
+    if (supaCfg.url && supaCfg.serviceRoleKey) {
+      for (const rowPair of rowsToInsert) {
+        let resp = await fetch(`${supaCfg.url}/rest/v1/custom_orders`, {
+          method: 'POST',
+          headers: {
+            ...buildSupabaseAdminHeaders(supaCfg.serviceRoleKey, true),
+            Prefer: 'return=representation',
+          },
+          body: JSON.stringify(rowPair.extendedRecord),
+        });
+        if (!resp.ok) {
+          const errText = await resp.text().catch(() => '');
+          // Graceful compatibility if additive columns haven't been migrated yet (PostgreSQL 42703)
+          if (errText.includes('42703') || errText.includes('column') || errText.includes('schema cache')) {
+            resp = await fetch(`${supaCfg.url}/rest/v1/custom_orders`, {
+              method: 'POST',
+              headers: {
+                ...buildSupabaseAdminHeaders(supaCfg.serviceRoleKey, true),
+                Prefer: 'return=representation',
+              },
+              body: JSON.stringify(rowPair.baseRecord),
+            });
+          } else {
+            throw new Error(`Order persistence failed (${resp.status}): ${errText.slice(0, 200)}`);
+          }
+        }
+        if (!resp.ok) {
+          const errText2 = await resp.text().catch(() => '');
+          throw new Error(`Order persistence failed (${resp.status}): ${errText2.slice(0, 200)}`);
+        }
+        const inserted: any = await resp.json().catch(() => []);
+        const rec = Array.isArray(inserted) ? inserted[0] : inserted;
+        if (rec?.id) insertedOrderIds.push(String(rec.id));
+      }
+    } else if (isProductionEnv()) {
+      throw new CouponStorageUnavailableError(
+        'Production database is not configured; refusing to place unpersisted order.'
+      );
+    } else {
+      for (let idx = 0; idx < rowsToInsert.length; idx++) {
+        insertedOrderIds.push(`TQ-${Date.now().toString(36).toUpperCase()}-${idx + 1}`);
+      }
+    }
+
+    const primaryOrderId =
+      insertedOrderIds[0] || `TQ-${Math.floor(100000 + Math.random() * 900000)}`;
+    const orderNumber = primaryOrderId.startsWith('TQ-')
+      ? primaryOrderId
+      : `TQ-${primaryOrderId.slice(0, 8).toUpperCase()}`;
+
+    // 4. Atomically finalize coupon redemption inside trusted server flow (C3 + C4)
+    let redemptionSummary: { id?: string; couponCode?: string } | null = null;
+    if (activeReservationId && couponEngine) {
+      const finalizeRes = await couponEngine.finalizeReservationAtomic({
+        reservationId: activeReservationId,
+        orderId: primaryOrderId,
+        orderNumber,
+        paymentId: razorpayPaymentId ? String(razorpayPaymentId) : undefined,
+        customerName: safeName,
+        paymentStatus: paymentStatus === 'paid' ? 'paid' : 'sandbox',
+      });
+      if (!finalizeRes.success) {
+        console.error('[Coupon Finalization Error after Order Insert]:', finalizeRes.message);
+      } else {
+        redemptionSummary = {
+          id: finalizeRes.redemptionId,
+          couponCode: finalizeRes.couponCode,
+        };
+      }
+    }
+
+    return res.status(201).json({
+      success: true,
+      primaryOrderId,
+      orderNumber,
+      insertedOrderIds,
+      paymentStatus,
+      pricing: {
+        subtotal: resolvedSubtotal,
+        discountedSubtotal: Math.max(0, resolvedSubtotal - resolvedDiscount),
+        discountAmount: resolvedDiscount,
+        shippingFee: resolvedShippingFee,
+        shippingSaved: resolvedShippingSaved,
+        freeShippingApplied: resolvedFreeShipping,
+        gstAmount: resolvedGst,
+        finalTotal: resolvedTotal,
+        payableNow: resolvedPayable,
+        balanceDue: resolvedBalance,
+        paymentPlan: normalizedPlan,
+        couponCode: resolvedCouponCode,
+        couponId: resolvedCouponId,
+      },
+      redemption: redemptionSummary,
+    });
+  } catch (err: any) {
+    if (newlyCreatedReservationId && couponEngine) {
+      await couponEngine.releaseReservationAtomic({
+        reservationId: newlyCreatedReservationId,
+        reason: 'order_place_failed',
+      }).catch(() => {});
+    }
+    if (err instanceof CouponStorageUnavailableError) {
+      return res.status(503).json({
+        success: false,
+        code: 'STORAGE_UNAVAILABLE',
+        message: err.message,
+      });
+    }
+    console.error('[Server Order Place Error]:', err);
+    return res.status(500).json({
+      success: false,
+      message: err?.message || 'Failed to place order on server.',
+    });
+  }
+});
+
+// H3 + C4: Protected Admin Order Cancellation endpoint
+// Strictly checks Supabase DB response before returning success or restoring coupons.
+app.post('/api/admin/orders/:orderId/cancel', async (req: Request, res: Response) => {
+  const token = extractAdminBearerToken(req);
+  if (!verifySignedAdminToken(token, 'session')) {
+    return res.status(401).json({
+      success: false,
+      message: 'Unauthorized: Valid Admin session token is required.',
+    });
+  }
+  try {
+    const orderId = String(req.params.orderId || '').trim();
+    const orderNumber = req.body?.orderNumber ? String(req.body.orderNumber).trim() : undefined;
+    const reason = String(req.body?.reason || 'admin_order_cancelled').trim();
+    if (!orderId) {
+      return res.status(400).json({ success: false, message: 'Order ID is required.' });
+    }
+
+    let cancelledRow: {
+      id?: string;
+      razorpay_payment_id?: string | null;
+      razorpay_order_id?: string | null;
+      reservation_id?: string | null;
+      order_group_id?: string | null;
+    } | null = null;
+
+    const supaCfg = getSupabaseAdminConfig();
+    if (supaCfg.url && supaCfg.serviceRoleKey) {
+      let dbResp: globalThis.Response;
+      try {
+        dbResp = await fetch(
+          `${supaCfg.url}/rest/v1/custom_orders?id=eq.${encodeURIComponent(orderId)}`,
+          {
+            method: 'PATCH',
+            headers: {
+              ...buildSupabaseAdminHeaders(supaCfg.serviceRoleKey, true),
+              Prefer: 'return=representation',
+            },
+            body: JSON.stringify({ status: 'cancelled' }),
+          }
+        );
+      } catch (netErr: any) {
+        return res.status(503).json({
+          success: false,
+          code: 'ORDER_CANCEL_DB_UNREACHABLE',
+          message: netErr?.message || 'Unable to reach Supabase to cancel order.',
+        });
+      }
+
+      const rawBody = await dbResp.text().catch(() => '');
+      if (!dbResp.ok) {
+        const isConstraintViolation =
+          rawBody.includes('23514') || rawBody.toLowerCase().includes('check constraint');
+        return res.status(isConstraintViolation ? 422 : 502).json({
+          success: false,
+          code: isConstraintViolation ? 'ORDER_STATUS_CONSTRAINT_ERROR' : 'ORDER_CANCEL_DB_FAILED',
+          message: isConstraintViolation
+            ? 'Database rejected status="cancelled" (run coupons_security_hardening_migration.sql to expand custom_orders_status_check).'
+            : `Failed to cancel order in database (HTTP ${dbResp.status}): ${rawBody.slice(0, 180)}`,
+        });
+      }
+
+      let updatedRows: any[] = [];
+      try {
+        const parsed = rawBody ? JSON.parse(rawBody) : [];
+        updatedRows = Array.isArray(parsed) ? parsed : [parsed];
+      } catch {
+        updatedRows = [];
+      }
+
+      if (updatedRows.length === 0) {
+        return res.status(404).json({
+          success: false,
+          code: 'ORDER_NOT_FOUND',
+          message: `Order ${orderId} was not found in database.`,
+        });
+      }
+
+      cancelledRow = updatedRows[0] || null;
+
+      // Also cancel sibling line items belonging to the same multi-item checkout group if present
+      const groupFilter = cancelledRow?.razorpay_order_id
+        ? `razorpay_order_id=eq.${encodeURIComponent(String(cancelledRow.razorpay_order_id))}`
+        : cancelledRow?.order_group_id
+        ? `order_group_id=eq.${encodeURIComponent(String(cancelledRow.order_group_id))}`
+        : '';
+      if (groupFilter) {
+        await fetch(
+          `${supaCfg.url}/rest/v1/custom_orders?${groupFilter}&id=neq.${encodeURIComponent(orderId)}`,
+          {
+            method: 'PATCH',
+            headers: buildSupabaseAdminHeaders(supaCfg.serviceRoleKey, true),
+            body: JSON.stringify({ status: 'cancelled' }),
+          }
+        ).catch(() => {});
+      }
+    } else if (isProductionEnv()) {
+      return res.status(503).json({
+        success: false,
+        code: 'STORAGE_UNAVAILABLE',
+        message: 'Production database is not configured; cannot cancel order.',
+      });
+    }
+
+    // Restore coupon redemption ONLY AFTER confirmed order cancellation (idempotent on retry)
+    const couponEngine = getSharedCouponEngine();
+    let restoreSummary = { matchedRedemptions: 0, restoredCount: 0, policyEnabled: false };
+    if (couponEngine) {
+      restoreSummary = await couponEngine.handleOrderCancelledOrRefunded({
+        orderId,
+        orderNumber,
+        paymentId: cancelledRow?.razorpay_payment_id ? String(cancelledRow.razorpay_payment_id) : undefined,
+        razorpayOrderId: cancelledRow?.razorpay_order_id ? String(cancelledRow.razorpay_order_id) : undefined,
+        reservationId: cancelledRow?.reservation_id ? String(cancelledRow.reservation_id) : undefined,
+        actor: getSmtpConfig().adminEmailList[0] || 'admin',
+        reason,
+      });
+    }
+
+    return res.json({
+      success: true,
+      orderId,
+      status: 'cancelled',
+      couponRestoration: restoreSummary,
+    });
+  } catch (err: any) {
+    if (err instanceof CouponStorageUnavailableError) {
+      return res.status(503).json({
+        success: false,
+        code: 'STORAGE_UNAVAILABLE',
+        message: err.message,
+      });
+    }
+    return res.status(500).json({
+      success: false,
+      message: err?.message || 'Failed to cancel order.',
     });
   }
 });
@@ -5545,12 +7170,23 @@ app.post('/api/aisensy/send-checkout-recovery', async (req: Request, res: Respon
     const existingSent = ledger.recoverySentSessions[sessionKey];
     const nowMs = Date.now();
     if (existingSent && nowMs - existingSent.sentAt < 15 * 60 * 1000) {
+      const remainingMins = Math.max(
+        1,
+        Math.ceil((existingSent.expiresAt - nowMs) / 60_000)
+      );
+      const signedExisting = issueSignedRecoveryToken({
+        checkoutSessionId: typeof checkoutSessionId === 'string' ? checkoutSessionId : undefined,
+        phone: normalizedPhone,
+        couponCode: existingSent.couponCode,
+        validMinutes: remainingMins,
+      });
       return res.json({
         success: true,
         deduplicated: true,
         simulated: !getAiSensyConfig().apiKey,
         phone: normalizedPhone,
         couponCode: existingSent.couponCode,
+        recoveryToken: signedExisting.token,
         expiresAt: new Date(existingSent.expiresAt).toISOString(),
         message: '5% OFF limited-time WhatsApp offer already sent for this checkout session.',
       });
@@ -5559,10 +7195,16 @@ app.post('/api/aisensy/send-checkout-recovery', async (req: Request, res: Respon
     const cfg = getAiSensyConfig();
     const firstName = String(customerName || 'Customer').trim().split(' ')[0] || 'Customer';
     const baseOrigin = resolveAppOrigin(req, originUrl);
-    const resumeUrl = `${baseOrigin}/#checkout?coupon=${encodeURIComponent(String(couponCode))}&recovery=${encodeURIComponent(String(checkoutSessionId || ''))}`;
+    const signedRecovery = issueSignedRecoveryToken({
+      checkoutSessionId: typeof checkoutSessionId === 'string' ? checkoutSessionId : undefined,
+      phone: normalizedPhone,
+      couponCode: String(couponCode),
+      validMinutes: Number(validMinutes) || 15,
+    });
+    const resumeUrl = `${baseOrigin}/#checkout?coupon=${encodeURIComponent(String(couponCode))}&recovery=${encodeURIComponent(signedRecovery.token)}`;
     const numericTotal = Math.round(Number(cartTotal) || 0);
     const estSavings = Math.max(1, Math.round(numericTotal * (Number(discountPercent) / 100)));
-    const expiresAtMs = nowMs + Number(validMinutes) * 60 * 1000;
+    const expiresAtMs = signedRecovery.expiresAtMs;
     const itemLine = String(itemsSummary || 'Your Custom TeqqnoWorld Merchandise').slice(0, 100);
 
     const previewMessage = [
@@ -5617,6 +7259,7 @@ app.post('/api/aisensy/send-checkout-recovery', async (req: Request, res: Respon
       campaignName: cfg.checkoutDropCampaign,
       couponCode: String(couponCode),
       discountPercent: Number(discountPercent),
+      recoveryToken: signedRecovery.token,
       expiresAt: new Date(expiresAtMs).toISOString(),
       resumeUrl,
       previewMessage,
@@ -5722,6 +7365,21 @@ app.post('/api/aisensy/order-action', async (req: Request, res: Response) => {
     saveAiSensyLedger(ledger);
 
     void notifyAdminOrderActionEmail(record, targetStatus, String(source));
+
+    // H3: Trigger policy-controlled atomic coupon restoration on verified WhatsApp cancellation
+    if (targetStatus === 'cancelled') {
+      const couponEngine = getSharedCouponEngine();
+      if (couponEngine && (token || record.createdAt !== nowIso)) {
+        await couponEngine
+          .handleOrderCancelledOrRefunded({
+            orderId: record.orderId,
+            orderNumber: record.orderNumber,
+            actor: `whatsapp_${source}`,
+            reason: 'whatsapp_order_cancelled',
+          })
+          .catch((e) => console.warn('[Coupon Restore on WhatsApp Cancel Warning]:', e));
+      }
+    }
 
     return res.json({
       success: true,
@@ -5840,6 +7498,19 @@ app.post('/api/aisensy/webhook', async (req: Request, res: Response) => {
       });
       saveAiSensyLedger(ledger);
       void notifyAdminOrderActionEmail(matchedOrder, detectedAction, 'aisensy_webhook');
+      if (detectedAction === 'cancelled') {
+        const couponEngine = getSharedCouponEngine();
+        if (couponEngine) {
+          await couponEngine
+            .handleOrderCancelledOrRefunded({
+              orderId: matchedOrder.orderId,
+              orderNumber: matchedOrder.orderNumber,
+              actor: 'aisensy_webhook',
+              reason: 'aisensy_webhook_order_cancelled',
+            })
+            .catch((e) => console.warn('[Coupon Restore on AiSensy Webhook Warning]:', e));
+        }
+      }
     }
 
     return res.json({
@@ -6060,6 +7731,60 @@ app.use(
     },
   })
 );
+
+// ==============================================================================
+// 3Z-4. ADMIN COUPON & OFFER MANAGEMENT SYSTEM API
+// ==============================================================================
+const couponSystem = createCouponRouter({
+  verifyAdminRequest: (req: Request) => ({
+    valid: verifySignedAdminToken(extractAdminBearerToken(req), 'session'),
+    email: getSmtpConfig().adminEmailList[0] || 'admin',
+  }),
+  verifyCustomerJwt: verifySupabaseCustomerJwt,
+  verifyRecoveryEligibility,
+  isProduction: isProductionEnv,
+  getSupabaseAdminConfig: () => {
+    const cfg = getSupabaseAdminConfig();
+    return {
+      configured: Boolean(cfg.url && cfg.serviceRoleKey),
+      url: cfg.url,
+      serviceRoleKey: cfg.serviceRoleKey,
+    };
+  },
+  buildSupabaseAdminHeaders: (serviceRoleKey: string, extra?: Record<string, string>) => ({
+    ...buildSupabaseAdminHeaders(serviceRoleKey, true),
+    ...(extra || {}),
+  }),
+  escapeHtml,
+  sendCouponEmail: async (params) => {
+    const cfg = getSmtpConfig();
+    const transporter = getSmtpTransporter();
+    if (!transporter || !cfg.smtpUser) {
+      return {
+        sent: false,
+        reason: 'SMTP is not configured on this server (SMTP_USER / SMTP_PASS missing).',
+      };
+    }
+    try {
+      await transporter.sendMail({
+        from: `"TeqqnoWorld Offers" <${cfg.smtpUser}>`,
+        to: params.to,
+        replyTo: cfg.smtpUser,
+        subject: params.subject,
+        text: params.text,
+        html: params.html,
+      });
+      return { sent: true };
+    } catch (err: any) {
+      return {
+        sent: false,
+        reason: err?.message || 'SMTP server rejected or failed to deliver email.',
+      };
+    }
+  },
+});
+
+app.use('/api', couponSystem.router);
 
 // ==============================================================================
 // 4. DEV SERVER & STATIC FILE SERVING

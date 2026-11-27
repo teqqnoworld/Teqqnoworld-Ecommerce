@@ -1,6 +1,7 @@
 import React from 'react';
 import { ArrowRight } from 'lucide-react';
 import { getCategoryPath } from '../config/seoRoutes';
+import { getCategoryBadgeImageAlt } from '../data/seoKeywordMap';
 import { getResponsivePictureSources } from '../utils/responsiveImage';
 
 interface CategoriesSectionProps {
@@ -125,7 +126,7 @@ export const CategoriesSection: React.FC<CategoriesSectionProps> = ({ onSelectCa
                     src={pic.src}
                     srcSet={pic.webpSrcSet}
                     sizes={pic.sizes}
-                    alt={cat.name}
+                    alt={getCategoryBadgeImageAlt(cat.id, cat.name)}
                     width={222}
                     height={222}
                     loading="lazy"

@@ -49,6 +49,7 @@ import {
   EyeOff,
   Star,
   Sparkles,
+  Ticket,
 } from 'lucide-react';
 import { WhatsAppIcon } from './WhatsAppIcon';
 import {
@@ -105,6 +106,8 @@ import {
   formatOrderRef,
   getPaymentBadge,
   buildDailyTrendSeries,
+  resolveAdminOrderGroupKey,
+  resolveAdminLineTotal,
 } from './admin/adminUtils';
 import { AdminKpiCard, OrderThumb } from './admin/AdminVisuals';
 import {
@@ -118,6 +121,7 @@ import {
   AnalyticsSummary,
 } from './admin/AdminSubViews';
 import { AdminSecurityPanel } from './admin/AdminSecurityPanel';
+import { AdminCouponPanel } from './admin/AdminCouponPanel';
 import { AdminReviewsPanel } from './admin/AdminReviewsPanel';
 import { AdminAffiliatePanel } from './admin/AdminAffiliatePanel';
 import { fetchAdminReviews } from '../services/reviewsService';
@@ -929,12 +933,8 @@ export const AdminHubView: React.FC<AdminHubViewProps> = ({
     }
   };
 
-  // Analytics & Derived Datasets
+  // Analytics & Derived Datasets (H4: deduplicated at order level, line-accurate at product level)
   const analytics: AnalyticsSummary = useMemo(() => {
-    const totalOrdersCount = orders.length;
-    let totalRevenue = 0;
-    let totalPaidRecorded = 0;
-    let totalBalanceRecorded = 0;
     const statusCounts: Record<OrderStatus, number> = {
       pending: 0,
       approved: 0,
@@ -946,18 +946,63 @@ export const AdminHubView: React.FC<AdminHubViewProps> = ({
       string,
       { name: string; orders: number; units: number; revenue: number }
     >();
+    const orderGroups = new Map<
+      string,
+      {
+        status: OrderStatus;
+        orderTotal: number;
+        lineTotalSum: number;
+        hasExplicitOrderTotal: boolean;
+        paid: number;
+        balance: number;
+      }
+    >();
 
     orders.forEach((o) => {
-      const { product, total } = getOrderEstimates(o);
-      totalRevenue += total;
-      statusCounts[o.status] = (statusCounts[o.status] || 0) + 1;
-
+      const { product } = getOrderEstimates(o);
       const parsed = parseOrderNotes(o.custom_notes);
-      if (parsed.paidNumber !== null) {
-        totalPaidRecorded += parsed.paidNumber;
-      }
-      if (parsed.balanceNumber !== null) {
-        totalBalanceRecorded += parsed.balanceNumber;
+      const lineTotal = resolveAdminLineTotal(o);
+      const groupKey = resolveAdminOrderGroupKey(o, parsed);
+
+      const explicitOrderTotal =
+        typeof o.final_total_inr === 'number' &&
+        Number.isFinite(o.final_total_inr) &&
+        o.final_total_inr > 0
+          ? o.final_total_inr
+          : null;
+      const paidVal =
+        typeof o.amount_paid_inr === 'number' && Number.isFinite(o.amount_paid_inr)
+          ? o.amount_paid_inr
+          : parsed.paidNumber ?? 0;
+      const balanceVal =
+        typeof o.balance_due_inr === 'number' && Number.isFinite(o.balance_due_inr)
+          ? o.balance_due_inr
+          : parsed.balanceNumber ?? 0;
+
+      const existingGroup = orderGroups.get(groupKey);
+      if (!existingGroup) {
+        orderGroups.set(groupKey, {
+          status: o.status,
+          orderTotal: explicitOrderTotal ?? lineTotal,
+          lineTotalSum: lineTotal,
+          hasExplicitOrderTotal: explicitOrderTotal !== null,
+          paid: paidVal,
+          balance: balanceVal,
+        });
+      } else {
+        existingGroup.lineTotalSum += lineTotal;
+        if (explicitOrderTotal !== null) {
+          existingGroup.orderTotal = explicitOrderTotal;
+          existingGroup.hasExplicitOrderTotal = true;
+        } else if (!existingGroup.hasExplicitOrderTotal) {
+          existingGroup.orderTotal = existingGroup.lineTotalSum;
+        }
+        if (existingGroup.paid === 0 && paidVal > 0) {
+          existingGroup.paid = paidVal;
+        }
+        if (existingGroup.balance === 0 && balanceVal > 0) {
+          existingGroup.balance = balanceVal;
+        }
       }
 
       const prodKey = product?.id || o.product_id || 'custom';
@@ -970,8 +1015,22 @@ export const AdminHubView: React.FC<AdminHubViewProps> = ({
       };
       existing.orders += 1;
       existing.units += o.quantity || 1;
-      existing.revenue += total;
+      existing.revenue += lineTotal;
       productStats.set(prodKey, existing);
+    });
+
+    const totalOrdersCount = orderGroups.size;
+    let totalRevenue = 0;
+    let totalPaidRecorded = 0;
+    let totalBalanceRecorded = 0;
+
+    orderGroups.forEach((grp) => {
+      totalRevenue += grp.orderTotal;
+      totalPaidRecorded += grp.paid;
+      totalBalanceRecorded += grp.balance;
+      if (grp.status in statusCounts) {
+        statusCounts[grp.status] = (statusCounts[grp.status] || 0) + 1;
+      }
     });
 
     const topProducts = Array.from(productStats.values())
@@ -1575,6 +1634,12 @@ export const AdminHubView: React.FC<AdminHubViewProps> = ({
       breadcrumb: 'Affiliate Program',
       icon: Sparkles,
     },
+    coupons: {
+      title: 'Coupon & Offer Management',
+      subtitle: 'Create discount codes, private VIP customer vouchers, scheduled festival offers, usage limits & analytics.',
+      breadcrumb: 'Coupons & Offers',
+      icon: Ticket,
+    },
     customers: {
       title: 'Customers Directory',
       subtitle: 'Verified B2B & corporate buyers aggregated from real storefront orders.',
@@ -1803,6 +1868,24 @@ export const AdminHubView: React.FC<AdminHubViewProps> = ({
           <span className="flex items-center gap-3">
             <Sparkles className="w-4 h-4 shrink-0" />
             <span>Affiliate Program</span>
+          </span>
+        </button>
+
+        {/* 3D. Coupon & Offer Management */}
+        <button
+          onClick={() => {
+            setActiveSection('coupons');
+            if (isMobile) setMobileMenuOpen(false);
+          }}
+          className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl font-medium transition-all duration-200 cursor-pointer ${
+            activeSection === 'coupons'
+              ? 'bg-[#FF7900] text-white font-semibold shadow-md shadow-[#FF7900]/25'
+              : 'text-slate-300 hover:text-white hover:bg-white/[0.06]'
+          }`}
+        >
+          <span className="flex items-center gap-3">
+            <Ticket className="w-4 h-4 shrink-0" />
+            <span>Coupons & Offers</span>
           </span>
         </button>
 
@@ -3193,6 +3276,10 @@ export const AdminHubView: React.FC<AdminHubViewProps> = ({
 
           {activeSection === 'affiliates' && (
             <AdminAffiliatePanel />
+          )}
+
+          {activeSection === 'coupons' && (
+            <AdminCouponPanel onShowToast={(msg, tone) => showToast(tone === 'error' ? 'error' : 'success', msg)} />
           )}
 
           {activeSection === 'customers' && (

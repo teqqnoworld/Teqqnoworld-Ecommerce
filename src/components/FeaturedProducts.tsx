@@ -3,6 +3,7 @@ import { Star, Sparkles, ArrowRight, Heart } from 'lucide-react';
 import { BEST_SELLERS, BestSellerProduct } from '../data/mockData';
 import { Product } from '../types';
 import { getProductPath } from '../config/seoRoutes';
+import { getProductCardImageAlt } from '../data/seoKeywordMap';
 import { getResponsivePictureSources } from '../utils/responsiveImage';
 import { ProductRatingBadge } from './reviews/ProductRatingBadge';
 
@@ -131,7 +132,7 @@ export const FeaturedProducts: React.FC<FeaturedProductsProps> = ({
                       src={pic.src}
                       srcSet={pic.webpSrcSet}
                       sizes={pic.sizes}
-                      alt={p.name}
+                      alt={getProductCardImageAlt(fullProd.id, p.name)}
                       width={480}
                       height={270}
                       loading="lazy"

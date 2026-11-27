@@ -62,6 +62,8 @@ import {
 } from '../config/seoRoutes';
 import { ProductRatingBadge } from './reviews/ProductRatingBadge';
 import { ProductReviewsSection } from './reviews/ProductReviewsSection';
+import { ProductSeoGuideSection } from './ProductSeoGuideSection';
+import { getProductKeywordEntry } from '../data/seoKeywordMap';
 
 interface ProductDetailViewProps {
   product: Product;
@@ -1018,19 +1020,26 @@ export const ProductDetailView: React.FC<ProductDetailViewProps> = ({
   };
 
   const productDisplayTitle = getProductH1(product.id, product.name);
+  const productSeoEntry = getProductKeywordEntry(product.id);
   const productCategorySeo = getCategoryForProduct(product);
   const productCategoryHref = productCategorySeo ? `/category/${productCategorySeo.slug}` : '/catalog';
 
-  // Related products: prioritize same SEO category first, then complementary catalog items
+  // Related products: prioritize curated contextual companion links first, then same category, then complementary catalog items
   const relatedProducts = (() => {
     const others = PRODUCTS.filter((p) => p.id !== product.id);
-    const sameCategory = others.filter(
+    const curatedIds = productSeoEntry?.recommendedRelatedIds || [];
+    const curated = curatedIds
+      .map((id) => others.find((p) => p.id === id))
+      .filter((p): p is Product => Boolean(p));
+    const curatedSet = new Set(curated.map((p) => p.id));
+    const remaining = others.filter((p) => !curatedSet.has(p.id));
+    const sameCategory = remaining.filter(
       (p) => getCategoryForProduct(p)?.slug === productCategorySeo?.slug
     );
-    const otherCategories = others.filter(
+    const otherCategories = remaining.filter(
       (p) => getCategoryForProduct(p)?.slug !== productCategorySeo?.slug
     );
-    return [...sameCategory, ...otherCategories].slice(0, 4);
+    return [...curated, ...sameCategory, ...otherCategories].slice(0, 4);
   })();
 
   const handleOpenRelatedProduct = (rel: Product) => {
@@ -1273,7 +1282,7 @@ export const ProductDetailView: React.FC<ProductDetailViewProps> = ({
                     >
                       <img
                         src={selectedColor.imageFront || '/assets/umbrella/red-dimensions.webp'}
-                        alt={`${product.name} - ${selectedColor.name} Dimensions`}
+                        alt={`${productDisplayTitle} - ${selectedColor.name} Dimensions`}
                         width={600}
                         height={600}
                         loading="eager"
@@ -1662,7 +1671,7 @@ export const ProductDetailView: React.FC<ProductDetailViewProps> = ({
                       <div className="w-full h-full relative overflow-hidden flex items-center justify-center bg-zinc-100">
                         <img
                           src={isCap ? (selectedColor.imageFront || '/assets/caps/black.webp') : (viewOrientation === 'back' ? poloImages.back : poloImages.front)}
-                          alt={`${product.name} – ${selectedColor.name} ${isCap ? 'Front Crown Detail' : (viewOrientation === 'back' ? 'Back Yoke Detail' : 'Collar & Fabric Detail')}`}
+                          alt={`${productDisplayTitle} – ${selectedColor.name} ${isCap ? 'Front Crown Detail' : (viewOrientation === 'back' ? 'Back Yoke Detail' : 'Collar & Fabric Detail')}`}
                           className="w-48 h-48 object-cover object-top -translate-y-3 scale-150 drop-shadow-xs"
                         />
                         <div className="absolute bottom-1 inset-x-0 text-center bg-black/60 backdrop-blur-2xs py-0.5">
@@ -1740,7 +1749,7 @@ export const ProductDetailView: React.FC<ProductDetailViewProps> = ({
                       <div className="w-11 h-11 rounded-lg border border-zinc-200/80 shadow-2xs flex items-center justify-center overflow-hidden bg-zinc-50 p-1 shrink-0">
                         <img
                           src={gv.image || '/assets/aistudio/Blue_Canopy_Booth_Dimensions_Infographic_320b507e.webp'}
-                          alt={`${product.name} (${selectedCanopySize}) – ${gv.label}`}
+                          alt={`${productDisplayTitle} (${selectedCanopySize}) – ${gv.label}`}
                           className="w-full h-full object-contain"
                         />
                       </div>
@@ -1773,7 +1782,7 @@ export const ProductDetailView: React.FC<ProductDetailViewProps> = ({
                       <div className="w-12 h-10 rounded-lg border border-zinc-200/80 shadow-2xs flex items-center justify-center overflow-hidden bg-zinc-50 p-1">
                         <img
                           src={gv.image || umbrellaImages.front}
-                          alt={`${product.name} (${selectedColor.name}) – ${gv.label}`}
+                          alt={`${productDisplayTitle} (${selectedColor.name}) – ${gv.label}`}
                           className="w-full h-full object-contain"
                         />
                       </div>
@@ -1888,13 +1897,13 @@ export const ProductDetailView: React.FC<ProductDetailViewProps> = ({
                         {gv.id === 'front' ? (
                           <img 
                             src={isCap ? (selectedColor.imageFront || '/assets/caps/black.webp') : poloImages.front} 
-                            alt={`${product.name} (${selectedColor.name}) – Front View`} 
+                            alt={`${productDisplayTitle} (${selectedColor.name}) – Front View`} 
                             className="w-full h-full object-contain p-0.5" 
                           />
                         ) : gv.id === 'back' || gv.id === 'strap' ? (
                           <img 
                             src={isCap ? (selectedColor.imageBack || selectedColor.imageFront || '/assets/caps/black.webp') : poloImages.back} 
-                            alt={`${product.name} (${selectedColor.name}) – Back View`} 
+                            alt={`${productDisplayTitle} (${selectedColor.name}) – Back View`} 
                             className="w-full h-full object-contain p-0.5" 
                           />
                         ) : (
@@ -3195,6 +3204,17 @@ export const ProductDetailView: React.FC<ProductDetailViewProps> = ({
         )}
 
         {/* ========================================================================= */}
+        {/* PRODUCT OVERVIEW, VERIFIED SPECIFICATIONS, BUYING GUIDE & FAQS            */}
+        {/* ========================================================================= */}
+        <ProductSeoGuideSection
+          productId={product.id}
+          productDisplayTitle={productDisplayTitle}
+          categorySeo={productCategorySeo}
+          onSelectCategory={onSelectCategory}
+          onNavigateRoute={onNavigate}
+        />
+
+        {/* ========================================================================= */}
         {/* CUSTOMER REVIEWS & RATINGS (PER-PRODUCT ISOLATED)                         */}
         {/* ========================================================================= */}
         <ProductReviewsSection
@@ -3439,7 +3459,7 @@ export const ProductDetailView: React.FC<ProductDetailViewProps> = ({
                 ) : isStandee ? (
                   <img src="/assets/aistudio/Premium_Rollup_Standee_Infographic_4941e995.webp" alt="Rollup Standee (3 ft × 6 ft) – Black Retractable Display" width={40} height={40} loading="lazy" decoding="async" className="w-full h-full object-contain p-0.5" />
                 ) : isUmbrella ? (
-                  <img src={umbrellaImages.front} alt={`${product.name} – ${selectedColor.name}`} width={40} height={40} loading="lazy" decoding="async" className="w-full h-full object-contain p-0.5" />
+                  <img src={umbrellaImages.front} alt={`${productDisplayTitle} – ${selectedColor.name}`} width={40} height={40} loading="lazy" decoding="async" className="w-full h-full object-contain p-0.5" />
                 ) : isMug ? (
                   <img src="/assets/aistudio/Blank_White_Ceramic_Mug_b82bfadb.webp" alt="Promotional Ceramic Coffee Mug (325 ml, White)" width={40} height={40} loading="lazy" decoding="async" className="w-full h-full object-contain p-0.5" />
                 ) : isPromoTable ? (
@@ -3879,7 +3899,7 @@ export const ProductDetailView: React.FC<ProductDetailViewProps> = ({
                 activeThumbnailIndex === 1 || viewOrientation === 'dimensions' ? (
                   <img
                     src={selectedCanopySize === '8 × 8 ft' ? '/assets/aistudio/7_7_ft_Blue_Canopy_Booth_Infographic_3ac991cf.webp' : '/assets/aistudio/Blue_Canopy_Booth_Dimensions_Infographic_320b507e.webp'}
-                    alt={`${product.name} (${selectedCanopySize}) – Full-Size Specifications View`}
+                    alt={`${productDisplayTitle} (${selectedCanopySize}) – Full-Size Specifications View`}
                     className="max-h-[80vh] w-auto max-w-full object-contain drop-shadow-xl"
                   />
                 ) : (
@@ -3898,7 +3918,7 @@ export const ProductDetailView: React.FC<ProductDetailViewProps> = ({
                 activeThumbnailIndex === 2 || viewOrientation === 'dimensions' ? (
                   <img
                     src={selectedColor.imageFront || '/assets/umbrella/red-dimensions.webp'}
-                    alt={`${product.name} (${selectedColor.name}) – 5 ft × 7 ft Dimensions View`}
+                    alt={`${productDisplayTitle} (${selectedColor.name}) – 5 ft × 7 ft Dimensions View`}
                     className="max-h-[80vh] w-auto max-w-full object-contain drop-shadow-xl"
                   />
                 ) : (

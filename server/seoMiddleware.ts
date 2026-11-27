@@ -33,6 +33,10 @@ import {
   type StructuredDataProductInput,
 } from '../src/config/structuredData.ts';
 import { getPublishedReviewAggregateForSeo } from './reviewsRoutes.ts';
+import {
+  getCategoryKeywordEntry,
+  getProductKeywordEntry,
+} from '../src/data/seoKeywordMap.ts';
 
 // ==============================================================================
 // TEQQNOWORLD PHASE 1 SERVER-SIDE SEO ENGINE
@@ -370,6 +374,11 @@ export async function resolveSeoPageContext(
     const slug = decodeURIComponent(normalizedPath.slice('/category/'.length));
     const category = SEO_CATEGORIES.find((c) => c.slug === slug);
     if (category) {
+      const catSeo = getCategoryKeywordEntry(category.slug);
+      const categoryActiveProducts = catSeo
+        ? activeProducts.filter((p) => catSeo.activeProductIds.includes(p.item_id))
+        : activeProducts;
+
       return {
         statusCode: 200,
         title: category.title,
@@ -382,8 +391,8 @@ export async function resolveSeoPageContext(
         isPrivateNoindex: false,
         noscriptHtml: buildCrawlableNoscript({
           h1: category.h1,
-          summary: category.description,
-          products: activeProducts,
+          summary: `${category.intro}${catSeo?.buyingGuideParagraphs?.[0] ? ` ${catSeo.buyingGuideParagraphs[0]}` : ''}`,
+          products: categoryActiveProducts.length > 0 ? categoryActiveProducts : activeProducts,
         }),
         structuredData: buildPageStructuredData({
           kind: 'category',
@@ -413,6 +422,7 @@ export async function resolveSeoPageContext(
       const canonicalSlug = extractProductSlug(matchedProduct.url);
       const priceNum = parsePriceAmount(matchedProduct.price);
       const cleanProductH1 = getProductH1(matchedProduct.item_id, matchedProduct.title);
+      const productSeo = getProductKeywordEntry(matchedProduct.item_id);
       const title = buildProductSeoTitle(matchedProduct.item_id, matchedProduct.title);
       const description = buildProductSeoDescription({
         productId: matchedProduct.item_id,
@@ -420,6 +430,16 @@ export async function resolveSeoPageContext(
         description: matchedProduct.description,
         priceInr: priceNum,
       });
+
+      const curatedRelated = productSeo
+        ? productSeo.recommendedRelatedIds
+            .map((id) => activeProducts.find((p) => p.item_id === id))
+            .filter((p): p is ProductFeedItem => Boolean(p))
+        : [];
+      const relatedProductsForNoscript =
+        curatedRelated.length > 0
+          ? curatedRelated
+          : activeProducts.filter((p) => p.item_id !== matchedProduct.item_id).slice(0, 6);
 
       return {
         statusCode: 200,
@@ -429,12 +449,12 @@ export async function resolveSeoPageContext(
         robots: INDEX_ROBOTS,
         ogType: 'product',
         imageUrl: getProductSocialImageUrl(matchedProduct.item_id, matchedProduct.image_url),
-        imageAlt: cleanProductH1,
+        imageAlt: productSeo?.cardImageAlt || cleanProductH1,
         isPrivateNoindex: false,
         noscriptHtml: buildCrawlableNoscript({
           h1: cleanProductH1,
-          summary: `${matchedProduct.price} — ${matchedProduct.description}`,
-          products: activeProducts.filter((p) => p.item_id !== matchedProduct.item_id).slice(0, 6),
+          summary: `${matchedProduct.price} — ${productSeo?.overview || matchedProduct.description}`,
+          products: relatedProductsForNoscript,
         }),
         structuredData: buildPageStructuredData({
           kind: 'product',
@@ -588,7 +608,7 @@ export function injectSeoIntoHtml(rawHtml: string, page: ResolvedSeoPage): strin
 /**
  * Generates dynamic robots.txt pointing to canonical https://teqqnoworld.com/sitemap.xml.
  */
-function buildRobotsTxt(): string {
+export function buildRobotsTxt(): string {
   return [
     'User-agent: *',
     'Allow: /',
@@ -610,12 +630,11 @@ function buildRobotsTxt(): string {
  * Generates dynamic XML sitemap (with Google Image Sitemap namespace) for all
  * indexable public pages and live active products on https://teqqnoworld.com.
  */
-async function buildSitemapXml(options: ProductFeedOptions): Promise<string> {
+export async function buildSitemapXml(options: ProductFeedOptions): Promise<string> {
   const products = await buildDynamicProductFeed(options);
   const today = new Date().toISOString().split('T')[0];
 
   const entries: string[] = [];
-
   const pushUrl = (
     loc: string,
     changefreq: string,
@@ -658,12 +677,13 @@ async function buildSitemapXml(options: ProductFeedOptions): Promise<string> {
 
   // Live active products (all 11+ active storefront products)
   for (const product of products) {
+    const cleanImageTitle = getProductH1(product.item_id, product.title);
     const imgs: Array<{ loc: string; title: string }> = [];
     if (product.image_url) {
-      imgs.push({ loc: product.image_url, title: product.title });
+      imgs.push({ loc: product.image_url, title: cleanImageTitle });
     }
     for (const extra of product.additional_image_urls.slice(0, 4)) {
-      imgs.push({ loc: extra, title: product.title });
+      imgs.push({ loc: extra, title: cleanImageTitle });
     }
     pushUrl(product.url, 'daily', '0.9', imgs);
   }

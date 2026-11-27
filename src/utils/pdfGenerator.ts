@@ -944,3 +944,164 @@ export function generateCorporateCataloguePdf(item: {
     return false;
   }
 }
+
+/**
+ * Generates and downloads an Admin Coupon & Offer Usage Analytics Report PDF.
+ */
+export function generateCouponAnalyticsReportPdf(params: {
+  generatedAt: string;
+  filterSummary: string;
+  kpis: {
+    totalCoupons: number;
+    activeCoupons: number;
+    scheduledCoupons: number;
+    expiredCoupons: number;
+    totalRedemptions: number;
+    totalDiscountGivenInr: number;
+    totalShippingSavedInr: number;
+    ordersGeneratedCount: number;
+    totalRevenueGeneratedInr: number;
+  };
+  coupons: Array<{
+    code: string;
+    name: string;
+    campaignName?: string;
+    offerType: string;
+    discountValue: number;
+    effectiveStatus?: string;
+    status: string;
+    usageCount: number;
+    totalUsageLimit?: number | null;
+    totalDiscountGiven: number;
+    totalRevenueGenerated: number;
+  }>;
+  redemptions: Array<{
+    couponCode: string;
+    orderNumber?: string;
+    orderId: string;
+    customerName?: string;
+    customerEmail?: string;
+    discountInr: number;
+    shippingSavedInr: number;
+    finalTotalInr: number;
+    redeemedAt: string;
+  }>;
+}): boolean {
+  try {
+    const doc = createPdfDocument({
+      orientation: 'portrait',
+      unit: 'mm',
+      format: 'a4',
+    });
+
+    // Header Banner (TeqqnoWorld Dark Navy + Orange)
+    doc.setFillColor(7, 27, 53);
+    doc.rect(0, 0, 210, 32, 'F');
+    doc.setFillColor(255, 122, 0);
+    doc.rect(0, 32, 210, 2, 'F');
+
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(17);
+    doc.setTextColor(255, 255, 255);
+    doc.text('TEQQNO', 14, 15);
+    doc.setTextColor(255, 122, 0);
+    doc.text('WORLD', 42, 15);
+
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(11);
+    doc.setTextColor(255, 255, 255);
+    doc.text('COUPON & OFFER PERFORMANCE REPORT', 196, 14, { align: 'right' });
+
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(7.5);
+    doc.setTextColor(203, 213, 225);
+    doc.text(`Generated: ${new Date(params.generatedAt).toLocaleString('en-IN')}`, 196, 20, { align: 'right' });
+    doc.text(`Filters: ${params.filterSummary || 'All Time / All Campaigns'}`, 14, 24);
+
+    // KPI Summary Strip
+    const kpiBoxes = [
+      { label: 'Total Coupons', val: String(params.kpis.totalCoupons) },
+      { label: 'Active / Scheduled', val: `${params.kpis.activeCoupons} / ${params.kpis.scheduledCoupons}` },
+      { label: 'Total Redemptions', val: String(params.kpis.totalRedemptions) },
+      { label: 'Discount Given', val: `Rs. ${params.kpis.totalDiscountGivenInr.toLocaleString('en-IN')}` },
+      { label: 'Orders Revenue', val: `Rs. ${params.kpis.totalRevenueGeneratedInr.toLocaleString('en-IN')}` },
+    ];
+
+    const boxW = 35;
+    kpiBoxes.forEach((box, idx) => {
+      const x = 14 + idx * 36.8;
+      doc.setFillColor(248, 250, 252);
+      doc.setDrawColor(226, 232, 240);
+      doc.roundedRect(x, 40, boxW, 18, 1.5, 1.5, 'FD');
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(6.5);
+      doc.setTextColor(100, 116, 139);
+      doc.text(box.label.toUpperCase(), x + 3, 46);
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(9.5);
+      doc.setTextColor(7, 27, 53);
+      doc.text(box.val, x + 3, 54);
+    });
+
+    // Coupon Performance Table
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(10);
+    doc.setTextColor(7, 27, 53);
+    doc.text('1. Coupon Portfolio Summary', 14, 67);
+
+    renderAutoTable(doc, {
+      startY: 70,
+      head: [['Code', 'Campaign / Name', 'Offer', 'Status', 'Uses', 'Discount (INR)', 'Revenue (INR)']],
+      body: params.coupons.slice(0, 40).map((c) => [
+        c.code,
+        `${c.name}${c.campaignName ? ` (${c.campaignName})` : ''}`,
+        c.offerType === 'percentage'
+          ? `${c.discountValue}%`
+          : c.offerType === 'fixed'
+          ? `Rs. ${c.discountValue}`
+          : 'Free Ship',
+        String(c.effectiveStatus || c.status).toUpperCase(),
+        c.totalUsageLimit ? `${c.usageCount}/${c.totalUsageLimit}` : String(c.usageCount),
+        `Rs. ${Math.round(c.totalDiscountGiven || 0).toLocaleString('en-IN')}`,
+        `Rs. ${Math.round(c.totalRevenueGenerated || 0).toLocaleString('en-IN')}`,
+      ]),
+      theme: 'grid',
+      headStyles: { fillColor: [7, 27, 53], textColor: [255, 255, 255], fontSize: 7.5 },
+      styles: { fontSize: 7.2, cellPadding: 2.5 },
+      margin: { left: 14, right: 14 },
+    });
+
+    const nextY = Math.min(240, (doc.lastAutoTable?.finalY || 130) + 10);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(10);
+    doc.setTextColor(7, 27, 53);
+    doc.text('2. Recent Redemptions Ledger', 14, nextY);
+
+    renderAutoTable(doc, {
+      startY: nextY + 3,
+      head: [['Date', 'Code', 'Order Ref', 'Customer', 'Discount', 'Order Total']],
+      body:
+        params.redemptions.length > 0
+          ? params.redemptions.slice(0, 50).map((r) => [
+              new Date(r.redeemedAt).toLocaleDateString('en-IN'),
+              r.couponCode,
+              r.orderNumber || r.orderId.slice(0, 12),
+              r.customerName || r.customerEmail || 'Guest',
+              `Rs. ${Math.round((r.discountInr || 0) + (r.shippingSavedInr || 0)).toLocaleString('en-IN')}`,
+              `Rs. ${Math.round(r.finalTotalInr || 0).toLocaleString('en-IN')}`,
+            ])
+          : [['—', 'No redemptions recorded in selected filter window', '—', '—', '—', '—']],
+      theme: 'striped',
+      headStyles: { fillColor: [255, 122, 0], textColor: [255, 255, 255], fontSize: 7.5 },
+      styles: { fontSize: 7.2, cellPadding: 2.5 },
+      margin: { left: 14, right: 14 },
+    });
+
+    downloadPdf(doc, `TeqqnoWorld_Coupon_Report_${new Date().toISOString().slice(0, 10)}.pdf`);
+    return true;
+  } catch (error) {
+    console.error('[Coupon Report PDF Error]:', error);
+    return false;
+  }
+}
+

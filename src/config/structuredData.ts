@@ -36,6 +36,11 @@ import {
   resolvePricingRuleKey,
   type ProductPricingRule,
 } from '../data/pricingRules.ts';
+import {
+  getCategoryKeywordEntry,
+  getProductKeywordEntry,
+  type ProductSeoFaqItem,
+} from '../data/seoKeywordMap.ts';
 
 export const JSONLD_SCRIPT_ID = 'teqqnoworld-jsonld';
 
@@ -535,11 +540,12 @@ function buildProductEntity(
 ): Record<string, unknown> {
   const displayName = getProductH1(product.id, product.name);
   const imageUrl = getProductSocialImageUrl(product.id, product.imageUrl);
+  const seoEntry = getProductKeywordEntry(product.id);
   const entity: Record<string, unknown> = {
     '@type': 'Product',
     '@id': `${canonicalUrl}#product`,
     name: displayName,
-    description: cleanText(product.description),
+    description: cleanText(seoEntry?.overview || product.description),
     image: [imageUrl],
     url: canonicalUrl,
     sku: product.id.toUpperCase(),
@@ -551,6 +557,14 @@ function buildProductEntity(
 
   if (category) {
     entity.category = category.name;
+  }
+
+  if (seoEntry?.materialLabel) {
+    entity.material = seoEntry.materialLabel;
+  }
+
+  if (seoEntry?.colorSummary) {
+    entity.color = seoEntry.colorSummary;
   }
 
   const offers = buildProductOffers(product, canonicalUrl);
@@ -597,6 +611,27 @@ function buildProductEntity(
   }
 
   return entity;
+}
+
+function buildFaqPageEntity(
+  faqId: string,
+  pageUrl: string,
+  faqs: ReadonlyArray<ProductSeoFaqItem>
+): Record<string, unknown> {
+  return {
+    '@type': 'FAQPage',
+    '@id': faqId,
+    url: pageUrl,
+    inLanguage: 'en-IN',
+    mainEntity: faqs.map((faq) => ({
+      '@type': 'Question',
+      name: cleanText(faq.question),
+      acceptedAnswer: {
+        '@type': 'Answer',
+        text: cleanText(faq.answer),
+      },
+    })),
+  };
 }
 
 // ==============================================================================
@@ -666,26 +701,43 @@ export function buildPageStructuredData(input: StructuredDataPageInput): JsonLdD
     const breadcrumbId = `${categoryUrl}#breadcrumb`;
     const itemListId = `${categoryUrl}#itemlist`;
     const categoryProducts = filterProductsForCategory(input.products, input.category.slug);
+    const categorySeoEntry = getCategoryKeywordEntry(input.category.slug);
+
+    const collectionNode: Record<string, unknown> = {
+      '@type': 'CollectionPage',
+      '@id': `${categoryUrl}#collection`,
+      url: categoryUrl,
+      name: input.category.h1,
+      description: input.category.description,
+      inLanguage: 'en-IN',
+      isPartOf: { '@id': SCHEMA_IDS.website },
+      about: { '@id': SCHEMA_IDS.organization },
+      breadcrumb: { '@id': breadcrumbId },
+      mainEntity: { '@id': itemListId },
+    };
+
+    if (categorySeoEntry) {
+      collectionNode.keywords = [
+        categorySeoEntry.primaryKeyword,
+        ...categorySeoEntry.secondaryKeywords.slice(0, 4),
+      ].join(', ');
+    }
 
     graph.push(
-      {
-        '@type': 'CollectionPage',
-        '@id': `${categoryUrl}#collection`,
-        url: categoryUrl,
-        name: input.category.h1,
-        description: input.category.description,
-        inLanguage: 'en-IN',
-        isPartOf: { '@id': SCHEMA_IDS.website },
-        about: { '@id': SCHEMA_IDS.organization },
-        breadcrumb: { '@id': breadcrumbId },
-        mainEntity: { '@id': itemListId },
-      },
+      collectionNode,
       buildBreadcrumbListEntity(breadcrumbId, [
         { name: 'Home', url: buildCanonicalUrl('/') },
         { name: input.category.name, url: categoryUrl },
       ]),
       buildItemListEntity(itemListId, input.category.name, categoryProducts)
     );
+
+    if (categorySeoEntry && categorySeoEntry.faqs.length > 0) {
+      graph.push(
+        buildFaqPageEntity(`${categoryUrl}#faq`, categoryUrl, categorySeoEntry.faqs)
+      );
+    }
+
     return { '@context': 'https://schema.org', '@graph': graph };
   }
 
@@ -695,6 +747,7 @@ export function buildPageStructuredData(input: StructuredDataPageInput): JsonLdD
     const productEntityId = `${productUrl}#product`;
     const category = resolveSeoCategoryForProduct(input.product);
     const displayName = getProductH1(input.product.id, input.product.name);
+    const productSeoEntry = getProductKeywordEntry(input.product.id);
 
     const breadcrumbItems: Array<{ name: string; url: string }> = [
       { name: 'Home', url: buildCanonicalUrl('/') },
@@ -730,6 +783,13 @@ export function buildPageStructuredData(input: StructuredDataPageInput): JsonLdD
       buildBreadcrumbListEntity(breadcrumbId, breadcrumbItems),
       buildProductEntity(input.product, productUrl, category)
     );
+
+    if (productSeoEntry && productSeoEntry.faqs.length > 0) {
+      graph.push(
+        buildFaqPageEntity(`${productUrl}#faq`, productUrl, productSeoEntry.faqs)
+      );
+    }
+
     return { '@context': 'https://schema.org', '@graph': graph };
   }
 

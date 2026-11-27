@@ -46,7 +46,9 @@ import {
   getRazorpayStatus,
   loadRazorpayCheckoutScript,
   createRazorpayOrder,
+  releaseRazorpayReservation,
   verifyRazorpayPayment,
+  placeServerOrder,
   checkDelhiveryPincode,
   RazorpayStatus,
   DelhiveryPincodeCheckResult,
@@ -57,6 +59,12 @@ import {
   subscribeDelhiveryCheck,
 } from '../services/delhiveryPincodeStore';
 import { getWhatsAppLink } from '../config/business';
+import {
+  fetchMyPrivateOffers,
+  requestCheckoutRecoverySession,
+  validateCouponServer,
+} from '../services/couponService';
+import type { CouponValidationResult, PublicCouponSummary } from '../types/coupon';
 import {
   describeArtworkPlacement,
   extractArtworkAssetsFromItem,
@@ -225,7 +233,7 @@ export const CheckoutView: React.FC<CheckoutViewProps> = ({
     return () => clearInterval(timer);
   }, [recoveryCoupon, appliedPromoCode]);
 
-  // If user came back from AiSensy WhatsApp link (#checkout?coupon=SAVE5NOW), unlock & apply 5% OFF automatically
+  // If user came back from AiSensy WhatsApp link (#checkout?coupon=SAVE5NOW&recovery=<signedToken>), unlock & apply 5% OFF automatically
   useEffect(() => {
     if (typeof window === 'undefined') return;
     const hash = window.location.hash || '';
@@ -233,11 +241,13 @@ export const CheckoutView: React.FC<CheckoutViewProps> = ({
     if (queryIdx !== -1) {
       const params = new URLSearchParams(hash.slice(queryIdx + 1));
       const urlCoupon = params.get('coupon')?.trim().toUpperCase();
+      const urlRecoveryToken = params.get('recovery')?.trim() || undefined;
       if (urlCoupon === 'SAVE5NOW' || urlCoupon === 'TEQQNO5') {
         const activated = activateRecoveryCoupon({
           triggerReason: 'whatsapp_recovery_link',
           validMinutes: 15,
           autoApply: true,
+          recoveryToken: urlRecoveryToken,
         });
         setRecoveryCoupon(activated);
         setAppliedPromoCode('SAVE5NOW');
@@ -253,105 +263,161 @@ export const CheckoutView: React.FC<CheckoutViewProps> = ({
     }
   }, []);
 
-  // Financial calculations (with promo discount applied pre-GST)
-  const subtotal = items.reduce((sum, i) => sum + i.unitPrice * i.quantity, 0);
-  const isRecovery5Valid = Boolean(getActiveRecoveryCoupon());
-  const discountAmount =
-    appliedPromoCode === 'WELCOME10' || appliedPromoCode === 'TEQQNO10'
-      ? Math.round(subtotal * 0.1)
-      : (appliedPromoCode === 'SAVE5NOW' || appliedPromoCode === 'TEQQNO5') && isRecovery5Valid
-        ? Math.round(subtotal * 0.05)
-        : appliedPromoCode === 'TEQQNOBULK'
-          ? Math.min(subtotal, 500)
-          : 0;
+  // Server-authoritative coupon validation state & private customer offers
+  const [serverCouponValidation, setServerCouponValidation] =
+    useState<CouponValidationResult | null>(null);
+  const [validatingPromo, setValidatingPromo] = useState(false);
+  const [myPrivateOffers, setMyPrivateOffers] = useState<PublicCouponSummary[]>([]);
+
+  const subtotal = useMemo(
+    () => items.reduce((sum, i) => sum + i.unitPrice * i.quantity, 0),
+    [items]
+  );
+
+  const checkoutCartLines = useMemo(
+    () =>
+      items.map((i) => ({
+        productId: i.product.id,
+        productName: i.product.name,
+        category: i.product.category,
+        size: i.size,
+        unitPrice: i.unitPrice,
+        quantity: i.quantity,
+      })),
+    [items]
+  );
+
+  // Load any private coupons exclusively assigned to this logged-in customer (verified via Supabase JWT)
+  useEffect(() => {
+    if (!user?.id) {
+      setMyPrivateOffers([]);
+      return;
+    }
+    let active = true;
+    fetchMyPrivateOffers().then((res) => {
+      if (active) setMyPrivateOffers(res.privateOffers || []);
+    });
+    return () => {
+      active = false;
+    };
+  }, [user?.id]);
+
+  // Continuously keep applied coupon server-validated when cart or customer identity updates
+  useEffect(() => {
+    if (!appliedPromoCode) {
+      setServerCouponValidation(null);
+      return;
+    }
+    let cancelled = false;
+    const activeRec = getActiveRecoveryCoupon();
+    validateCouponServer({
+      code: appliedPromoCode,
+      subtotal,
+      items: checkoutCartLines,
+      recoveryToken: activeRec?.recoveryToken,
+      checkoutSessionId,
+      paymentPlan: paymentMode === 'Partial Payment (50% Advance)' ? 'partial_50' : 'prepaid_100',
+    }).then((res) => {
+      if (cancelled) return;
+      if (res.valid) {
+        setServerCouponValidation(res);
+      } else {
+        setServerCouponValidation(null);
+        setAppliedPromoCode(null);
+        setPromoFeedback({ type: 'error', text: res.message });
+        try {
+          sessionStorage.removeItem('teqqno_applied_coupon');
+        } catch {}
+      }
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    appliedPromoCode,
+    subtotal,
+    checkoutCartLines,
+    checkoutSessionId,
+    user?.id,
+    paymentMode,
+  ]);
+
+  const discountAmount = serverCouponValidation?.valid ? serverCouponValidation.discountAmount : 0;
   const discountedSubtotal = Math.max(0, subtotal - discountAmount);
-  const shippingFee = subtotal >= 1999 || subtotal === 0 ? 0 : 149;
+  const baseShippingFee = subtotal >= 1999 || subtotal === 0 ? 0 : 149;
+  const shippingFee = serverCouponValidation?.valid
+    ? serverCouponValidation.shippingFee
+    : baseShippingFee;
   const gstRate = 0.18;
-  const gstAmount = Math.round(discountedSubtotal * gstRate);
-  const total = discountedSubtotal + shippingFee + gstAmount;
-  const halfAdvanceAmount = Math.round(total * 0.5);
+  const gstAmount = serverCouponValidation?.valid
+    ? serverCouponValidation.gstAmount
+    : Math.round(discountedSubtotal * gstRate);
+  const total = serverCouponValidation?.valid
+    ? serverCouponValidation.finalTotal
+    : discountedSubtotal + shippingFee + gstAmount;
+  const halfAdvanceAmount = serverCouponValidation?.valid
+    ? serverCouponValidation.advanceAmount50
+    : Math.round(total * 0.5);
   const payableNow = paymentMode === 'Partial Payment (50% Advance)' ? halfAdvanceAmount : total;
   const balanceDue = Math.max(0, total - payableNow);
 
-  const handleApplyPromoCode = (rawCode?: string) => {
+  const handleApplyPromoCode = async (rawCode?: string) => {
     const code = (rawCode ?? promoInput).trim().toUpperCase();
     if (!code) {
-      setPromoFeedback({ type: 'error', text: 'Enter code WELCOME10 to unlock 10% OFF.' });
+      setPromoFeedback({ type: 'error', text: 'Enter a valid coupon code (e.g. WELCOME10).' });
       return;
     }
-    if (code === 'WELCOME10' || code === 'TEQQNO10' || code === 'WELCOME12') {
-      const normalized = code === 'WELCOME12' ? 'WELCOME10' : code;
-      const saved = Math.round(subtotal * 0.1);
-      setAppliedPromoCode(normalized);
-      setPromoInput(normalized);
-      try {
-        sessionStorage.setItem('teqqno_applied_coupon', normalized);
-      } catch {}
-      setPromoFeedback({
-        type: 'success',
-        text: `🎉 Code ${normalized} applied! You saved ₹${saved.toLocaleString('en-IN')} (10% OFF).`,
+    setValidatingPromo(true);
+    try {
+      const activeRec = getActiveRecoveryCoupon();
+      const res = await validateCouponServer({
+        code,
+        subtotal,
+        items: checkoutCartLines,
+        recoveryToken: activeRec?.recoveryToken,
+        checkoutSessionId,
+        paymentPlan: paymentMode === 'Partial Payment (50% Advance)' ? 'partial_50' : 'prepaid_100',
       });
-      triggerCelebration({
-        level: 'premium',
-        sound: 'celebration',
-        eventKey: `checkout-coupon:${normalized}`,
-        dedupeWindowMs: 4000,
-        action: 'coupon_applied',
-      });
-    } else if (code === 'SAVE5NOW' || code === 'TEQQNO5') {
-      const active = getActiveRecoveryCoupon();
-      if (!active) {
+
+      if (!res.valid) {
+        setServerCouponValidation(null);
+        setAppliedPromoCode(null);
         setPromoFeedback({
           type: 'error',
-          text: 'Limited-time 5% OFF voucher has expired or unlocks only when needed at checkout.',
+          text: res.message || 'Invalid or ineligible promo code.',
         });
+        try {
+          sessionStorage.removeItem('teqqno_applied_coupon');
+        } catch {}
         return;
       }
-      const saved = Math.round(subtotal * 0.05);
-      setAppliedPromoCode('SAVE5NOW');
-      setPromoInput('SAVE5NOW');
+
+      const canonical = res.code || code;
+      setServerCouponValidation(res);
+      setAppliedPromoCode(canonical);
+      setPromoInput(canonical);
       try {
-        sessionStorage.setItem('teqqno_applied_coupon', 'SAVE5NOW');
+        sessionStorage.setItem('teqqno_applied_coupon', canonical);
       } catch {}
       setPromoFeedback({
         type: 'success',
-        text: `⚡ Limited-Time 5% OFF (SAVE5NOW) applied! You saved ₹${saved.toLocaleString('en-IN')}.`,
+        text: res.message,
       });
       triggerCelebration({
         level: 'premium',
         sound: 'celebration',
-        eventKey: 'checkout-coupon:SAVE5NOW',
+        eventKey: `checkout-coupon:${canonical}`,
         dedupeWindowMs: 4000,
-        action: 'discount_applied',
+        action: canonical === 'SAVE5NOW' ? 'discount_applied' : 'coupon_applied',
       });
-    } else if (code === 'TEQQNOBULK') {
-      const saved = Math.min(subtotal, 500);
-      setAppliedPromoCode('TEQQNOBULK');
-      setPromoInput('TEQQNOBULK');
-      try {
-        sessionStorage.setItem('teqqno_applied_coupon', 'TEQQNOBULK');
-      } catch {}
-      setPromoFeedback({
-        type: 'success',
-        text: `Bulk voucher applied! Saved ₹${saved.toLocaleString('en-IN')}.`,
-      });
-      triggerCelebration({
-        level: 'premium',
-        sound: 'celebration',
-        eventKey: 'checkout-coupon:TEQQNOBULK',
-        dedupeWindowMs: 4000,
-        action: 'coupon_applied',
-      });
-    } else {
-      setPromoFeedback({
-        type: 'error',
-        text: 'Invalid promo code. Use WELCOME10 or your limited-time 5% OFF code.',
-      });
+    } finally {
+      setValidatingPromo(false);
     }
   };
 
   const handleRemovePromoCode = () => {
     setAppliedPromoCode(null);
+    setServerCouponValidation(null);
     setPromoInput('');
     setPromoFeedback(null);
     try {
@@ -397,6 +463,7 @@ export const CheckoutView: React.FC<CheckoutViewProps> = ({
     let waStatusMsg: string | null = null;
     let waSimulated = true;
     let expiresAtMs = Date.now() + 15 * 60 * 1000;
+    let serverRecoveryToken: string | undefined;
 
     if (validPhone) {
       const waRes = await sendCheckoutDropRecoveryWhatsApp({
@@ -412,8 +479,32 @@ export const CheckoutView: React.FC<CheckoutViewProps> = ({
       });
       waStatusMsg = waRes.message;
       waSimulated = Boolean(waRes.simulated);
+      if (waRes.recoveryToken) {
+        serverRecoveryToken = waRes.recoveryToken;
+      }
       if (waRes.expiresAt) {
         const parsed = new Date(waRes.expiresAt).getTime();
+        if (Number.isFinite(parsed)) expiresAtMs = parsed;
+      }
+    }
+
+    if (!serverRecoveryToken) {
+      const recSession = await requestCheckoutRecoverySession({
+        checkoutSessionId,
+        phone: validPhone || undefined,
+        validMinutes: 15,
+        triggerReason: reason,
+        items: checkoutCartLines.map((line) => ({
+          productId: line.productId,
+          quantity: line.quantity,
+          size: line.size,
+        })),
+      });
+      if (recSession.recoveryToken) {
+        serverRecoveryToken = recSession.recoveryToken;
+      }
+      if (recSession.expiresAt) {
+        const parsed = new Date(recSession.expiresAt).getTime();
         if (Number.isFinite(parsed)) expiresAtMs = parsed;
       }
     }
@@ -422,6 +513,7 @@ export const CheckoutView: React.FC<CheckoutViewProps> = ({
       triggerReason: reason,
       validMinutes: 15,
       autoApply: false,
+      recoveryToken: serverRecoveryToken,
       whatsappDispatched: Boolean(validPhone),
       whatsappPhone: validPhone,
       whatsappSimulated: waSimulated,
@@ -676,6 +768,62 @@ export const CheckoutView: React.FC<CheckoutViewProps> = ({
     try {
       let razorpayOrderId: string | undefined;
       let razorpayPaymentId: string | undefined;
+      let razorpaySignature: string | undefined;
+      let reservationId: string | undefined;
+
+      const normalizedPlan: 'prepaid_100' | 'partial_50' =
+        paymentMode === 'Partial Payment (50% Advance)' ? 'partial_50' : 'prepaid_100';
+      const activeRecoveryToken = getActiveRecoveryCoupon()?.recoveryToken;
+
+      // H2: Derive authoritative local pricing variables directly from fresh server responses (never stale React state)
+      let resolvedSubtotal = subtotal;
+      let resolvedDiscount = 0;
+      let resolvedDiscountedSubtotal = subtotal;
+      let resolvedShipping = baseShippingFee;
+      let resolvedShippingSaved = 0;
+      let resolvedFreeShipping = false;
+      let resolvedGst = Math.round(subtotal * gstRate);
+      let resolvedTotal = subtotal + resolvedGst + resolvedShipping;
+      let resolvedPayable =
+        normalizedPlan === 'partial_50' ? Math.round(resolvedTotal * 0.5) : resolvedTotal;
+      let resolvedBalance = Math.max(0, resolvedTotal - resolvedPayable);
+      let resolvedCouponCode: string | null = appliedPromoCode || null;
+
+      // Final server-side coupon re-validation right before payment/order creation
+      if (appliedPromoCode) {
+        setUploadStepStatus('Verifying coupon eligibility on server...');
+        const finalCouponCheck = await validateCouponServer({
+          code: appliedPromoCode,
+          subtotal,
+          items: checkoutCartLines,
+          recoveryToken: activeRecoveryToken,
+          checkoutSessionId,
+          paymentPlan: normalizedPlan,
+        });
+        if (!finalCouponCheck.valid) {
+          setServerCouponValidation(null);
+          setAppliedPromoCode(null);
+          throw new Error(
+            finalCouponCheck.message || 'Your applied coupon is no longer valid. Please review your order summary.'
+          );
+        }
+        setServerCouponValidation(finalCouponCheck);
+        resolvedCouponCode = finalCouponCheck.code || appliedPromoCode;
+        resolvedSubtotal = finalCouponCheck.subtotal;
+        resolvedDiscount = finalCouponCheck.discountAmount;
+        resolvedDiscountedSubtotal = Math.max(0, finalCouponCheck.subtotal - finalCouponCheck.discountAmount);
+        resolvedShipping = finalCouponCheck.shippingFee;
+        resolvedShippingSaved = finalCouponCheck.shippingSaved;
+        resolvedFreeShipping = finalCouponCheck.freeShippingApplied;
+        resolvedGst = finalCouponCheck.gstAmount;
+        resolvedTotal = finalCouponCheck.finalTotal;
+        resolvedPayable =
+          normalizedPlan === 'partial_50'
+            ? finalCouponCheck.advanceAmount50
+            : finalCouponCheck.finalTotal;
+        resolvedBalance =
+          normalizedPlan === 'partial_50' ? finalCouponCheck.balanceAmount50 : 0;
+      }
 
       // 0. If Razorpay status hasn't finished loading yet, fetch it synchronously first
       const liveRzpStatus = razorpayStatus ?? (await getRazorpayStatus().catch(() => null));
@@ -683,7 +831,7 @@ export const CheckoutView: React.FC<CheckoutViewProps> = ({
         setRazorpayStatus(liveRzpStatus);
       }
 
-      // If Razorpay live keys are configured on backend, collect 100% Prepaid or 50% Advance first
+      // If Razorpay live keys are configured on backend, reserve coupon atomically & collect 100% Prepaid or 50% Advance first
       if (liveRzpStatus?.configured) {
         setUploadStepStatus('Opening Razorpay secure checkout...');
         const scriptOk = await loadRazorpayCheckoutScript();
@@ -692,18 +840,40 @@ export const CheckoutView: React.FC<CheckoutViewProps> = ({
         }
 
         const rzpOrder = await createRazorpayOrder({
-          amountInr: payableNow,
-          totalOrderValue: total,
-          balanceDue,
-          paymentPlan: paymentMode === 'Partial Payment (50% Advance)' ? 'partial_50' : 'prepaid_100',
+          paymentPlan: normalizedPlan,
           receipt: `TQ_${Date.now()}`,
           customerName: fullName.trim(),
           customerEmail: email.trim(),
           customerPhone: phone.trim(),
+          couponCode: resolvedCouponCode || undefined,
+          recoveryToken: activeRecoveryToken,
+          checkoutSessionId,
+          items: checkoutCartLines.map((line) => ({
+            productId: line.productId,
+            productName: line.productName,
+            category: line.category,
+            size: line.size,
+            quantity: line.quantity,
+          })),
         });
 
         if (!rzpOrder.success || !rzpOrder.orderId || !rzpOrder.keyId) {
           throw new Error(rzpOrder.message || 'Unable to create Razorpay payment session.');
+        }
+
+        reservationId = rzpOrder.reservationId || undefined;
+        if (rzpOrder.pricing) {
+          resolvedSubtotal = rzpOrder.pricing.subtotal;
+          resolvedDiscount = rzpOrder.pricing.discountAmount;
+          resolvedDiscountedSubtotal = Math.max(0, resolvedSubtotal - resolvedDiscount);
+          resolvedShipping = rzpOrder.pricing.shippingFee;
+          resolvedShippingSaved = rzpOrder.pricing.shippingSaved;
+          resolvedFreeShipping = rzpOrder.pricing.freeShippingApplied;
+          resolvedGst = rzpOrder.pricing.gstAmount;
+          resolvedTotal = rzpOrder.pricing.finalTotal;
+          resolvedPayable = rzpOrder.pricing.payableNow;
+          resolvedBalance = rzpOrder.pricing.balanceDue;
+          resolvedCouponCode = rzpOrder.pricing.couponCode;
         }
 
         const brandLogoUrl =
@@ -723,8 +893,8 @@ export const CheckoutView: React.FC<CheckoutViewProps> = ({
             name: 'TeqqnoWorld',
             ...(brandLogoUrl ? { image: brandLogoUrl } : {}),
             description:
-              paymentMode === 'Partial Payment (50% Advance)'
-                ? `50% Advance (₹${payableNow.toLocaleString('en-IN')} of ₹${total.toLocaleString('en-IN')})`
+              normalizedPlan === 'partial_50'
+                ? `50% Advance (₹${resolvedPayable.toLocaleString('en-IN')} of ₹${resolvedTotal.toLocaleString('en-IN')})`
                 : `100% Full Prepaid Order`,
             order_id: rzpOrder.orderId,
             prefill: {
@@ -735,11 +905,29 @@ export const CheckoutView: React.FC<CheckoutViewProps> = ({
             notes: {
               company: companyName || 'Direct',
               payment_plan: paymentMode,
-              balance_due_before_dispatch: String(balanceDue),
+              balance_due_before_dispatch: String(resolvedBalance),
             },
             theme: { color: '#FF7A00' },
             modal: {
               ondismiss: () => {
+                void releaseRazorpayReservation({
+                  reservationId,
+                  razorpayOrderId: rzpOrder.orderId,
+                  releaseToken: rzpOrder.releaseToken,
+                  reason: 'razorpay_modal_dismissed',
+                  checkoutSessionId,
+                  phone: phone.trim(),
+                }).then((rel) => {
+                  if (rel.recoveryToken) {
+                    const updated = activateRecoveryCoupon({
+                      triggerReason: 'payment_cancelled',
+                      validMinutes: 15,
+                      autoApply: false,
+                      recoveryToken: rel.recoveryToken,
+                    });
+                    setRecoveryCoupon(updated);
+                  }
+                });
                 void triggerCheckoutDropRecovery('payment_cancelled', false);
                 reject(new Error('Payment cancelled before completion. We unlocked a limited-time 5% OFF voucher for you!'));
               },
@@ -747,6 +935,24 @@ export const CheckoutView: React.FC<CheckoutViewProps> = ({
             handler: (resp: any) => resolve(resp),
           });
           rzpInstance.on('payment.failed', (failResp: any) => {
+            void releaseRazorpayReservation({
+              reservationId,
+              razorpayOrderId: rzpOrder.orderId,
+              releaseToken: rzpOrder.releaseToken,
+              reason: 'razorpay_payment_failed',
+              checkoutSessionId,
+              phone: phone.trim(),
+            }).then((rel) => {
+              if (rel.recoveryToken) {
+                const updated = activateRecoveryCoupon({
+                  triggerReason: 'payment_failed',
+                  validMinutes: 15,
+                  autoApply: false,
+                  recoveryToken: rel.recoveryToken,
+                });
+                setRecoveryCoupon(updated);
+              }
+            });
             void triggerCheckoutDropRecovery('payment_failed', false);
             reject(new Error(failResp?.error?.description || 'Razorpay payment failed. Please try again.'));
           });
@@ -754,17 +960,21 @@ export const CheckoutView: React.FC<CheckoutViewProps> = ({
         });
 
         setUploadStepStatus('Verifying Razorpay payment signature...');
-        const verifyRes = await verifyRazorpayPayment(rzpResponse);
+        const verifyRes = await verifyRazorpayPayment({
+          ...rzpResponse,
+          reservationId,
+        });
         if (!verifyRes.verified) {
           throw new Error(verifyRes.message || 'Razorpay signature verification failed.');
         }
 
         razorpayOrderId = rzpResponse.razorpay_order_id;
         razorpayPaymentId = rzpResponse.razorpay_payment_id;
+        razorpaySignature = rzpResponse.razorpay_signature;
       }
 
-      const insertedOrderIds: string[] = [];
       const emailItems: OrderEmailItem[] = [];
+      const preparedOrderRows: Array<{ logoUrl: string | null; customNotes: string }> = [];
 
       const safeUploadToSupabase = async (
         source: string | null | undefined,
@@ -789,7 +999,7 @@ export const CheckoutView: React.FC<CheckoutViewProps> = ({
         };
       };
 
-      // 1. Process and insert each cart item into Supabase custom_orders
+      // 1. Upload item mockups & logos, then persist authoritative order rows on the server
       for (let i = 0; i < items.length; i++) {
         const item = items[i];
         setUploadStepStatus(`Preparing artwork & mockup design for ${item.product.name} (${i + 1}/${items.length})...`);
@@ -820,7 +1030,6 @@ export const CheckoutView: React.FC<CheckoutViewProps> = ({
           .filter(Boolean)
           .join(' | Checkout Instruction: ');
 
-        // Map form fields to exact Supabase custom_orders columns
         const notesParts: string[] = [];
         if (item.color?.name) notesParts.push(`Color: ${item.color.name}`);
         if (item.size) notesParts.push(`Size: ${item.size}`);
@@ -830,52 +1039,16 @@ export const CheckoutView: React.FC<CheckoutViewProps> = ({
         if (poNumber) notesParts.push(`PO#: ${poNumber}`);
         if (isB2BInvoice && gstin) notesParts.push(`GSTIN: ${gstin}`);
         notesParts.push(`Address: ${street}, ${city}, ${state} - ${pincode}`);
-        if (appliedPromoCode && discountAmount > 0) {
-          notesParts.push(`Promo: ${appliedPromoCode} (-₹${discountAmount})`);
-        }
-        notesParts.push(`Payment Plan: ${paymentMode}`);
-        notesParts.push(`Paid: ₹${payableNow} | Balance Due: ₹${balanceDue}`);
-        if (razorpayPaymentId) {
-          notesParts.push(`Razorpay ID: ${razorpayPaymentId}`);
-        } else {
-          notesParts.push(`Gateway Mode: Sandbox (Awaiting Razorpay API Keys)`);
-        }
-
         // Attach structured URLs at end of custom_notes for Admin Hub multi-preview gallery
         if (frontMockupRes.publicUrl) notesParts.push(`[FrontMockup: ${frontMockupRes.publicUrl}]`);
         if (backMockupRes.publicUrl) notesParts.push(`[BackMockup: ${backMockupRes.publicUrl}]`);
         if (backLogoRes.publicUrl) notesParts.push(`[BackLogo: ${backLogoRes.publicUrl}]`);
         if (voiceNoteRes.publicUrl) notesParts.push(`[VoiceNote: ${voiceNoteRes.publicUrl}]`);
 
-        const orderRow = {
-          customer_name: fullName.trim(),
-          customer_email: email.trim(),
-          company: companyName?.trim() || null,
-          phone: phone.trim(),
-          product_id: item.product.id,
-          quantity: item.quantity,
-          logo_url: primaryLogoDbUrl,
-          custom_notes: notesParts.join(' | ') || 'Order placed via checkout',
-          status: 'pending' as const,
-        };
-
-        console.log('[Supabase Order] Inserting into custom_orders:', orderRow);
-        setUploadStepStatus(`Saving order for ${item.product.name} to Supabase database...`);
-
-        // Real Supabase insert call:
-        const { data, error } = await (supabase.from('custom_orders') as any)
-          .insert([orderRow])
-          .select();
-
-        if (error) {
-          console.error('[Supabase Insert Error in custom_orders]:', error);
-          throw new Error(error.message || 'Failed to insert custom order into Supabase.');
-        }
-
-        console.log('[Supabase Insert Success]:', data);
-        if (data && data[0]?.id) {
-          insertedOrderIds.push(data[0].id);
-        }
+        preparedOrderRows.push({
+          logoUrl: primaryLogoDbUrl,
+          customNotes: notesParts.join(' | ') || 'Order placed via checkout',
+        });
 
         emailItems.push({
           name: item.product.name,
@@ -900,11 +1073,56 @@ export const CheckoutView: React.FC<CheckoutViewProps> = ({
         });
       }
 
-      // 2. Prepare confirmation order object
-      const primaryId = insertedOrderIds[0] || `TQ-${Math.floor(100000 + Math.random() * 900000)}`;
-      const orderNumber = primaryId.startsWith('TQ-') 
-        ? primaryId 
-        : `TQ-${primaryId.slice(0, 8).toUpperCase()}`;
+      // 2. Authoritative server-side order insert & atomic coupon finalization (C3 + C4 + H2)
+      setUploadStepStatus('Saving verified order & finalizing offer on server...');
+      const placeRes = await placeServerOrder({
+        items: checkoutCartLines.map((line) => ({
+          productId: line.productId,
+          productName: line.productName,
+          category: line.category,
+          size: line.size,
+          quantity: line.quantity,
+        })),
+        orderRows: preparedOrderRows,
+        customerName: fullName.trim(),
+        customerEmail: email.trim(),
+        customerPhone: phone.trim(),
+        companyName: companyName?.trim() || undefined,
+        paymentPlan: normalizedPlan,
+        paymentModeLabel: paymentMode,
+        couponCode: resolvedCouponCode || undefined,
+        reservationId,
+        recoveryToken: activeRecoveryToken,
+        checkoutSessionId,
+        razorpayOrderId,
+        razorpayPaymentId,
+        razorpaySignature,
+      });
+
+      if (!placeRes.success || !placeRes.primaryOrderId) {
+        throw new Error(placeRes.message || 'Failed to save verified order on server.');
+      }
+
+      if (placeRes.pricing) {
+        resolvedSubtotal = placeRes.pricing.subtotal;
+        resolvedDiscount = placeRes.pricing.discountAmount;
+        resolvedDiscountedSubtotal =
+          placeRes.pricing.discountedSubtotal ??
+          Math.max(0, resolvedSubtotal - resolvedDiscount);
+        resolvedShipping = placeRes.pricing.shippingFee;
+        resolvedShippingSaved = placeRes.pricing.shippingSaved;
+        resolvedFreeShipping = placeRes.pricing.freeShippingApplied;
+        resolvedGst = placeRes.pricing.gstAmount;
+        resolvedTotal = placeRes.pricing.finalTotal;
+        resolvedPayable = placeRes.pricing.payableNow;
+        resolvedBalance = placeRes.pricing.balanceDue;
+        resolvedCouponCode = placeRes.pricing.couponCode;
+      }
+
+      const primaryId = placeRes.primaryOrderId;
+      const orderNumber =
+        placeRes.orderNumber ||
+        (primaryId.startsWith('TQ-') ? primaryId : `TQ-${primaryId.slice(0, 8).toUpperCase()}`);
 
       const shippingAddress: ShippingAddress = {
         fullName,
@@ -924,11 +1142,11 @@ export const CheckoutView: React.FC<CheckoutViewProps> = ({
         orderNumber,
         createdAt: new Date().toISOString(),
         items: [...items],
-        subtotal: discountedSubtotal,
+        subtotal: resolvedDiscountedSubtotal,
         gstRate,
-        gstAmount,
-        shippingFee,
-        total,
+        gstAmount: resolvedGst,
+        shippingFee: resolvedShipping,
+        total: resolvedTotal,
         shippingAddress,
         proofStatus: 'Proof Ready - Needs Approval',
         orderStatus: 'Artwork Verification',
@@ -937,12 +1155,12 @@ export const CheckoutView: React.FC<CheckoutViewProps> = ({
         courierPartner: 'Delhivery Express (Prepaid)',
         paymentMode,
         paymentStatus: razorpayPaymentId
-          ? paymentMode === 'Partial Payment (50% Advance)'
+          ? normalizedPlan === 'partial_50'
             ? '50% Advance Paid (Razorpay)'
             : 'Paid in Full (Razorpay)'
           : 'Test Authenticated (Sandbox)',
-        amountPaid: payableNow,
-        balanceDue,
+        amountPaid: resolvedPayable,
+        balanceDue: resolvedBalance,
         razorpayOrderId,
         razorpayPaymentId,
         orderVoiceNoteUrl: orderVoiceNoteUrl || undefined,
@@ -977,16 +1195,16 @@ export const CheckoutView: React.FC<CheckoutViewProps> = ({
           phone: phone.trim(),
           gstin: isB2BInvoice && gstin ? gstin.trim() : undefined,
           paymentMode,
-          amountPaid: payableNow,
-          balanceDue,
+          amountPaid: resolvedPayable,
+          balanceDue: resolvedBalance,
           razorpayPaymentId,
           orderVoiceNoteUrl: orderVoiceNoteUrl || undefined,
           orderNotes: orderVoiceNotes.trim() || undefined,
           items: emailItems,
-          subtotal: discountedSubtotal,
-          gstAmount,
-          shippingFee,
-          total,
+          subtotal: resolvedDiscountedSubtotal,
+          gstAmount: resolvedGst,
+          shippingFee: resolvedShipping,
+          total: resolvedTotal,
           estimatedDispatch: '24-48h Fast Dispatch via Delhivery',
           shippingAddress: {
             street,
@@ -1000,9 +1218,9 @@ export const CheckoutView: React.FC<CheckoutViewProps> = ({
           orderNumber,
           customerName: fullName.trim(),
           phone: phone.trim(),
-          total,
-          amountPaid: payableNow,
-          balanceDue,
+          total: resolvedTotal,
+          amountPaid: resolvedPayable,
+          balanceDue: resolvedBalance,
           paymentMode,
           itemsSummary,
           shippingCity: city,
@@ -1785,13 +2003,36 @@ export const CheckoutView: React.FC<CheckoutViewProps> = ({
                   ) : (
                     <button
                       type="button"
-                      onClick={() => handleApplyPromoCode()}
-                      className="px-4 py-2 rounded-lg bg-[#0B0B0D] hover:bg-zinc-800 text-white text-xs font-semibold cursor-pointer"
+                      disabled={validatingPromo}
+                      onClick={() => void handleApplyPromoCode()}
+                      className="px-4 py-2 rounded-lg bg-[#0B0B0D] hover:bg-zinc-800 disabled:opacity-60 text-white text-xs font-semibold cursor-pointer"
                     >
-                      Apply
+                      {validatingPromo ? '...' : 'Apply'}
                     </button>
                   )}
                 </div>
+
+                {/* Private Exclusive Coupons for this customer account */}
+                {!appliedPromoCode && myPrivateOffers.length > 0 && (
+                  <div className="space-y-1.5 pt-1">
+                    {myPrivateOffers.slice(0, 2).map((offer) => (
+                      <button
+                        key={offer.id}
+                        type="button"
+                        onClick={() => void handleApplyPromoCode(offer.code)}
+                        className="w-full flex items-center justify-between gap-2 px-3 py-1.5 rounded-lg bg-indigo-950 text-white border border-indigo-400/50 text-[11px] hover:border-[#FF7A00] transition-colors cursor-pointer"
+                      >
+                        <span className="flex items-center gap-1.5 font-medium truncate">
+                          <Lock className="w-3 h-3 text-[#FF7A00] shrink-0" />
+                          <span className="truncate">Exclusive: {offer.name}</span>
+                        </span>
+                        <span className="font-mono font-bold text-[#FFD700] shrink-0">
+                          {offer.code} →
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                )}
 
                 {promoFeedback && (
                   <p
@@ -1814,11 +2055,7 @@ export const CheckoutView: React.FC<CheckoutViewProps> = ({
                   <div className="flex justify-between text-emerald-700 font-semibold">
                     <span>
                       Promo Discount ({appliedPromoCode}
-                      {appliedPromoCode === 'SAVE5NOW' || appliedPromoCode === 'TEQQNO5'
-                        ? ' · 5% OFF Limited-Time'
-                        : appliedPromoCode === 'TEQQNOBULK'
-                          ? ' · Bulk Voucher'
-                          : ' · 10% OFF'}):
+                      {serverCouponValidation?.badgeText ? ` · ${serverCouponValidation.badgeText}` : ''}):
                     </span>
                     <span className="font-mono">-₹{discountAmount.toLocaleString('en-IN')}</span>
                   </div>
@@ -1826,7 +2063,15 @@ export const CheckoutView: React.FC<CheckoutViewProps> = ({
                 <div className="flex justify-between">
                   <span>Pan-India Air Logistics:</span>
                   <span className="font-mono">
-                    {shippingFee === 0 ? <strong className="text-emerald-600 font-semibold">FREE</strong> : `₹${shippingFee}`}
+                    {shippingFee === 0 ? (
+                      <strong className="text-emerald-600 font-semibold">
+                        {serverCouponValidation?.freeShippingApplied
+                          ? `FREE (${appliedPromoCode})`
+                          : 'FREE'}
+                      </strong>
+                    ) : (
+                      `₹${shippingFee}`
+                    )}
                   </span>
                 </div>
                 <div className="flex justify-between">

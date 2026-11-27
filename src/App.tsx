@@ -10,6 +10,7 @@ import { Footer } from './components/Footer';
 import { ClientLogosSection } from './components/ClientLogosSection';
 import { DelhiveryAreaModal } from './components/DelhiveryPincodeChecker';
 import { CelebrationOverlay } from './components/CelebrationOverlay';
+import { FestivalOffersBanner } from './components/FestivalOffersBanner';
 import { triggerCelebration } from './services/celebrationService';
 import { BUSINESS_CONFIG, getWhatsAppLink } from './config/business';
 
@@ -219,6 +220,7 @@ import {
   buildPageStructuredData,
   type StructuredDataProductInput,
 } from './config/structuredData';
+import { getProductKeywordEntry } from './data/seoKeywordMap';
 import { useReviewSummaries } from './context/ReviewSummaryContext';
 import { attributeOrderToAffiliate, trackAffiliateClick } from './services/affiliateService';
 
@@ -900,6 +902,7 @@ export default function App() {
 
     if (currentTab === 'product-detail' && selectedProduct) {
       const cleanProductH1 = getProductH1(selectedProduct.id, selectedProduct.name);
+      const productSeoEntry = getProductKeywordEntry(selectedProduct.id);
       const productTitle = buildProductSeoTitle(selectedProduct.id, selectedProduct.name);
       const productDescription = buildProductSeoDescription({
         productId: selectedProduct.id,
@@ -917,7 +920,7 @@ export default function App() {
           selectedProduct.id,
           selectedProduct.colors?.[0]?.imageFront
         ),
-        imageAlt: cleanProductH1,
+        imageAlt: productSeoEntry?.cardImageAlt || cleanProductH1,
         structuredData: buildPageStructuredData({
           kind: 'product',
           product: toStructuredProduct(selectedProduct),
@@ -1608,6 +1611,9 @@ export default function App() {
             {/* 1.1 Trusted Brands & Businesses We Serve (Client Logos Marquee) */}
             <ClientLogosSection />
 
+            {/* 1.2 Active Public Festival & Seasonal Offers Banner (renders only when live public campaign exists) */}
+            <FestivalOffersBanner />
+
             {/* 2. Comprehensive Product Matrix (Explore Popular Categories - 10 cards) */}
             <CategoriesSection onSelectCategory={handleSelectCategory} />
 
@@ -2022,6 +2028,7 @@ export default function App() {
             onRemoveItem={handleRemoveCartItem}
             onProceedToCheckout={handleProceedToCheckout}
             onOpenDeliveryCheck={() => setIsDeliveryCheckOpen(true)}
+            user={user}
           />
         )}
 

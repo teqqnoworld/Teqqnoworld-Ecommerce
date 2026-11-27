@@ -37,17 +37,17 @@ export const SEO_CATEGORIES: ReadonlyArray<SeoCategoryDefinition> = [
     catalogCategory: 'custom-tshirt-printing',
     name: 'Custom Polo T-Shirts',
     h1: 'Custom Polo T-Shirt Printing in India',
-    title: 'Custom Polo T-Shirt Printing India | Logo T-Shirts | TeqqnoWorld',
+    title: 'Custom Polo T-Shirt Printing India | Logo Polos | TeqqnoWorld',
     description:
-      'Order custom printed and embroidered 220–230 GSM corporate polo T-shirts with your company logo across India. MOQ 2 pcs, live mockup preview & 24–48h dispatch.',
+      'Order custom polo T-shirt printing in India with your company logo. 220–230 GSM pure cotton, COOLMAX & matty polos from 2 pcs with bulk INR slabs & GST invoice.',
     intro:
-      'Order custom printed and embroidered corporate polo T-shirts with your company logo across India. Choose from 230 GSM 100% pure cotton plain and tipping polos, 220 GSM Mars COOLMAX moisture-wicking polos, and 230 GSM fine matty polos in 15–16 corporate colours starting at just 2 pieces.',
+      'Order custom polo T-shirt printing and precision logo embroidery across India for corporate teams, startups, and events. Compare 230 GSM 100% pure cotton plain and tipping polos, 220 GSM JOAB Mars COOLMAX moisture-wicking polos, and 230 GSM fine matty polos in 15–16 corporate colours starting at just 2 pieces.',
     gridHeading: 'Custom Polo T-Shirt Collection',
-    guideHeading: 'Corporate Polo Fabric & Customization Options',
+    guideHeading: 'Corporate Polo Fabric & Customization Guide',
     highlights: [
       {
         title: 'Verified 220–230 GSM Fabrics',
-        detail: 'Available in 230 GSM 100% pure cotton (Plain & Tipping), 220 GSM Mars COOLMAX, and 230 GSM Fine Matty weaves for daily team wear.',
+        detail: 'Available in 230 GSM 100% pure cotton (Plain & Tipping), 220 GSM JOAB Mars COOLMAX, and 230 GSM Fine Matty weaves for daily team wear.',
       },
       {
         title: 'Logo Printing & Embroidery',
@@ -55,7 +55,7 @@ export const SEO_CATEGORIES: ReadonlyArray<SeoCategoryDefinition> = [
       },
       {
         title: 'Low 2-Piece MOQ & Volume Slabs',
-        detail: 'Start with a 2-piece sample order or scale to corporate bulk quantities with tiered INR pricing and 18% GST tax invoicing.',
+        detail: 'Start with a 2-piece sample order or scale to corporate bulk quantities from ₹350/pc with mixed sizes and 18% GST tax invoicing.',
       },
     ],
     image: '/assets/products/prod_tipping_polo.webp',
@@ -65,14 +65,14 @@ export const SEO_CATEGORIES: ReadonlyArray<SeoCategoryDefinition> = [
     slug: 'corporate-gifting-drinkware',
     catalogCategory: 'corporate-gifting',
     name: 'Corporate Gifting & Drinkware',
-    h1: 'Custom Printed Ceramic Mugs & Corporate Gifts',
-    title: 'Custom Ceramic Mugs & Corporate Gifts India | TeqqnoWorld',
+    h1: 'Corporate Gifting & Custom Logo Drinkware in India',
+    title: 'Corporate Gifting & Custom Logo Drinkware India | TeqqnoWorld',
     description:
-      'Customize glossy 325 ml promotional ceramic mugs and branded corporate gifts with your company logo. Bulk INR pricing, 18% GST invoice & pan-India delivery.',
+      'Shop corporate gifting drinkware with custom company logo printing in India. 325 ml glossy white ceramic coffee mugs from 5 pcs, bulk INR slabs & 18% GST bill.',
     intro:
-      'Customize glossy 325 ml (11 oz) white promotional ceramic coffee mugs with your company logo for employee welcome kits, client gifting, and brand promotions. Built with an 8.5" × 3" wrap-around printable area, microwave- and dishwasher-safe finish, and bulk INR slab rates from 5 pieces.',
+      'Explore corporate gifting drinkware customized with your company logo for employee onboarding kits, client appreciation, and trade events across India. Featuring our 325 ml (11 oz) glossy white ceramic coffee mug with an 8.5" × 3" wrap-around print area, microwave- and dishwasher-safe finish, and bulk INR slabs from 5 pieces.',
     gridHeading: 'Corporate Gifting & Branded Drinkware',
-    guideHeading: 'Branded Ceramic Mug Specifications & Bulk Ordering',
+    guideHeading: 'Corporate Drinkware Specifications & Bulk Ordering Guide',
     highlights: [
       {
         title: '325 ml Glossy White Ceramic',
@@ -84,7 +84,7 @@ export const SEO_CATEGORIES: ReadonlyArray<SeoCategoryDefinition> = [
       },
       {
         title: '5-Piece MOQ & GST Billing',
-        detail: 'Tiered INR volume pricing from ₹249 down to ₹149 per mug on bulk orders with 18% GST ITC invoices.',
+        detail: 'Tiered INR volume pricing from ₹249 down to ₹149 per mug on bulk corporate orders with compliant 18% GST ITC invoices.',
       },
     ],
     image: '/assets/aistudio/ceramic_mug_banner_1672x941_dc952a76.webp',
@@ -95,25 +95,25 @@ export const SEO_CATEGORIES: ReadonlyArray<SeoCategoryDefinition> = [
     catalogCategory: 'promotional-items',
     name: 'Promotional Displays & Signage',
     h1: 'Promotional Displays, Standees, Umbrellas & Canopies',
-    title: 'Rollup Standees, Promo Tables & Branding Umbrellas | TeqqnoWorld',
+    title: 'Promotional Displays, Standees & Canopies India | TeqqnoWorld',
     description:
-      'Shop custom printed rollup standees, portable promo tables, 5 ft promotional umbrellas and canopy kiosks in India. Durable event branding with 24–48h dispatch.',
+      'Buy custom printed promotional displays in India: 3×6 ft rollup standees, promo tables, 5 ft umbrellas & 4×4/8×8 ft canopy kiosks. MOQ 1 unit & bulk INR rates.',
     intro:
-      'Shop custom branded exhibition displays and outdoor promotional setups for trade shows, retail activations, and roadshows across India. Choose from 3×6 ft retractable rollup standees, portable promo tables, 5 ft promotional umbrellas with metal stands, and 4×4 ft or 8×8 ft canopy kiosks — all starting at 1 unit MOQ.',
+      'Equip trade show booths, mall activations, retail storefronts, and outdoor BTL roadshows across India with custom printed promotional displays. Shop 3×6 ft retractable rollup standees, portable promo tables, 5 ft branding umbrellas with metal tripod stands, and 4×4 ft or 8×8 ft canopy kiosks starting from 1 unit.',
     gridHeading: 'Exhibition Displays & Outdoor Branding Equipment',
-    guideHeading: 'Event Signage & Outdoor Display Highlights',
+    guideHeading: 'Event Signage & Outdoor Display Buying Guide',
     highlights: [
       {
         title: 'Trade Show & Retail Counters',
-        detail: '3×6 ft Rollup Standees with carry bag and portable Promo Tables featuring an overhead 31" × 10.3" header and internal storage shelves.',
+        detail: '3×6 ft Rollup Standees with padded carry bag and portable Promo Tables featuring an overhead 31" × 10.3" header and 2-tier storage shelf.',
       },
       {
         title: 'Outdoor Umbrellas & Canopy Stalls',
         detail: '5 ft × 7 ft custom printed promotional umbrellas in 4 colours and 4×4 ft or 8×8 ft collapsible metal-frame canopy kiosks.',
       },
       {
-        title: '1-Unit MOQ & Quick Setup',
-        detail: 'Tool-free portable assembly designed for repeated events, available from a single unit with pan-India delivery.',
+        title: '1-Unit MOQ & Quick Tool-Free Setup',
+        detail: 'Portable assembly engineered for repeated events, available from a single unit with multi-unit bulk slabs and 18% GST invoicing.',
       },
     ],
     image: '/assets/aistudio/Premium_Rollup_Standee_Infographic_4941e995.webp',
@@ -123,26 +123,26 @@ export const SEO_CATEGORIES: ReadonlyArray<SeoCategoryDefinition> = [
     slug: 'visiting-cards-printing',
     catalogCategory: 'printing-items',
     name: 'Visiting Cards & Printing',
-    h1: 'Premium 300 GSM Visiting Card Printing',
-    title: 'Visiting Cards & Custom Business Printing India | TeqqnoWorld',
+    h1: 'Custom Business Visiting Card Printing in India',
+    title: 'Custom Business Visiting Card Printing India | TeqqnoWorld',
     description:
-      'Print custom 300 GSM smooth art paper visiting cards with vibrant double-sided digital printing. Bulk packs starting from ₹1/card with fast pan-India shipping.',
+      'Order custom 300 GSM business visiting card printing online in India. Sharp double-sided 92×52 mm art paper cards from 100 pcs (₹300) down to ₹1/card in bulk.',
     intro:
-      'Print sharp double-sided 300 GSM smooth white art paper visiting cards in standard 92 × 52 mm size using high-definition 300 DPI digital printing. Upload print-ready front and back artwork or design directly online, starting at 100 cards (₹300) with bulk rates down to ₹1 per card.',
+      'Order custom business visiting card printing online across India on thick 300 GSM smooth white art paper in the standard 92 × 52 mm format. Every pack includes crisp 300 DPI double-sided front and back digital printing, live online artwork preview, and bulk INR slabs from 100 cards (₹300) down to ₹1 per card.',
     gridHeading: 'Custom Business & Visiting Cards',
-    guideHeading: '300 GSM Visiting Card Print Specifications',
+    guideHeading: '300 GSM Visiting Card Print Specifications & Artwork Guide',
     highlights: [
       {
         title: '300 GSM Smooth White Art Paper',
-        detail: 'Stiff, professional-grade white art paper stock cut cleanly to the standard 92 mm × 52 mm business card dimension.',
+        detail: 'Stiff, professional-grade white art paper stock trimmed accurately to 92 mm × 52 mm (98 × 58 mm upload canvas with 3 mm bleed).',
       },
       {
-        title: 'Double-Sided Full-Colour Print',
-        detail: 'Includes front and back digital printing at 300 DPI for crisp typography, brand colours, and QR codes.',
+        title: 'Double-Sided 300 DPI Digital Print',
+        detail: 'Includes front and back full-colour printing for sharp brand logos, contact details, and scannable QR codes.',
       },
       {
-        title: 'Packs From 100 Cards',
-        detail: 'Order from 100 cards at ₹300 per pack with bulk INR slab discounts for multi-team and corporate orders.',
+        title: 'Packs From 100 Cards & Bulk Slabs',
+        detail: 'Start at ₹300 for 100 cards and unlock bulk corporate rates down to ₹1 per card with 18% GST billing.',
       },
     ],
     image: '/assets/aistudio/Premium_300_GSM_Business_Cards__1__cc07b248.webp',
@@ -152,26 +152,26 @@ export const SEO_CATEGORIES: ReadonlyArray<SeoCategoryDefinition> = [
     slug: 'custom-caps',
     catalogCategory: 'caps',
     name: 'Custom Cotton Caps',
-    h1: 'Custom Printed & Embroidered Cotton Caps',
-    title: 'Custom Cotton Caps with Company Logo India | TeqqnoWorld',
+    h1: 'Custom Logo Cotton Caps — Printing & Embroidery',
+    title: 'Custom Logo Caps Wholesale & Printing India | TeqqnoWorld',
     description:
-      'Order 100% breathable cotton flexi baseball caps with custom logo printing or precision embroidery. 6 colours, MOQ 1 pc, and bulk INR rates across India.',
+      'Order custom logo caps wholesale in India with embroidery or DTF printing. 100% breathable cotton flexi baseball caps in 6 colours, MOQ 1 pc, from ₹135 bulk.',
     intro:
-      'Order 100% breathable cotton flexi baseball caps customized on the front panel with your company logo using DTF printing or precision embroidery. Available in 6 colour variants with an adjustable fit, 1-piece minimum order quantity, and bulk INR pricing starting from ₹135 per cap.',
+      'Order custom logo caps wholesale and in single-piece samples across India. Our 100% breathable cotton twill 6-panel flexi baseball caps come in 6 corporate colours with an adjustable free-size buckle strap, front-panel embroidery or DTF logo printing, 1-piece MOQ, and bulk INR slabs starting from ₹135 per cap.',
     gridHeading: 'Custom Cotton Caps Collection',
-    guideHeading: 'Custom Baseball Cap Specifications & Branding',
+    guideHeading: 'Custom Baseball Cap Specifications & Branding Guide',
     highlights: [
       {
-        title: '100% Breathable Cotton',
-        detail: 'Lightweight cotton flexi crown with curved visor and adjustable fit built for outdoor promotions, team outings, and events.',
+        title: '100% Breathable Cotton Twill',
+        detail: '6-panel mid-profile cotton crown with pre-curved sun visor and adjustable flexi buckle strap for universal free-size comfort.',
       },
       {
         title: '6 Corporate Colour Variants',
-        detail: 'Choose from 6 verified solid colours matched to front-panel logo printing or clean thread embroidery.',
+        detail: 'Available in Black, Navy Blue, Red, Gray, Yellow, and White with front-panel precision embroidery or DTF logo printing.',
       },
       {
-        title: 'MOQ 1 Piece & Bulk Savings',
-        detail: 'Order a single sample cap or equip large teams with tiered INR rates starting from ₹135 per unit.',
+        title: 'MOQ 1 Piece & Wholesale Savings',
+        detail: 'Order 1 sample cap at ₹250 or outfit large teams and events with tiered INR rates down to ₹135 per unit.',
       },
     ],
     image: '/assets/aistudio/Cotton_Flexi_Caps_Product_Banner_7057e0bd.webp',
@@ -359,19 +359,19 @@ export const PRODUCT_ID_TO_CANONICAL_SLUG: Readonly<Record<string, string>> = {
   'prod-cotton-flexi-caps': 'cotton-flexi-caps',
 };
 
-// Clean, unique, descriptive on-page H1 titles for all 11 storefront products
+// Clean, unique, keyword-aligned on-page H1 titles for all 11 storefront products
 export const PRODUCT_H1_MAP: Readonly<Record<string, string>> = {
-  'prod-ceramic-mug': 'Custom Printed Promotional Ceramic Mug (325 ml)',
-  'prod-canopy-kiosk': 'Promotional Canopy Kiosk (4×4 ft & 8×8 ft)',
-  'prod-rollup-standee': 'Custom Printed Rollup Standee (3×6 ft)',
-  'prod-visiting-card-300gsm': 'Premium 300 GSM Visiting Cards',
-  'prod-promo-table': 'Portable Promotional Display Counter (Promo Table)',
-  'prod-branding-umbrella': '5 Feet Custom Printed Promotional Umbrella',
-  'prod-plain-polo': '230 GSM Pure Cotton Plain Polo T-Shirt',
-  'prod-polo-01': '230 GSM 100% Cotton Tipping Polo T-Shirt',
-  'prod-joab-coolmax': 'Mars COOLMAX 220 GSM Polo T-Shirt',
-  'prod-matty-polo': '230 GSM Fine Matty Polo T-Shirt',
-  'prod-cotton-flexi-caps': 'Custom Cotton Flexi Baseball Caps',
+  'prod-ceramic-mug': 'Custom Printed Ceramic Coffee Mug with Logo (325 ml)',
+  'prod-canopy-kiosk': 'Promotional Canopy Tent Kiosk (4×4 ft & 8×8 ft)',
+  'prod-rollup-standee': 'Custom Printed 3×6 ft Rollup Standee with Carry Bag',
+  'prod-visiting-card-300gsm': 'Premium 300 GSM Double-Sided Visiting Cards',
+  'prod-promo-table': 'Portable Promo Table Display Counter with Custom Print',
+  'prod-branding-umbrella': '5 Feet Custom Printed Promotional Branding Umbrella',
+  'prod-plain-polo': '230 GSM Pure Cotton Plain Polo T-Shirt with Custom Logo',
+  'prod-polo-01': '230 GSM 100% Cotton Tipping Polo T-Shirt with Logo',
+  'prod-joab-coolmax': 'JOAB Mars COOLMAX 220 GSM Moisture-Wicking Polo T-Shirt',
+  'prod-matty-polo': '230 GSM Fine Matty Corporate Polo T-Shirt with Logo',
+  'prod-cotton-flexi-caps': 'Custom Printed & Embroidered Cotton Flexi Baseball Caps',
 };
 
 export function getProductH1(productId: string, fallbackName: string): string {
@@ -397,19 +397,19 @@ export function getCategoryForProduct(product: {
   return findCategoryByCatalogKey(product.category);
 }
 
-// Concise, non-truncated SEO titles for each storefront product (<= 65 chars)
-const PRODUCT_SEO_TITLE_MAP: Readonly<Record<string, string>> = {
-  'prod-ceramic-mug': 'Custom Printed Promotional Ceramic Mug (325 ml) | TeqqnoWorld',
-  'prod-canopy-kiosk': 'Promotional Canopy Kiosk (4x4 & 8x8 ft) India | TeqqnoWorld',
-  'prod-rollup-standee': 'Rollup Standee Printing (3x6 ft) with Carry Bag | TeqqnoWorld',
-  'prod-visiting-card-300gsm': 'Premium 300 GSM Visiting Cards (Double-Sided) | TeqqnoWorld',
-  'prod-promo-table': 'Portable Promo Table Display Counter Printing | TeqqnoWorld',
-  'prod-branding-umbrella': '5 Feet Custom Printed Promotional Umbrella | TeqqnoWorld',
-  'prod-plain-polo': 'Cotton 230 GSM Plain Polo T-Shirt with Logo | TeqqnoWorld',
-  'prod-polo-01': '100% Cotton Tipping Polo T-Shirt with Logo | TeqqnoWorld',
-  'prod-joab-coolmax': 'Mars COOLMAX 220 GSM Polo T-Shirt with Logo | TeqqnoWorld',
-  'prod-matty-polo': 'Matty 230 GSM Polo T-Shirt Custom Logo Print | TeqqnoWorld',
-  'prod-cotton-flexi-caps': 'Custom Printed & Embroidered Cotton Flexi Caps | TeqqnoWorld',
+// Concise, non-truncated, non-cannibalizing SEO titles for each storefront product (<= 65 chars)
+export const PRODUCT_SEO_TITLE_MAP: Readonly<Record<string, string>> = {
+  'prod-ceramic-mug': 'Custom Printed Ceramic Coffee Mug with Logo (325ml) | TeqqnoWorld',
+  'prod-canopy-kiosk': 'Promotional Canopy Tent Kiosk Custom Printing | TeqqnoWorld',
+  'prod-rollup-standee': '3x6 Rollup Standee Printing India with Carry Bag | TeqqnoWorld',
+  'prod-visiting-card-300gsm': '300 GSM Double-Sided Visiting Cards Online India | TeqqnoWorld',
+  'prod-promo-table': 'Portable Promo Table Display Counter Printing India | TeqqnoWorld',
+  'prod-branding-umbrella': '5 Feet Promotional Branding Umbrella Custom Print | TeqqnoWorld',
+  'prod-plain-polo': '230 GSM Plain Cotton Polo T-Shirt with Logo India | TeqqnoWorld',
+  'prod-polo-01': 'Cotton Tipping Polo T-Shirt Custom Logo Printing | TeqqnoWorld',
+  'prod-joab-coolmax': 'Moisture-Wicking COOLMAX Polo T-Shirt Custom Logo | TeqqnoWorld',
+  'prod-matty-polo': '230 GSM Matty Polo T-Shirt Custom Printing India | TeqqnoWorld',
+  'prod-cotton-flexi-caps': 'Custom Embroidered Cotton Baseball Caps India | TeqqnoWorld',
 };
 
 export function findCategoryBySlugOrAlias(slugOrAlias: string): SeoCategoryDefinition | undefined {
@@ -457,30 +457,30 @@ export function buildProductSeoTitle(productId: string, productName: string): st
   return candidate.length <= 65 ? candidate : `${cleanName.slice(0, 50).trim()} | TeqqnoWorld`;
 }
 
-// Bespoke, verified meta descriptions for all 11 storefront products (no auto-truncation)
+// Bespoke, verified meta descriptions for all 11 storefront products (155–160 chars, no auto-truncation)
 export const PRODUCT_SEO_DESCRIPTION_MAP: Readonly<Record<string, string>> = {
   'prod-ceramic-mug':
-    'Customize glossy 325 ml white ceramic coffee mugs with your company logo. Microwave- and dishwasher-safe with an 8.5" × 3" print area, MOQ 5 pcs.',
+    'Order custom printed 325 ml glossy white ceramic coffee mugs with your company logo in India. Microwave & dishwasher safe, 8.5"×3" wrap print, MOQ 5 pcs, ₹149+.',
   'prod-canopy-kiosk':
-    'Order custom branded navy blue canopy kiosks in 4×4 ft and 8×8 ft sizes with 7 ft height and collapsible metal frame. Ideal for outdoor events, MOQ 1.',
+    'Buy custom printed promotional canopy tent kiosks in 4×4 ft & 8×8 ft sizes in India. Water-resistant navy blue polyester top, collapsible metal frame, MOQ 1.',
   'prod-rollup-standee':
-    'Print 3×6 ft custom retractable rollup standees with durable black metal base, sharp flex banner printing, and padded carry bag. MOQ 1 unit across India.',
+    'Order 3×6 ft custom rollup standee printing in India with retractable black aluminum stand, HD flex banner & padded nylon carry bag. MOQ 1 unit, bulk INR rates.',
   'prod-visiting-card-300gsm':
-    'Print double-sided 300 GSM smooth white art paper visiting cards in standard 92 × 52 mm size. Crisp 300 DPI digital printing from ₹300 per 100 cards.',
+    'Print 300 GSM double-sided smooth white art paper visiting cards (92×52 mm) in India. Sharp 300 DPI digital printing from ₹300/100 pcs down to ₹1/card in bulk.',
   'prod-promo-table':
-    'Promote your brand with portable white promo table display counters featuring a 31" × 10.3" overhead header, internal shelves, and tool-free setup. MOQ 1.',
+    'Order portable promo table display counters with custom brand graphics in India. 63.2" height, overhead header board, 2-tier shelf & nylon carry bag. MOQ 1.',
   'prod-branding-umbrella':
-    'Order 5 ft wide × 7 ft tall custom printed promotional umbrellas with metal tripod stand and UV, water-resistant canopy in 4 colours. MOQ 1 pc at TeqqnoWorld.',
+    'Buy 5 ft wide × 7 ft tall custom printed promotional branding umbrellas in India. UV water-resistant polyester canopy in 4 colours, metal tripod stand, MOQ 1.',
   'prod-plain-polo':
-    'Order 230 GSM 100% pure cotton plain polo T-shirts customized with your company logo via embroidery or DTF printing. Available in 16 solid colours, MOQ 2 pcs.',
+    'Order 230 GSM 100% pure combed cotton plain polo T-shirts with custom logo embroidery or DTF print in India. 16 solid colours, sizes S–4XL, MOQ 2 pcs, ₹450+.',
   'prod-polo-01':
-    'Customize 230 GSM 100% pure cotton tipping polo T-shirts with contrast collar and sleeve trim. Choose from 15 colours with logo embroidery or print, MOQ 2 pcs.',
+    'Customize 230 GSM 100% pure cotton contrast tipping polo T-shirts with company logo embroidery or DTF print in India. 15 colour combinations, S–4XL, MOQ 2 pcs.',
   'prod-joab-coolmax':
-    'Customize breathable 220 GSM Mars COOLMAX moisture-wicking polo T-shirts with your company logo. Available in 15 colours from S to 3XL with MOQ 2 pcs.',
+    'Order breathable 220 GSM JOAB Mars COOLMAX moisture-wicking polo T-shirts with custom logo print or embroidery in India. 15 corporate colours, S–3XL, MOQ 2 pcs.',
   'prod-matty-polo':
-    'Order 230 GSM fine matty corporate polo T-shirts with soft-touch breathable weave and custom logo printing or embroidery. 15 colours, sizes S–4XL, MOQ 2 pcs.',
+    'Buy 230 GSM fine matty polo T-shirts with custom logo printing or embroidery for Indian corporate teams. Soft breathable weave, 15 colours, S–4XL, from ₹350.',
   'prod-cotton-flexi-caps':
-    'Order 100% breathable cotton flexi baseball caps customized with front-panel logo printing or embroidery. 6 colour options, adjustable fit, starting from ₹135.',
+    'Order 100% breathable cotton twill flexi baseball caps with front-panel custom embroidery or DTF logo print in India. 6 colours, free size, MOQ 1 pc, ₹135+.',
 };
 
 // Verified, publicly accessible representative social preview image for each product

@@ -1,6 +1,8 @@
 // Client service for Razorpay (100% Prepaid + 50% Partial Advance) & Delhivery One APIs
 // All secret keys stay strictly on the Express backend (/api/razorpay/* and /api/delhivery/*).
 
+import { supabase } from '../lib/supabase';
+
 export interface RazorpayStatus {
   configured: boolean;
   keyId: string | null;
@@ -8,15 +10,39 @@ export interface RazorpayStatus {
   backendReachable: boolean;
 }
 
-export interface CreateRazorpayOrderPayload {
-  amountInr: number;
-  totalOrderValue: number;
+export interface ServerVerifiedPricing {
+  subtotal: number;
+  discountedSubtotal?: number;
+  discountAmount: number;
+  shippingFee: number;
+  shippingSaved: number;
+  freeShippingApplied: boolean;
+  gstAmount: number;
+  finalTotal: number;
+  payableNow: number;
   balanceDue: number;
+  paymentPlan: 'prepaid_100' | 'partial_50';
+  couponCode: string | null;
+  couponId: string | null;
+}
+
+export interface CreateRazorpayOrderPayload {
   paymentPlan: 'prepaid_100' | 'partial_50';
   receipt: string;
   customerName?: string;
   customerEmail?: string;
   customerPhone?: string;
+  couponCode?: string;
+  recoveryToken?: string;
+  checkoutSessionId?: string;
+  items: Array<{
+    productId: string;
+    productName?: string;
+    category?: string;
+    size?: string;
+    variantSize?: string;
+    quantity: number;
+  }>;
 }
 
 export interface CreateRazorpayOrderResponse {
@@ -25,6 +51,10 @@ export interface CreateRazorpayOrderResponse {
   amount?: number;
   currency?: string;
   keyId?: string;
+  reservationId?: string | null;
+  releaseToken?: string;
+  pricing?: ServerVerifiedPricing;
+  reasonCode?: string;
   message?: string;
 }
 
@@ -32,6 +62,7 @@ export interface VerifyRazorpayPaymentPayload {
   razorpay_order_id: string;
   razorpay_payment_id: string;
   razorpay_signature: string;
+  reservationId?: string;
 }
 
 export interface VerifyRazorpayPaymentResponse {
@@ -39,6 +70,45 @@ export interface VerifyRazorpayPaymentResponse {
   verified: boolean;
   paymentId?: string;
   orderId?: string;
+  paymentStatus?: string;
+  message?: string;
+}
+
+export interface PlaceServerOrderPayload {
+  items: Array<{
+    productId: string;
+    productName?: string;
+    category?: string;
+    size?: string;
+    variantSize?: string;
+    quantity: number;
+  }>;
+  orderRows: Array<{
+    logoUrl?: string | null;
+    customNotes?: string;
+  }>;
+  customerName: string;
+  customerEmail: string;
+  customerPhone: string;
+  companyName?: string;
+  paymentPlan: 'prepaid_100' | 'partial_50';
+  paymentModeLabel: string;
+  couponCode?: string;
+  reservationId?: string;
+  recoveryToken?: string;
+  checkoutSessionId?: string;
+  razorpayOrderId?: string;
+  razorpayPaymentId?: string;
+  razorpaySignature?: string;
+}
+
+export interface PlaceServerOrderResponse {
+  success: boolean;
+  primaryOrderId?: string;
+  orderNumber?: string;
+  insertedOrderIds?: string[];
+  paymentStatus?: 'paid' | 'sandbox';
+  pricing?: ServerVerifiedPricing;
   message?: string;
 }
 
@@ -187,13 +257,28 @@ export async function testRazorpayConnection(): Promise<{
   }
 }
 
+async function buildCustomerAuthHeaders(): Promise<Record<string, string>> {
+  const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+  try {
+    const { data } = await supabase.auth.getSession();
+    const token = data?.session?.access_token;
+    if (token) {
+      headers.Authorization = `Bearer ${token}`;
+    }
+  } catch {
+    // proceed as guest
+  }
+  return headers;
+}
+
 export async function createRazorpayOrder(
   payload: CreateRazorpayOrderPayload
 ): Promise<CreateRazorpayOrderResponse> {
   try {
+    const headers = await buildCustomerAuthHeaders();
     const res = await fetch('/api/razorpay/create-order', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers,
       body: JSON.stringify(payload),
     });
     const data = await res.json();
@@ -206,13 +291,40 @@ export async function createRazorpayOrder(
   }
 }
 
+export async function releaseRazorpayReservation(params: {
+  reservationId?: string;
+  razorpayOrderId?: string;
+  releaseToken?: string;
+  reason?: string;
+  checkoutSessionId?: string;
+  phone?: string;
+}): Promise<{
+  success: boolean;
+  released?: boolean;
+  recoveryToken?: string;
+  recoveryExpiresAt?: string;
+}> {
+  try {
+    const headers = await buildCustomerAuthHeaders();
+    const res = await fetch('/api/razorpay/release-reservation', {
+      method: 'POST',
+      headers,
+      body: JSON.stringify(params),
+    });
+    return await res.json();
+  } catch {
+    return { success: false };
+  }
+}
+
 export async function verifyRazorpayPayment(
   payload: VerifyRazorpayPaymentPayload
 ): Promise<VerifyRazorpayPaymentResponse> {
   try {
+    const headers = await buildCustomerAuthHeaders();
     const res = await fetch('/api/razorpay/verify-payment', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers,
       body: JSON.stringify(payload),
     });
     return await res.json();
@@ -221,6 +333,26 @@ export async function verifyRazorpayPayment(
       success: false,
       verified: false,
       message: err?.message || 'Payment verification request failed.',
+    };
+  }
+}
+
+export async function placeServerOrder(
+  payload: PlaceServerOrderPayload
+): Promise<PlaceServerOrderResponse> {
+  try {
+    const headers = await buildCustomerAuthHeaders();
+    const res = await fetch('/api/orders/place', {
+      method: 'POST',
+      headers,
+      body: JSON.stringify(payload),
+    });
+    const data = await res.json();
+    return data;
+  } catch (err: any) {
+    return {
+      success: false,
+      message: err?.message || 'Failed to save order on server.',
     };
   }
 }

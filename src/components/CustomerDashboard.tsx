@@ -96,6 +96,8 @@ import {
 import { CustomerReviewsView } from './customer/CustomerReviewsView';
 import { CelebrationSoundControl } from './CelebrationSoundControl';
 import { triggerCelebration } from '../services/celebrationService';
+import { fetchMyPrivateOffers } from '../services/couponService';
+import type { PublicCouponSummary } from '../types/coupon';
 
 export type DashboardTab = CustomerTab;
 
@@ -142,6 +144,7 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
   // Live Supabase Custom Orders Sync
   const [supabaseOrders, setSupabaseOrders] = useState<CustomOrderRow[]>([]);
   const [isSyncing, setIsSyncing] = useState(false);
+  const [myPrivateCoupons, setMyPrivateCoupons] = useState<PublicCouponSummary[]>([]);
 
   const syncLiveOrders = async () => {
     setIsSyncing(true);
@@ -156,6 +159,7 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
   useEffect(() => {
     setSupabaseOrders([]);
     syncLiveOrders();
+    fetchMyPrivateOffers().then((res) => setMyPrivateCoupons(res.privateOffers || []));
   }, [user.id, user.email, user.mobile]);
 
   // Merged real orders (local React state + live Supabase rows, strictly scoped to this customer)
@@ -1106,6 +1110,45 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
              ============================================================== */}
           {activeTab === 'overview' && (
             <>
+              {/* Exclusive Customer-Specific Private Coupon Banner (shown ONLY if Admin assigned private offers to this account) */}
+              {myPrivateCoupons.length > 0 && (
+                <section className="rounded-2xl bg-gradient-to-r from-[#071B35] to-[#142D52] border border-[#FF7900]/40 p-4 text-white flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-md">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className="w-10 h-10 rounded-xl bg-[#FF7900]/20 border border-[#FF7900]/40 flex items-center justify-center shrink-0">
+                      <Gift className="w-5 h-5 text-[#FF7900]" />
+                    </div>
+                    <div className="min-w-0">
+                      <div className="text-[10px] font-bold uppercase tracking-widest text-[#FF7900]">
+                        Exclusive Offer Assigned To Your Account
+                      </div>
+                      <div className="text-sm font-bold truncate">
+                        {myPrivateCoupons[0].name} — Code:{' '}
+                        <span className="font-mono text-[#FFD700]">{myPrivateCoupons[0].code}</span>
+                      </div>
+                      <div className="text-[11px] text-slate-300 truncate">
+                        {myPrivateCoupons[0].description || 'Private voucher ready for your next custom order.'}
+                      </div>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      try {
+                        sessionStorage.setItem('teqqno_applied_coupon', myPrivateCoupons[0].code);
+                      } catch {}
+                      navigator.clipboard?.writeText(myPrivateCoupons[0].code).catch(() => undefined);
+                      pushToast(
+                        `Private coupon ${myPrivateCoupons[0].code} copied & staged for checkout!`,
+                        'success'
+                      );
+                    }}
+                    className="px-4 py-2 rounded-xl bg-[#FF7900] hover:bg-[#e56d00] text-white text-xs font-bold shrink-0 cursor-pointer"
+                  >
+                    Copy & Apply Code
+                  </button>
+                </section>
+              )}
+
               {/* 1. Premium Navy Welcome Banner */}
               <section className="rounded-3xl bg-gradient-to-r from-[#071B35] via-[#0B1530] to-[#1A1A2E] text-white p-5 sm:p-7 shadow-xl border border-white/10 relative overflow-hidden">
                 {/* Animated subtle orange glow */}
