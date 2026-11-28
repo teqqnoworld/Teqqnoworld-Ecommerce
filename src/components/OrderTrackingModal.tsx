@@ -26,6 +26,7 @@ interface OrderTrackingModalProps {
   orders: Order[];
   initialOrderNumber?: string;
   onSelectProof?: (order: Order) => void;
+  allowLocalFallback?: boolean;
 }
 
 export const OrderTrackingModal: React.FC<OrderTrackingModalProps> = ({
@@ -34,6 +35,7 @@ export const OrderTrackingModal: React.FC<OrderTrackingModalProps> = ({
   orders,
   initialOrderNumber = '',
   onSelectProof,
+  allowLocalFallback = false,
 }) => {
   const [searchQuery, setSearchQuery] = useState(initialOrderNumber);
   const [contactQuery, setContactQuery] = useState('');
@@ -60,9 +62,14 @@ export const OrderTrackingModal: React.FC<OrderTrackingModalProps> = ({
     };
   }, [isOpen]);
 
-  // Sync initial search query when modal opens
+  // Sync initial search query when modal opens; clear stale tracking state on close
   useEffect(() => {
-    if (isOpen && initialOrderNumber) {
+    if (!isOpen) {
+      setLiveTrackedOrder(null);
+      setTrackingNotice(null);
+      return;
+    }
+    if (initialOrderNumber) {
       setSearchQuery(initialOrderNumber);
       setTrackingNotice(null);
     }
@@ -138,16 +145,21 @@ export const OrderTrackingModal: React.FC<OrderTrackingModalProps> = ({
 
   if (!isOpen) return null;
 
-  // Find order in local session state first (only orders already belonging to this browser session)
+  // Guests must NEVER see cached localStorage orders without server verification via POST /api/orders/track.
+  // Only authenticated customers (viewing their own scoped orders) or explicit Admin Hub inspection may use localMatch.
+  const canUseLocalOrders = hasCustomerSession || allowLocalFallback;
+  const scopedLocalOrders = canUseLocalOrders ? orders : [];
   const trimmedQuery = searchQuery.trim().toLowerCase();
-  const localMatch = trimmedQuery
-    ? orders.find(
-        (o) =>
-          o.orderNumber.toLowerCase() === trimmedQuery ||
-          o.id.toLowerCase() === trimmedQuery ||
-          (o.trackingNumber && o.trackingNumber.toLowerCase() === trimmedQuery)
-      )
-    : orders[0];
+  const localMatch = canUseLocalOrders
+    ? trimmedQuery
+      ? scopedLocalOrders.find(
+          (o) =>
+            o.orderNumber.toLowerCase() === trimmedQuery ||
+            o.id.toLowerCase() === trimmedQuery ||
+            (o.trackingNumber && o.trackingNumber.toLowerCase() === trimmedQuery)
+        )
+      : scopedLocalOrders[0]
+    : undefined;
 
   // Helper to ensure legacy BlueDart mock strings are upgraded cleanly to Delhivery Express
   const normalizeCourier = (partner?: string | null) => {
@@ -383,13 +395,13 @@ export const OrderTrackingModal: React.FC<OrderTrackingModalProps> = ({
               >
                 {isSearchingLive ? 'Verifying...' : 'Track Order'}
               </button>
-              {orders.length > 1 && (
+              {scopedLocalOrders.length > 1 && (
                 <select
                   value={activeOrder?.orderNumber || ''}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   className="px-3.5 py-2.5 text-xs font-mono font-semibold border border-slate-200 rounded-xl bg-white text-[#071B35] outline-none focus:border-[#FF7900] shadow-2xs min-h-[42px] cursor-pointer"
                 >
-                  {orders.map((o) => (
+                  {scopedLocalOrders.map((o) => (
                     <option key={o.id} value={o.orderNumber}>
                       {o.orderNumber}
                     </option>

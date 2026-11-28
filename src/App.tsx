@@ -705,7 +705,11 @@ export default function App() {
 
   useEffect(() => {
     try {
-      localStorage.setItem('teqqno_orders', JSON.stringify(orders));
+      if (orders.length === 0) {
+        localStorage.removeItem('teqqno_orders');
+      } else {
+        localStorage.setItem('teqqno_orders', JSON.stringify(orders));
+      }
     } catch (e) {
       console.error(e);
     }
@@ -1697,11 +1701,16 @@ export default function App() {
   const handleLogout = () => {
     setUser(null);
     setActiveOrder(null);
+    setOrders([]);
     try {
       localStorage.removeItem('teqqno_user');
+      localStorage.removeItem('teqqno_orders');
     } catch (e) {
       console.error(e);
     }
+    import('./lib/supabase')
+      .then(({ supabase }) => supabase.auth.signOut())
+      .catch(() => {});
     handleNavigate('home');
   };
 
@@ -1771,6 +1780,7 @@ export default function App() {
             isOpen={isTrackingModalOpen}
             onClose={() => setIsTrackingModalOpen(false)}
             orders={orders}
+            allowLocalFallback={true}
             initialOrderNumber={activeOrder?.orderNumber || ''}
             onSelectProof={(order) => {
               setActiveOrder(order);
@@ -2350,7 +2360,7 @@ export default function App() {
           <OrderTrackingModal
             isOpen={isTrackingModalOpen}
             onClose={() => setIsTrackingModalOpen(false)}
-            orders={userScopedOrders}
+            orders={user ? userScopedOrders : []}
             onSelectProof={(order) => {
               setActiveOrder(order);
               setCurrentTab('orders');

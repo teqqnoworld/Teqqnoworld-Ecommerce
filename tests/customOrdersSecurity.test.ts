@@ -669,6 +669,69 @@ async function main() {
       });
       assert.equal(replay.status, 409);
     });
+
+    // =========================================================================
+    // SECTION G: CLIENT LOCALSTORAGE PRIVACY & GUEST TRACKING MODAL ISOLATION
+    // =========================================================================
+    await runTest('G1. Logout clears teqqno_orders and storefront OrderTrackingModal receives [] when user === null', () => {
+      const appSrc = fs.readFileSync(path.resolve(process.cwd(), 'src', 'App.tsx'), 'utf8');
+      const logoutIdx = appSrc.indexOf('const handleLogout = () => {');
+      assert.ok(logoutIdx !== -1, 'handleLogout must exist in src/App.tsx');
+      const logoutBlock = appSrc.slice(logoutIdx, logoutIdx + 500);
+      assert.match(logoutBlock, /setOrders\(\[\]\)/, 'handleLogout must clear in-memory orders state');
+      assert.match(
+        logoutBlock,
+        /localStorage\.removeItem\(['"]teqqno_orders['"]\)/,
+        'handleLogout must remove teqqno_orders from localStorage'
+      );
+      assert.match(
+        logoutBlock,
+        /localStorage\.removeItem\(['"]teqqno_user['"]\)/,
+        'handleLogout must remove teqqno_user from localStorage'
+      );
+      assert.match(
+        logoutBlock,
+        /supabase\.auth\.signOut\(\)/,
+        'handleLogout must sign out of Supabase Auth session'
+      );
+      assert.match(
+        appSrc,
+        /orders=\{user \? userScopedOrders : \[\]\}/,
+        'Storefront OrderTrackingModal must receive [] whenever user === null'
+      );
+    });
+
+    await runTest('G2. OrderTrackingModal disables localMatch fallback and local order dropdown for unauthenticated guests', () => {
+      const modalSrc = fs.readFileSync(
+        path.resolve(process.cwd(), 'src', 'components', 'OrderTrackingModal.tsx'),
+        'utf8'
+      );
+      assert.match(
+        modalSrc,
+        /const canUseLocalOrders = hasCustomerSession \|\| allowLocalFallback;/,
+        'OrderTrackingModal must gate local orders on hasCustomerSession || allowLocalFallback'
+      );
+      assert.match(
+        modalSrc,
+        /const scopedLocalOrders = canUseLocalOrders \? orders : \[\];/,
+        'OrderTrackingModal must empty scopedLocalOrders for unauthenticated guests'
+      );
+      assert.match(
+        modalSrc,
+        /const localMatch = canUseLocalOrders[\s\S]*?: undefined;/,
+        'OrderTrackingModal must return undefined for localMatch when guest is unauthenticated'
+      );
+      assert.match(
+        modalSrc,
+        /\{scopedLocalOrders\.length > 1 && \(/,
+        'Local order selector dropdown must use scopedLocalOrders'
+      );
+      assert.match(
+        modalSrc,
+        /if \(!hasCustomerSession && !cleanContact\)/,
+        'Guest tracking must require contact alongside order reference before calling POST /api/orders/track'
+      );
+    });
   } finally {
     await new Promise<void>((resolve) => ctx.server.close(() => resolve()));
   }
