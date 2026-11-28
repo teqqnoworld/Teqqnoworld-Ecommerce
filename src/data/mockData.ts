@@ -1,9 +1,9 @@
-import { Product, Order, UserProfile, SavedAddress, CustomerArtwork, TaxInvoice, NotificationItem, BulkEnquirySubmission } from '../types';
-import { getTippingPoloProductColors } from './tippingPoloImages';
-import { getPlainPoloProductColors } from './plainPoloImages';
-import { getJoabCoolmaxProductColors, JOAB_COOLMAX_VARIANTS } from './joabCoolmaxImages';
-import { getMattyPoloProductColors, MATTY_POLO_VARIANTS } from './mattyPoloImages';
-import { getCapProductColors, COTTON_FLEXI_CAP_VARIANTS } from './capImages';
+import type { Product, Order, UserProfile, SavedAddress, CustomerArtwork, TaxInvoice, NotificationItem, BulkEnquirySubmission } from '../types/index.ts';
+import { getTippingPoloProductColors } from './tippingPoloImages.ts';
+import { getPlainPoloProductColors } from './plainPoloImages.ts';
+import { getJoabCoolmaxProductColors, JOAB_COOLMAX_VARIANTS } from './joabCoolmaxImages.ts';
+import { getMattyPoloProductColors, MATTY_POLO_VARIANTS } from './mattyPoloImages.ts';
+import { getCapProductColors, COTTON_FLEXI_CAP_VARIANTS } from './capImages.ts';
 
 export interface CategoryItem {
   id: string;

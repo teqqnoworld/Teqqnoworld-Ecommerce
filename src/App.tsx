@@ -93,6 +93,12 @@ const AffiliateDashboardView = lazy(() =>
 const AffiliateVerificationView = lazy(() =>
   import('./components/affiliate/AffiliateVerificationView').then((m) => ({ default: m.AffiliateVerificationView }))
 );
+const BlogResourceCenterView = lazy(() =>
+  import('./components/blog/BlogResourceCenterView').then((m) => ({ default: m.BlogResourceCenterView }))
+);
+const BlogArticleDetailView = lazy(() =>
+  import('./components/blog/BlogArticleDetailView').then((m) => ({ default: m.BlogArticleDetailView }))
+);
 
 // Legal & Policy Views (route-split)
 const PrivacyPolicyView = lazy(() =>
@@ -199,17 +205,21 @@ import { WhatsAppIcon } from './components/WhatsAppIcon';
 import {
   DEFAULT_OG_IMAGE_ALT,
   SEO_AFFILIATE_PROGRAM_META,
+  SEO_BLOGS_META,
   SEO_BULK_META,
   SEO_BUNDLE_BUILDER_META,
   SEO_CATALOG_META,
+  SEO_GUIDES_META,
   SEO_HOME_META,
   SEO_LEGAL_PAGES,
   SEO_QUOTE_CALCULATOR_META,
+  SEO_RESOURCES_META,
   VALID_LEGAL_PATHS,
   buildProductSeoDescription,
   buildProductSeoTitle,
   findCategoryByCatalogKey,
   findCategoryBySlugOrAlias,
+  getBlogPath,
   getCategoryPath,
   getProductH1,
   getProductPath,
@@ -220,7 +230,18 @@ import {
   buildPageStructuredData,
   type StructuredDataProductInput,
 } from './config/structuredData';
+import type { BlogPost } from './types/blog';
 import { getProductKeywordEntry } from './data/seoKeywordMap';
+import {
+  trackAddToCart,
+  trackBeginCheckout,
+  trackPageView,
+  trackPurchaseOnce,
+  trackSelectItem,
+  trackViewItem,
+  trackViewItemList,
+  trackWhatsAppEnquiry,
+} from './utils/analyticsTracker';
 import { useReviewSummaries } from './context/ReviewSummaryContext';
 import { attributeOrderToAffiliate, trackAffiliateClick } from './services/affiliateService';
 
@@ -229,6 +250,8 @@ interface ResolvedClientRoute {
   product?: Product;
   category?: ProductCategory;
   searchQuery?: string;
+  blogHubPath?: '/blogs' | '/guides' | '/resources';
+  blogSlug?: string;
   orderAction?: {
     action: 'confirm' | 'cancel';
     orderId: string;
@@ -525,6 +548,28 @@ function resolveClientRouteFromLocation(): ResolvedClientRoute {
     };
   }
 
+  if (normalizedPath === '/blog') {
+    return { tab: 'blogs', blogHubPath: '/blogs', replaceUrl: '/blogs' };
+  }
+
+  if (normalizedPath === '/blogs' || normalizedPath === '/guides' || normalizedPath === '/resources') {
+    return { tab: 'blogs', blogHubPath: normalizedPath };
+  }
+
+  if (normalizedPath.startsWith('/blogs/')) {
+    const rawSeg = normalizedPath.slice('/blogs/'.length).replace(/\/+$/, '');
+    let slug = rawSeg;
+    try {
+      slug = decodeURIComponent(rawSeg);
+    } catch {
+      // leave raw
+    }
+    if (slug && !slug.includes('/')) {
+      return { tab: 'blog-detail', blogSlug: slug };
+    }
+    return { tab: 'not-found' };
+  }
+
   if (VALID_LEGAL_PATHS.includes(normalizedPath)) {
     return { tab: normalizedPath };
   }
@@ -538,6 +583,11 @@ export default function App() {
 
   // Navigation & View Routing (Clean SEO-friendly paths + safe legacy hash migration)
   const [currentTab, setCurrentTab] = useState<string>(initialRoute.tab);
+  const [blogHubPath, setBlogHubPath] = useState<'/blogs' | '/guides' | '/resources'>(
+    initialRoute.blogHubPath || '/blogs'
+  );
+  const [activeBlogSlug, setActiveBlogSlug] = useState<string>(initialRoute.blogSlug || '');
+  const [activeBlogPost, setActiveBlogPost] = useState<BlogPost | null>(null);
   const [orderActionParams, setOrderActionParams] = useState<{
     action: 'confirm' | 'cancel';
     orderId: string;
@@ -845,6 +895,12 @@ export default function App() {
       if (resolved.affiliateVerifyCode !== undefined) {
         setAffiliateVerifyCode(resolved.affiliateVerifyCode);
       }
+      if (resolved.blogHubPath) {
+        setBlogHubPath(resolved.blogHubPath);
+      }
+      if (resolved.blogSlug !== undefined) {
+        setActiveBlogSlug(resolved.blogSlug);
+      }
       if (resolved.recoveryCoupon) {
         import('./services/aisensyService')
           .then(({ activateRecoveryCoupon }) =>
@@ -928,6 +984,15 @@ export default function App() {
           metaDescription: productDescription,
         }),
       });
+      const productPagePath = getProductPath(selectedProduct.slug);
+      trackPageView({ pagePath: productPagePath, pageTitle: productTitle });
+      trackViewItem({
+        productId: selectedProduct.id,
+        productName: cleanProductH1,
+        categorySlug: productSeoEntry?.categorySlug || selectedProduct.category,
+        priceInr: selectedProduct.basePrice,
+        pagePath: productPagePath,
+      });
       return;
     }
 
@@ -950,6 +1015,22 @@ export default function App() {
             products: structuredCatalogProducts,
           }),
         });
+        trackPageView({
+          pagePath: `/category/${matchedCat.slug}`,
+          pageTitle: matchedCat.title,
+          categorySlug: matchedCat.slug,
+        });
+        trackViewItemList({
+          listName: matchedCat.name,
+          categorySlug: matchedCat.slug,
+          pagePath: `/category/${matchedCat.slug}`,
+          items: PRODUCTS.filter((p) => p.category === matchedCat.catalogCategory).map((p) => ({
+            item_id: p.id,
+            item_name: getProductH1(p.id, p.name),
+            item_category: matchedCat.slug,
+            price: p.basePrice,
+          })),
+        });
       } else {
         applyDocumentSeo({
           title: SEO_CATALOG_META.title,
@@ -960,6 +1041,17 @@ export default function App() {
             kind: 'catalog',
             products: structuredCatalogProducts,
           }),
+        });
+        trackPageView({ pagePath: '/catalog', pageTitle: SEO_CATALOG_META.title });
+        trackViewItemList({
+          listName: 'All Custom Printed Products',
+          pagePath: '/catalog',
+          items: PRODUCTS.map((p) => ({
+            item_id: p.id,
+            item_name: getProductH1(p.id, p.name),
+            item_category: p.category,
+            price: p.basePrice,
+          })),
         });
       }
       return;
@@ -1096,6 +1188,52 @@ export default function App() {
       return;
     }
 
+    if (currentTab === 'blogs') {
+      const meta =
+        blogHubPath === '/guides'
+          ? SEO_GUIDES_META
+          : blogHubPath === '/resources'
+            ? SEO_RESOURCES_META
+            : SEO_BLOGS_META;
+      applyDocumentSeo({
+        title: meta.title,
+        description: meta.description,
+        canonicalPath: blogHubPath,
+        imageAlt: meta.h1,
+        structuredData: buildPageStructuredData({
+          kind: 'blog-list',
+          path: blogHubPath,
+          title: meta.title,
+          description: meta.description,
+          h1: meta.h1,
+          posts: [],
+        }),
+      });
+      trackPageView({ pagePath: blogHubPath, pageTitle: meta.title });
+      return;
+    }
+
+    if (currentTab === 'blog-detail') {
+      if (activeBlogPost && activeBlogPost.slug === activeBlogSlug) {
+        const artTitle = activeBlogPost.seoTitle || `${activeBlogPost.title} | TeqqnoWorld`;
+        const artDesc = activeBlogPost.metaDescription || activeBlogPost.excerpt;
+        const artPath = getBlogPath(activeBlogPost.slug);
+        applyDocumentSeo({
+          title: artTitle,
+          description: artDesc,
+          canonicalPath: activeBlogPost.canonicalUrl || artPath,
+          ogType: 'article',
+          imageUrl: activeBlogPost.featuredImageUrl || undefined,
+          imageAlt: activeBlogPost.featuredImageAlt || activeBlogPost.title,
+          structuredData: buildPageStructuredData({
+            kind: 'blog-post',
+            post: activeBlogPost,
+          }),
+        });
+      }
+      return;
+    }
+
     // Default: Homepage (or customizer section on homepage)
     applyDocumentSeo({
       title: SEO_HOME_META.title,
@@ -1104,7 +1242,15 @@ export default function App() {
       imageAlt: DEFAULT_OG_IMAGE_ALT,
       structuredData: buildPageStructuredData({ kind: 'home' }),
     });
-  }, [currentTab, selectedProduct, catalogCategory, reviewSummaries]);
+  }, [
+    currentTab,
+    selectedProduct,
+    catalogCategory,
+    reviewSummaries,
+    blogHubPath,
+    activeBlogSlug,
+    activeBlogPost,
+  ]);
 
   // Helper to safely push clean path URLs
   const pushCleanUrl = (targetPath: string) => {
@@ -1241,6 +1387,41 @@ export default function App() {
       return;
     }
 
+    if (cleanInput === 'blogs' || cleanInput === '/blogs' || cleanInput === '/blog') {
+      setBlogHubPath('/blogs');
+      pushCleanUrl('/blogs');
+      setCurrentTab('blogs');
+      return;
+    }
+
+    if (cleanInput === 'guides' || cleanInput === '/guides') {
+      setBlogHubPath('/guides');
+      pushCleanUrl('/guides');
+      setCurrentTab('blogs');
+      return;
+    }
+
+    if (cleanInput === 'resources' || cleanInput === '/resources') {
+      setBlogHubPath('/resources');
+      pushCleanUrl('/resources');
+      setCurrentTab('blogs');
+      return;
+    }
+
+    if (normalized.startsWith('/blogs/')) {
+      const slug = decodeURIComponent(normalized.slice('/blogs/'.length).replace(/\/+$/, ''));
+      if (slug && !slug.includes('/')) {
+        setActiveBlogSlug(slug);
+        setActiveBlogPost(null);
+        pushCleanUrl(getBlogPath(slug));
+        setCurrentTab('blog-detail');
+      } else {
+        pushCleanUrl(normalized);
+        setCurrentTab('not-found');
+      }
+      return;
+    }
+
     if (cleanInput === 'orders' || cleanInput === '/orders') {
       pushCleanUrl('/orders');
       setCurrentTab('orders');
@@ -1252,6 +1433,13 @@ export default function App() {
   };
 
   const handleSelectProduct = (product: Product) => {
+    trackSelectItem({
+      listName: currentTab === 'catalog' ? 'Catalog Grid' : 'Storefront Showcase',
+      productId: product.id,
+      productName: getProductH1(product.id, product.name),
+      categorySlug: product.category,
+      priceInr: product.basePrice,
+    });
     setSelectedProduct(product);
     setCurrentTab('product-detail');
     pushCleanUrl(getProductPath(product.slug || product.id));
@@ -1335,6 +1523,14 @@ export default function App() {
       return [newItem, ...prev];
     });
     setIsCartOpen(true);
+    trackAddToCart({
+      productId: newItem.product.id,
+      productName: getProductH1(newItem.product.id, newItem.product.name),
+      categorySlug: newItem.product.category,
+      unitPriceInr: newItem.unitPrice,
+      quantity: newItem.quantity,
+      totalPriceInr: newItem.totalPrice,
+    });
     triggerCelebration({
       level: 'premium',
       sound: 'celebration',
@@ -1367,6 +1563,16 @@ export default function App() {
 
   const handleProceedToCheckout = () => {
     setIsCartOpen(false);
+    trackBeginCheckout({
+      valueInr: cartItems.reduce((sum, i) => sum + i.totalPrice, 0),
+      items: cartItems.map((i) => ({
+        item_id: i.product.id,
+        item_name: getProductH1(i.product.id, i.product.name),
+        item_category: i.product.category,
+        price: i.unitPrice,
+        quantity: i.quantity,
+      })),
+    });
     handleNavigate('checkout');
   };
 
@@ -1440,6 +1646,21 @@ export default function App() {
         }),
       });
     }
+
+    // Non-PII GA4 purchase event + first-party attribution (deduplicated per transaction_id)
+    trackPurchaseOnce({
+      transactionId: newOrder.orderNumber || newOrder.id,
+      valueInr: Number(newOrder.total || 0),
+      taxInr: Number(newOrder.gstAmount || 0),
+      shippingInr: Number(newOrder.shippingFee || 0),
+      items: (newOrder.items || []).map((item) => ({
+        item_id: item.product.id,
+        item_name: getProductH1(item.product.id, item.product.name),
+        item_category: item.product.category,
+        price: item.unitPrice,
+        quantity: item.quantity,
+      })),
+    });
 
     triggerCelebration({
       level: 'grand',
@@ -1926,6 +2147,25 @@ export default function App() {
           />
         )}
 
+        {/* VIEW H5: BLOG & RESOURCE CENTER (/blogs, /guides, /resources) */}
+        {currentTab === 'blogs' && (
+          <BlogResourceCenterView
+            hubPath={blogHubPath}
+            onOpenArticle={(slug) => handleNavigate(getBlogPath(slug))}
+            onNavigatePath={(path) => handleNavigate(path)}
+          />
+        )}
+
+        {/* VIEW H6: BLOG ARTICLE DETAIL PAGE (/blogs/:slug) */}
+        {currentTab === 'blog-detail' && activeBlogSlug && (
+          <BlogArticleDetailView
+            slug={activeBlogSlug}
+            onOpenArticle={(slug) => handleNavigate(getBlogPath(slug))}
+            onNavigatePath={(path) => handleNavigate(path)}
+            onArticleLoaded={(loadedPost) => setActiveBlogPost(loadedPost)}
+          />
+        )}
+
         {/* VIEW I: LEGAL & POLICY PAGES */}
         {(currentTab === '/privacy-policy' || currentTab === 'privacy-policy') && (
           <PrivacyPolicyView onNavigate={handleNavigate} />
@@ -2142,6 +2382,13 @@ export default function App() {
           href={getWhatsAppLink('Hello TeqqnoWorld, I want to discuss custom branded merchandise for my company')}
           target="_blank"
           rel="noopener noreferrer"
+          onClick={() =>
+            trackWhatsAppEnquiry({
+              placement: 'floating_whatsapp_cta',
+              productId: selectedProduct?.id,
+              productName: selectedProduct ? getProductH1(selectedProduct.id, selectedProduct.name) : undefined,
+            })
+          }
           aria-label="Direct WhatsApp Print Consultant"
           className="hidden md:flex fixed bottom-6 right-6 z-40 bg-[#1EBE5D] hover:bg-[#19a851] text-white p-3.5 rounded-full shadow-xl shadow-[#1EBE5D]/30 hover:scale-105 active:scale-95 transition-all items-center gap-2 group"
         >

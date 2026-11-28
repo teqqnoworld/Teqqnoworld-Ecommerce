@@ -12,6 +12,8 @@ export type AdminSection =
   | 'customers'
   | 'marketing'
   | 'analytics'
+  | 'seo-analytics'
+  | 'blogs'
   | 'integrations'
   | 'security';
 
@@ -61,6 +63,13 @@ export const STATUS_META: Record<
     pillClass: 'bg-emerald-50 text-emerald-800 border-emerald-200',
     dotClass: 'bg-emerald-500',
     barClass: 'bg-emerald-500',
+  },
+  cancelled: {
+    label: 'Cancelled',
+    shortLabel: 'Cancelled',
+    pillClass: 'bg-rose-50 text-rose-800 border-rose-200',
+    dotClass: 'bg-rose-500',
+    barClass: 'bg-rose-500',
   },
 };
 

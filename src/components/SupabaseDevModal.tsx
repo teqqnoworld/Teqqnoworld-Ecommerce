@@ -19,8 +19,9 @@ export const SupabaseDevModal: React.FC<SupabaseDevModalProps> = ({ isOpen, onCl
   const [copiedSql, setCopiedSql] = useState(false);
   const [activeTab, setActiveTab] = useState<'schema' | 'orders' | 'setup'>('schema');
   
-  // Test quotes query
+  // Test quotes query (requires authenticated Admin session)
   const [quotes, setQuotes] = useState<CustomOrderRow[]>([]);
+  const [quotesError, setQuotesError] = useState<string | null>(null);
   const [loadingQuotes, setLoadingQuotes] = useState(false);
   
   // Seed status
@@ -31,8 +32,10 @@ export const SupabaseDevModal: React.FC<SupabaseDevModalProps> = ({ isOpen, onCl
 
   const loadQuotes = async () => {
     setLoadingQuotes(true);
+    setQuotesError(null);
     const res = await fetchCustomOrdersFromSupabase();
     setQuotes(res.data);
+    if (res.error) setQuotesError(res.error);
     setLoadingQuotes(false);
   };
 
@@ -277,11 +280,11 @@ CREATE POLICY "Public can upload brand logos" ON storage.objects FOR INSERT TO p
               <pre>    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()</pre>
               <pre>);</pre>
               <br />
-              <pre className="text-emerald-400">-- 3. RLS POLICIES (Public read products, public insert orders)</pre>
+              <pre className="text-emerald-400">-- 3. RLS POLICIES (Public read products; service_role-only custom_orders)</pre>
               <pre>ALTER TABLE public.products ENABLE ROW LEVEL SECURITY;</pre>
               <pre>CREATE POLICY &quot;Public can view all active products&quot; ON public.products FOR SELECT USING (true);</pre>
               <pre>ALTER TABLE public.custom_orders ENABLE ROW LEVEL SECURITY;</pre>
-              <pre>CREATE POLICY &quot;Anyone can submit a custom order quote&quot; ON public.custom_orders FOR INSERT TO public WITH CHECK (true);</pre>
+              <pre>-- Apply supabase/custom_orders_rls_hardening_migration.sql (service_role only; no anon/authenticated reads)</pre>
               <br />
               <pre className="text-emerald-400">-- 4. STORAGE BUCKET: brand-logos</pre>
               <pre>INSERT INTO storage.buckets (id, name, public) VALUES (&apos;brand-logos&apos;, &apos;brand-logos&apos;, true) ON CONFLICT DO NOTHING;</pre>
@@ -319,9 +322,13 @@ CREATE POLICY "Public can upload brand logos" ON storage.objects FOR INSERT TO p
               </button>
             </div>
 
-            {quotes.length === 0 ? (
+            {quotesError ? (
+              <div className="text-center py-8 px-4 bg-amber-950/30 rounded-2xl border border-amber-700/50 text-amber-200 text-xs">
+                {quotesError} Sign into the Admin Hub first to view order records.
+              </div>
+            ) : quotes.length === 0 ? (
               <div className="text-center py-10 bg-zinc-900/50 rounded-2xl border border-zinc-800 text-zinc-500 text-xs">
-                No quote submissions found yet. Submit one using the "Instant Bulk RFQ Estimator" on the landing page!
+                No quote submissions found yet. Submit one using the &quot;Instant Bulk RFQ Estimator&quot; on the landing page!
               </div>
             ) : (
               <div className="space-y-2 max-h-72 overflow-y-auto">

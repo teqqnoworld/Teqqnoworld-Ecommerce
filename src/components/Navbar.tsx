@@ -497,6 +497,23 @@ export const Navbar: React.FC<NavbarProps> = ({
               >
                 <span>Affiliate Program</span>
               </a>
+
+              <a
+                href="/blogs"
+                onClick={(e) => {
+                  if (!e.metaKey && !e.ctrlKey && !e.shiftKey && !e.altKey && e.button === 0) {
+                    e.preventDefault();
+                    onNavigate('/blogs');
+                  }
+                }}
+                className={`font-medium transition-colors hover:text-[#FF7A00] flex items-center gap-1.5 py-1.5 whitespace-nowrap shrink-0 min-h-[36px] cursor-pointer ${
+                  currentTab === 'blogs' || currentTab === 'blog-detail'
+                    ? 'text-[#FF7A00] font-bold'
+                    : 'text-zinc-700'
+                }`}
+              >
+                <span>Blogs &amp; Guides</span>
+              </a>
             </nav>
 
             {/* Right Dispatch & Delhivery Area Check */}
@@ -758,6 +775,18 @@ export const Navbar: React.FC<NavbarProps> = ({
                 }`}
               >
                 <span>Affiliate Partner Program</span>
+                <span className="text-zinc-400 text-xs">›</span>
+              </button>
+
+              <button
+                onClick={() => { onNavigate('/blogs'); setMobileMenuOpen(false); }}
+                className={`text-left px-3.5 py-3 rounded-xl transition-colors flex items-center justify-between min-h-[44px] ${
+                  currentTab === 'blogs' || currentTab === 'blog-detail'
+                    ? 'bg-orange-50 text-[#FF7A00] font-bold'
+                    : 'text-zinc-800 hover:bg-zinc-100 font-semibold'
+                }`}
+              >
+                <span>Blogs &amp; Buying Guides</span>
                 <span className="text-zinc-400 text-xs">›</span>
               </button>
             </div>

@@ -1,7 +1,9 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
+  BookOpen,
   CheckCircle2,
   ChevronDown,
+  Clock,
   FileText,
   Layers,
   Package,
@@ -14,6 +16,8 @@ import {
 } from 'lucide-react';
 import { getProductKeywordEntry } from '../data/seoKeywordMap';
 import type { SeoCategoryDefinition } from '../config/seoRoutes';
+import type { BlogPost } from '../types/blog';
+import { fetchPublishedGuidesForProduct } from '../services/blogService';
 
 interface ProductSeoGuideSectionProps {
   productId: string;
@@ -32,6 +36,21 @@ export const ProductSeoGuideSection: React.FC<ProductSeoGuideSectionProps> = ({
 }) => {
   const seoEntry = getProductKeywordEntry(productId);
   const [openFaqIdx, setOpenFaqIdx] = useState<number | null>(0);
+  const [relatedGuides, setRelatedGuides] = useState<BlogPost[]>([]);
+
+  useEffect(() => {
+    let active = true;
+    fetchPublishedGuidesForProduct(productId)
+      .then((posts) => {
+        if (active) setRelatedGuides(Array.isArray(posts) ? posts : []);
+      })
+      .catch(() => {
+        if (active) setRelatedGuides([]);
+      });
+    return () => {
+      active = false;
+    };
+  }, [productId]);
 
   if (!seoEntry) return null;
 
@@ -237,6 +256,70 @@ export const ProductSeoGuideSection: React.FC<ProductSeoGuideSectionProps> = ({
                 </div>
               );
             })}
+          </div>
+        </div>
+      )}
+
+      {/* Bidirectional Product-to-Guide Internal Links (Published Guides Only) */}
+      {relatedGuides.length > 0 && (
+        <div className="bg-white rounded-2xl border border-slate-200/90 p-5 sm:p-8 shadow-xs space-y-4">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div>
+              <span className="text-[11px] font-mono font-bold uppercase tracking-wider text-[#FF7900] inline-flex items-center gap-1.5">
+                <BookOpen className="w-3.5 h-3.5" />
+                Helpful Buying Guides &amp; Resources
+              </span>
+              <h2 className="font-display text-xl font-bold text-[#0B1530] tracking-tight mt-0.5">
+                Guides Related to {productDisplayTitle}
+              </h2>
+            </div>
+            <a
+              href="/blogs"
+              onClick={(e) =>
+                handleLinkNav(e, onNavigateRoute ? () => onNavigateRoute('/blogs') : undefined)
+              }
+              className="inline-flex items-center gap-1.5 text-xs font-semibold text-[#0B1530] hover:text-[#FF7900] transition-colors"
+            >
+              <span>Explore All Guides</span>
+              <ArrowRight className="w-3.5 h-3.5" />
+            </a>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {relatedGuides.slice(0, 3).map((guide) => (
+              <a
+                key={guide.id}
+                href={`/blogs/${guide.slug}`}
+                onClick={(e) =>
+                  handleLinkNav(
+                    e,
+                    onNavigateRoute ? () => onNavigateRoute(`/blogs/${guide.slug}`) : undefined
+                  )
+                }
+                className="group rounded-xl border border-slate-200/90 hover:border-[#FF7900]/50 bg-[#FAF9FD] hover:bg-white p-4 flex flex-col justify-between gap-3 transition-all"
+              >
+                <div className="space-y-1.5">
+                  <div className="flex items-center gap-2 text-[11px] text-zinc-500 font-mono">
+                    <span className="uppercase text-[#FF7900] font-bold">{guide.contentKind}</span>
+                    <span>·</span>
+                    <span className="inline-flex items-center gap-1">
+                      <Clock className="w-3 h-3" />
+                      {guide.readingTimeMinutes} min read
+                    </span>
+                  </div>
+                  <h3 className="font-display text-sm font-bold text-[#0B1530] group-hover:text-[#FF7900] transition-colors leading-snug">
+                    {guide.title}
+                  </h3>
+                  <p className="text-xs text-zinc-600 line-clamp-2 leading-relaxed">
+                    {guide.excerpt}
+                  </p>
+                </div>
+                <span className="inline-flex items-center gap-1 text-xs font-semibold text-[#0B1530] group-hover:text-[#FF7900]">
+                  <span>Read Buying Guide</span>
+                  <ArrowRight className="w-3.5 h-3.5" />
+                </span>
+              </a>
+            ))}
           </div>
         </div>
       )}

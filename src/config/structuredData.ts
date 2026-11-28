@@ -114,6 +114,42 @@ export type StructuredDataPageInput =
       metaDescription: string;
     }
   | {
+      kind: 'blog-list';
+      path: '/blogs' | '/guides' | '/resources';
+      title: string;
+      description: string;
+      h1: string;
+      posts: ReadonlyArray<{
+        slug: string;
+        title: string;
+        excerpt: string;
+        publishedAt?: string | null;
+      }>;
+    }
+  | {
+      kind: 'blog-post';
+      post: {
+        slug: string;
+        title: string;
+        seoTitle?: string;
+        metaDescription?: string;
+        excerpt: string;
+        authorName: string;
+        featuredImageUrl?: string;
+        featuredImageAlt?: string;
+        featuredImageWidth?: number;
+        featuredImageHeight?: number;
+        categoryName?: string;
+        focusKeyword?: string;
+        tags?: ReadonlyArray<string>;
+        readingTimeMinutes?: number;
+        publishedAt?: string | null;
+        updatedAt?: string;
+        canonicalUrl?: string;
+        faqs?: ReadonlyArray<{ question: string; answer: string }>;
+      };
+    }
+  | {
       kind: 'static';
       path: string;
       title: string;
@@ -788,6 +824,127 @@ export function buildPageStructuredData(input: StructuredDataPageInput): JsonLdD
       graph.push(
         buildFaqPageEntity(`${productUrl}#faq`, productUrl, productSeoEntry.faqs)
       );
+    }
+
+    return { '@context': 'https://schema.org', '@graph': graph };
+  }
+
+  if (input.kind === 'blog-list') {
+    const listUrl = buildCanonicalUrl(input.path);
+    const breadcrumbId = `${listUrl}#breadcrumb`;
+    const blogId = `${listUrl}#blog`;
+
+    graph.push(
+      {
+        '@type': 'CollectionPage',
+        '@id': `${listUrl}#webpage`,
+        url: listUrl,
+        name: input.title,
+        description: input.description,
+        inLanguage: 'en-IN',
+        isPartOf: { '@id': SCHEMA_IDS.website },
+        about: { '@id': SCHEMA_IDS.organization },
+        breadcrumb: { '@id': breadcrumbId },
+        mainEntity: { '@id': blogId },
+      },
+      {
+        '@type': 'Blog',
+        '@id': blogId,
+        url: listUrl,
+        name: input.h1,
+        description: input.description,
+        inLanguage: 'en-IN',
+        publisher: { '@id': SCHEMA_IDS.organization },
+        blogPost: input.posts.slice(0, 20).map((p) => ({
+          '@type': 'BlogPosting',
+          headline: cleanText(p.title),
+          description: cleanText(p.excerpt),
+          url: buildCanonicalUrl(`/blogs/${encodeURIComponent(p.slug)}`),
+          ...(p.publishedAt ? { datePublished: p.publishedAt } : {}),
+        })),
+      },
+      buildBreadcrumbListEntity(breadcrumbId, [
+        { name: 'Home', url: buildCanonicalUrl('/') },
+        { name: input.h1, url: listUrl },
+      ])
+    );
+    return { '@context': 'https://schema.org', '@graph': graph };
+  }
+
+  if (input.kind === 'blog-post') {
+    const post = input.post;
+    const postUrl = post.canonicalUrl && post.canonicalUrl.startsWith('https://')
+      ? post.canonicalUrl
+      : buildCanonicalUrl(`/blogs/${encodeURIComponent(post.slug)}`);
+    const breadcrumbId = `${postUrl}#breadcrumb`;
+    const articleId = `${postUrl}#article`;
+    const resolvedImage = post.featuredImageUrl
+      ? post.featuredImageUrl.startsWith('https://')
+        ? post.featuredImageUrl
+        : post.featuredImageUrl.startsWith('/')
+          ? `${CANONICAL_ORIGIN}${post.featuredImageUrl}`
+          : DEFAULT_OG_IMAGE_URL
+      : DEFAULT_OG_IMAGE_URL;
+
+    const blogPostingNode: Record<string, unknown> = {
+      '@type': 'BlogPosting',
+      '@id': articleId,
+      mainEntityOfPage: { '@id': `${postUrl}#webpage` },
+      url: postUrl,
+      headline: cleanText(post.title),
+      description: cleanText(post.metaDescription || post.excerpt),
+      inLanguage: 'en-IN',
+      image: {
+        '@type': 'ImageObject',
+        url: resolvedImage,
+        ...(post.featuredImageWidth ? { width: post.featuredImageWidth } : {}),
+        ...(post.featuredImageHeight ? { height: post.featuredImageHeight } : {}),
+        ...(post.featuredImageAlt ? { caption: cleanText(post.featuredImageAlt) } : {}),
+      },
+      author: {
+        '@type': 'Person',
+        name: cleanText(post.authorName || 'TeqqnoWorld Editorial Desk'),
+      },
+      publisher: { '@id': SCHEMA_IDS.organization },
+      isPartOf: { '@id': SCHEMA_IDS.website },
+      ...(post.publishedAt ? { datePublished: post.publishedAt } : {}),
+      ...(post.updatedAt ? { dateModified: post.updatedAt } : {}),
+      ...(post.categoryName ? { articleSection: cleanText(post.categoryName) } : {}),
+      ...(post.readingTimeMinutes
+        ? { timeRequired: `PT${Math.max(1, Math.round(post.readingTimeMinutes))}M` }
+        : {}),
+    };
+
+    const keywords = [
+      ...(post.focusKeyword ? [cleanText(post.focusKeyword)] : []),
+      ...(Array.isArray(post.tags) ? post.tags.map(cleanText) : []),
+    ].filter(Boolean);
+    if (keywords.length > 0) {
+      blogPostingNode.keywords = keywords.join(', ');
+    }
+
+    graph.push(
+      {
+        '@type': 'WebPage',
+        '@id': `${postUrl}#webpage`,
+        url: postUrl,
+        name: cleanText(post.seoTitle || post.title),
+        description: cleanText(post.metaDescription || post.excerpt),
+        inLanguage: 'en-IN',
+        isPartOf: { '@id': SCHEMA_IDS.website },
+        breadcrumb: { '@id': breadcrumbId },
+        mainEntity: { '@id': articleId },
+      },
+      buildBreadcrumbListEntity(breadcrumbId, [
+        { name: 'Home', url: buildCanonicalUrl('/') },
+        { name: 'Blogs & Guides', url: buildCanonicalUrl('/blogs') },
+        { name: cleanText(post.title), url: postUrl },
+      ]),
+      blogPostingNode
+    );
+
+    if (Array.isArray(post.faqs) && post.faqs.length > 0) {
+      graph.push(buildFaqPageEntity(`${postUrl}#faq`, postUrl, post.faqs));
     }
 
     return { '@context': 'https://schema.org', '@graph': graph };

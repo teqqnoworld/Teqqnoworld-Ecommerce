@@ -8,3 +8,8 @@ coverage/
 !.env.example
 .aistudio/
 .tempmediaStorage/
+.data/
+data/affiliate-kyc/
+data/review-media/
+data/teqqno-affiliate-store.json
+data/teqqno-product-reviews.json

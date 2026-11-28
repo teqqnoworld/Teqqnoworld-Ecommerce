@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useMemo, useRef, lazy, Suspense } from 'react';
 import {
   Lock,
   Unlock,
@@ -16,6 +16,7 @@ import {
   Eye,
   Mail,
   BarChart3,
+  Globe,
   Layers,
   Download,
   LogOut,
@@ -50,8 +51,21 @@ import {
   Star,
   Sparkles,
   Ticket,
+  BookOpen,
 } from 'lucide-react';
 import { WhatsAppIcon } from './WhatsAppIcon';
+
+const AdminSeoAnalyticsPanel = lazy(() =>
+  import('./admin/seo/AdminSeoAnalyticsPanel').then((m) => ({
+    default: m.AdminSeoAnalyticsPanel,
+  }))
+);
+
+const AdminBlogManagementPanel = lazy(() =>
+  import('./admin/blog/AdminBlogManagementPanel').then((m) => ({
+    default: m.AdminBlogManagementPanel,
+  }))
+);
 import {
   CustomOrderRow,
   OrderStatus,
@@ -865,9 +879,22 @@ export const AdminHubView: React.FC<AdminHubViewProps> = ({
         customNotes: notesParts.join(' | '),
       });
 
-      if (res.success && res.data) {
-        setOrders((prev) => [res.data!, ...prev]);
-        showToast('success', `Order #${formatOrderRef(res.data.id)} created successfully!`);
+      if (res.success && res.orderId) {
+        const createdOrder: CustomOrderRow = res.data || {
+          id: res.orderId,
+          customer_name: newOrdCustomer.trim(),
+          customer_email: newOrdEmail.trim(),
+          company: newOrdCompany.trim() || null,
+          phone: newOrdPhone.trim(),
+          product_id: newOrdProductId,
+          quantity: qty,
+          logo_url: res.logoUrl || null,
+          custom_notes: notesParts.join(' | '),
+          status: 'pending',
+          created_at: new Date().toISOString(),
+        };
+        setOrders((prev) => [createdOrder, ...prev]);
+        showToast('success', `Order #${formatOrderRef(createdOrder.id)} created successfully!`);
         setCreateOrderOpen(false);
         setNewOrdCustomer('');
         setNewOrdEmail('');
@@ -941,6 +968,7 @@ export const AdminHubView: React.FC<AdminHubViewProps> = ({
       'in-production': 0,
       dispatched: 0,
       delivered: 0,
+      cancelled: 0,
     };
     const productStats = new Map<
       string,
@@ -1658,6 +1686,18 @@ export const AdminHubView: React.FC<AdminHubViewProps> = ({
       breadcrumb: 'Reports & Analytics',
       icon: BarChart3,
     },
+    'seo-analytics': {
+      title: 'SEO Analytics & Monitoring',
+      subtitle: 'Google Search Console performance, Phase 4 keyword tracking, organic conversions, technical health & reports.',
+      breadcrumb: 'SEO Analytics & Monitoring',
+      icon: Globe,
+    },
+    blogs: {
+      title: 'Blog & Content Management',
+      subtitle: 'Draft, preview, publish, schedule, and optimize TeqqnoWorld buying guides, categories, and topical authority clusters.',
+      breadcrumb: 'Blog Management',
+      icon: BookOpen,
+    },
     integrations: {
       title: 'Integrations & Setup',
       subtitle: 'Hostinger SMTP, Razorpay Live Gateway, Delhivery One, and Supabase PostgreSQL.',
@@ -1942,6 +1982,48 @@ export const AdminHubView: React.FC<AdminHubViewProps> = ({
         >
           <BarChart3 className="w-4 h-4 shrink-0" />
           <span>Reports &amp; Analytics</span>
+        </button>
+
+        {/* 6B. SEO Analytics & Monitoring */}
+        <button
+          onClick={() => {
+            setActiveSection('seo-analytics');
+            if (isMobile) setMobileMenuOpen(false);
+          }}
+          className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl font-medium transition-all duration-200 cursor-pointer ${
+            activeSection === 'seo-analytics'
+              ? 'bg-[#FF7900] text-white font-semibold shadow-md shadow-[#FF7900]/25'
+              : 'text-slate-300 hover:text-white hover:bg-white/[0.06]'
+          }`}
+        >
+          <span className="flex items-center gap-3 min-w-0">
+            <Globe className="w-4 h-4 shrink-0" />
+            <span className="truncate">SEO Analytics &amp; Monitoring</span>
+          </span>
+          <span className="text-[10px] font-mono bg-white/[0.1] text-orange-300 px-1.5 py-0.5 rounded shrink-0">
+            SEO
+          </span>
+        </button>
+
+        {/* 6C. Blog & Content Management */}
+        <button
+          onClick={() => {
+            setActiveSection('blogs');
+            if (isMobile) setMobileMenuOpen(false);
+          }}
+          className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl font-medium transition-all duration-200 cursor-pointer ${
+            activeSection === 'blogs'
+              ? 'bg-[#FF7900] text-white font-semibold shadow-md shadow-[#FF7900]/25'
+              : 'text-slate-300 hover:text-white hover:bg-white/[0.06]'
+          }`}
+        >
+          <span className="flex items-center gap-3 min-w-0">
+            <BookOpen className="w-4 h-4 shrink-0" />
+            <span className="truncate">Blog Management</span>
+          </span>
+          <span className="text-[10px] font-mono bg-white/[0.1] text-orange-300 px-1.5 py-0.5 rounded shrink-0">
+            CMS
+          </span>
         </button>
 
         {/* 7. Integrations & Setup (Expandable with Delhivery Dispatch + Gateways & SQL) */}
@@ -2307,6 +2389,8 @@ export const AdminHubView: React.FC<AdminHubViewProps> = ({
               { id: 'customers', label: 'Customers' },
               { id: 'marketing', label: 'Marketing' },
               { id: 'analytics', label: 'Analytics' },
+              { id: 'seo-analytics', label: 'SEO Analytics' },
+              { id: 'blogs', label: 'Blogs' },
               { id: 'integrations', label: 'Setup' },
               { id: 'security', label: 'Security & 2FA' },
             ] as Array<{ id: AdminSection; label: string }>
@@ -3304,6 +3388,36 @@ export const AdminHubView: React.FC<AdminHubViewProps> = ({
               analytics={analytics}
               onExportCsv={handleExportOrdersCsv}
             />
+          )}
+
+          {activeSection === 'seo-analytics' && (
+            <Suspense
+              fallback={
+                <div className="bg-white rounded-2xl border border-slate-200 p-12 flex items-center justify-center gap-2 text-xs text-slate-600">
+                  <Loader2 className="w-5 h-5 animate-spin text-[#FF7900]" />
+                  Loading SEO Analytics &amp; Monitoring...
+                </div>
+              }
+            >
+              <AdminSeoAnalyticsPanel
+                onShowToast={(msg, tone) =>
+                  showToast(tone === 'error' ? 'error' : 'success', msg)
+                }
+              />
+            </Suspense>
+          )}
+
+          {activeSection === 'blogs' && (
+            <Suspense
+              fallback={
+                <div className="bg-white rounded-2xl border border-slate-200 p-12 flex items-center justify-center gap-2 text-xs text-slate-600">
+                  <Loader2 className="w-5 h-5 animate-spin text-[#FF7900]" />
+                  Loading Blog &amp; Content Management...
+                </div>
+              }
+            >
+              <AdminBlogManagementPanel />
+            </Suspense>
           )}
 
           {activeSection === 'integrations' && (

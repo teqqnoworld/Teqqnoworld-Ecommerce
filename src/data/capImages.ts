@@ -1,4 +1,4 @@
-import { ProductColor } from '../types';
+import type { ProductColor } from '../types/index.ts';
 
 export interface CapVariant {
   name: string;

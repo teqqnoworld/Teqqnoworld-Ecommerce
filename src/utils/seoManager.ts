@@ -14,7 +14,7 @@ export interface ClientSeoMeta {
   description: string;
   canonicalPath: string;
   robots?: string;
-  ogType?: 'website' | 'product';
+  ogType?: 'website' | 'product' | 'article';
   imageUrl?: string;
   imageAlt?: string;
   structuredData?: JsonLdDocument | null;

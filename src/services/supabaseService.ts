@@ -7,6 +7,7 @@ import {
 } from '../lib/supabase';
 import { PRODUCTS } from '../data/mockData';
 import { compressImageFile, compressDataUrl } from '../utils/imageCompressor';
+import { getStoredAdminToken } from './adminSecurityService';
 
 // Storage bucket name constant
 export const STORAGE_BUCKET_NAME = 'brand-logos';
@@ -21,15 +22,31 @@ export interface QuoteRequestInput {
   customNotes?: string;
   logoFile?: File | null;
   existingLogoUrl?: string | null;
+  submissionType?: 'quote' | 'rfq';
 }
 
 export interface QuoteSubmissionResult {
   success: boolean;
   orderId?: string;
+  orderNumber?: string;
   logoUrl?: string | null;
   data?: CustomOrderRow;
   message?: string;
   isMockFallback?: boolean;
+}
+
+export interface PublicOrderTrackingResult {
+  orderId: string;
+  orderNumber: string;
+  status: OrderStatus;
+  proofStatus: string;
+  orderStatus: string;
+  courierPartner: string;
+  trackingNumber: string | null;
+  createdAt: string;
+  estimatedDispatch: string;
+  quantity: number;
+  productId: string | null;
 }
 
 /**
@@ -254,109 +271,65 @@ export async function uploadDataUrlToStorage(
 
 
 /**
- * 3. Handle Complete "Request a Quote" / Custom Order Flow:
- *  a) Uploads the user's logo file to Supabase Storage bucket `brand-logos`.
- *  b) Obtains the public URL.
- *  c) Inserts customer info + order details + logo URL into `custom_orders` table.
+ * 3. Handle Complete "Request a Quote" / Bulk RFQ Flow:
+ *  a) Uploads optional brand logo file to Supabase Storage bucket `brand-logos`.
+ *  b) Submits validated quote request through server-side POST /api/quotes/submit
+ *     (never inserts directly into public.custom_orders from the browser).
  */
 export async function submitCustomOrderQuote(
   payload: QuoteRequestInput
 ): Promise<QuoteSubmissionResult> {
-  // If Supabase is unconfigured, provide a smooth local fallback experience
-  if (!isSupabaseConfigured()) {
-    console.info('[Supabase] Running in local demo mode. Saving quote to local mock session.');
-    
-    // Simulate network latency (400ms)
-    await new Promise((resolve) => setTimeout(resolve, 500));
-
-    // Convert local File to data URL for preview if present
-    let mockLogoUrl: string | null = payload.existingLogoUrl || null;
-    if (payload.logoFile && !mockLogoUrl) {
-      mockLogoUrl = await new Promise((resolve) => {
-        const reader = new FileReader();
-        reader.onload = (e) => resolve(e.target?.result as string || null);
-        reader.onerror = () => resolve(null);
-        reader.readAsDataURL(payload.logoFile as File);
-      });
-    }
-
-    const mockId = `quote_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`;
-    const mockOrder: CustomOrderRow = {
-      id: mockId,
-      customer_name: payload.customerName,
-      customer_email: payload.customerEmail,
-      company: payload.company || 'Corporate Client',
-      phone: payload.phone,
-      product_id: payload.productId,
-      quantity: payload.quantity,
-      logo_url: mockLogoUrl,
-      custom_notes: payload.customNotes || '',
-      status: 'pending',
-      created_at: new Date().toISOString(),
-    };
-
-    // Save to localStorage for demo persistence
-    try {
-      const existing = JSON.parse(localStorage.getItem('teqqno_supabase_quotes') || '[]');
-      existing.unshift(mockOrder);
-      localStorage.setItem('teqqno_supabase_quotes', JSON.stringify(existing));
-    } catch (e) {
-      console.warn('LocalStorage save error:', e);
-    }
-
-    return {
-      success: true,
-      orderId: mockId,
-      logoUrl: mockLogoUrl,
-      data: mockOrder,
-      message: 'Quote request recorded successfully (Demo Mode - connect Supabase in .env.local to persist in PostgreSQL).',
-      isMockFallback: true,
-    };
-  }
-
   try {
     let finalLogoUrl: string | null = payload.existingLogoUrl || null;
 
     // a) Upload file to Supabase Storage if a File object was provided
-    if (payload.logoFile) {
+    if (payload.logoFile && isSupabaseConfigured()) {
       const { publicUrl } = await uploadBrandLogoToStorage(payload.logoFile);
       finalLogoUrl = publicUrl;
     }
 
-    // b) Insert record into `custom_orders` table
-    const { data, error } = await (supabase.from('custom_orders') as any)
-      .insert({
-        customer_name: payload.customerName,
-        customer_email: payload.customerEmail,
-        company: payload.company || null,
-        phone: payload.phone,
-        product_id: payload.productId || null,
-        quantity: payload.quantity,
-        logo_url: finalLogoUrl,
-        custom_notes: payload.customNotes || null,
-        status: 'pending',
-      })
-      .select()
-      .single();
-
-    if (error) {
-      console.error('[Supabase DB] Error inserting quote into custom_orders:', error);
-      throw new Error(`Failed to submit quote: ${error.message}`);
+    // b) Submit through rate-limited, server-validated Express API
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+    };
+    const adminToken = getStoredAdminToken();
+    if (adminToken) {
+      headers.Authorization = `Bearer ${adminToken}`;
     }
 
-    const insertedRow = data as CustomOrderRow;
+    const resp = await fetch('/api/quotes/submit', {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({
+        submissionType: payload.submissionType || 'quote',
+        customerName: payload.customerName,
+        customerEmail: payload.customerEmail,
+        company: payload.company || null,
+        phone: payload.phone,
+        productId: payload.productId,
+        quantity: payload.quantity,
+        logoUrl: finalLogoUrl,
+        customNotes: payload.customNotes || null,
+      }),
+    });
+
+    const json = await resp.json().catch(() => ({}));
+    if (!resp.ok || !json?.success) {
+      throw new Error(json?.message || `Failed to submit quote (HTTP ${resp.status}).`);
+    }
+
+    const orderId = String(json.orderId || 'SUBMITTED');
+    const orderNumber = String(json.orderNumber || orderId);
 
     return {
       success: true,
-      orderId: insertedRow?.id || 'SUBMITTED',
+      orderId,
+      orderNumber,
       logoUrl: finalLogoUrl,
-      data: insertedRow,
       message: 'Your quote request and brand logo have been successfully registered with our corporate production team.',
       isMockFallback: false,
     };
-
   } catch (error: any) {
-    console.error('[Supabase] Quote submission failed:', error);
     return {
       success: false,
       message: error?.message || 'An error occurred while submitting your quote request.',
@@ -365,31 +338,35 @@ export async function submitCustomOrderQuote(
 }
 
 /**
- * 4. Fetch quotes (for administrative review / order tracking)
+ * 4. Fetch orders for Admin Hub via authenticated Express Admin API (GET /api/admin/orders).
+ * Requires a valid Admin Bearer session token — never reads custom_orders with the public anon key.
  */
 export async function fetchCustomOrdersFromSupabase(): Promise<{
   data: CustomOrderRow[];
   error?: string;
 }> {
-  if (!isSupabaseConfigured()) {
-    try {
-      const local = JSON.parse(localStorage.getItem('teqqno_supabase_quotes') || '[]');
-      return { data: local };
-    } catch {
-      return { data: [] };
-    }
+  const adminToken = getStoredAdminToken();
+  if (!adminToken) {
+    return { data: [], error: 'Admin authentication required to view orders.' };
   }
 
   try {
-    const { data, error } = await supabase
-      .from('custom_orders')
-      .select('*')
-      .order('created_at', { ascending: false });
-
-    if (error) throw error;
-    return { data: data || [] };
+    const resp = await fetch('/api/admin/orders', {
+      method: 'GET',
+      headers: {
+        Authorization: `Bearer ${adminToken}`,
+      },
+    });
+    const json = await resp.json().catch(() => ({}));
+    if (!resp.ok || !json?.success) {
+      return {
+        data: [],
+        error: json?.message || `Unable to load orders (HTTP ${resp.status}).`,
+      };
+    }
+    return { data: Array.isArray(json.orders) ? (json.orders as CustomOrderRow[]) : [] };
   } catch (err: any) {
-    return { data: [], error: err?.message };
+    return { data: [], error: err?.message || 'Failed to load orders from server.' };
   }
 }
 
@@ -426,78 +403,68 @@ export async function seedProductsToSupabase(): Promise<{ count: number; error?:
 }
 
 /**
- * 6. Update Custom Order Status & Courier Dispatch Details
- * Executes: supabase.from('custom_orders').update({ status, courier_partner, tracking_number }).eq('id', orderId)
- * Provides robust fallback to custom_notes if courier columns are not yet provisioned in Supabase.
+ * 6. Update Custom Order Status & Courier Dispatch Details via authenticated Admin API
+ * Executes: PATCH /api/admin/orders/:orderId/status (Admin session token required).
  */
 export async function updateCustomOrderStatus(
   orderId: string,
   status: OrderStatus,
   courierPartner?: string | null,
-  trackingNumber?: string | null
+  trackingNumber?: string | null,
 ): Promise<{ success: boolean; data?: any; error?: string }> {
-  console.log(`[Supabase Admin] Updating order ${orderId} -> status: ${status}, courier: ${courierPartner}, awb: ${trackingNumber}`);
-
-  // 1. Synchronize in LocalStorage (for instant offline & local fallback reflection)
-  try {
-    const localQuotes: CustomOrderRow[] = JSON.parse(localStorage.getItem('teqqno_supabase_quotes') || '[]');
-    const qIdx = localQuotes.findIndex(q => q.id === orderId);
-    if (qIdx !== -1) {
-      localQuotes[qIdx].status = status;
-      if (courierPartner) localQuotes[qIdx].courier_partner = courierPartner;
-      if (trackingNumber) localQuotes[qIdx].tracking_number = trackingNumber;
-      localStorage.setItem('teqqno_supabase_quotes', JSON.stringify(localQuotes));
-    }
-
-    // Also update in customer orders list if matching
-    const localOrders = JSON.parse(localStorage.getItem('teqqno_orders') || '[]');
-    const oIdx = localOrders.findIndex((o: any) => o.id === orderId || o.orderNumber === orderId);
-    if (oIdx !== -1) {
-      localOrders[oIdx].orderStatus = status === 'pending' ? 'Artwork Verification' :
-        status === 'approved' ? 'Artwork Verification' :
-        status === 'in-production' ? 'Manufacturing' :
-        status === 'dispatched' ? 'Dispatched' : 'Delivered';
-      if (courierPartner) localOrders[oIdx].courierPartner = courierPartner;
-      if (trackingNumber) localOrders[oIdx].trackingNumber = trackingNumber;
-      localStorage.setItem('teqqno_orders', JSON.stringify(localOrders));
-    }
-  } catch (storageErr) {
-    console.warn('LocalStorage sync warning:', storageErr);
-  }
-
-  if (!isSupabaseConfigured()) {
-    return { success: true };
+  const adminToken = getStoredAdminToken();
+  if (!adminToken) {
+    return { success: false, error: 'Unauthorized: Valid Admin session token is required.' };
   }
 
   try {
-    // 2. Attempt direct column update
-    const updatePayload: any = { status };
-    if (courierPartner !== undefined) updatePayload.courier_partner = courierPartner;
-    if (trackingNumber !== undefined) updatePayload.tracking_number = trackingNumber;
+    const resp = await fetch(`/api/admin/orders/${encodeURIComponent(orderId)}/status`, {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${adminToken}`,
+      },
+      body: JSON.stringify({
+        status,
+        ...(courierPartner !== undefined ? { courierPartner } : {}),
+        ...(trackingNumber !== undefined ? { trackingNumber } : {}),
+      }),
+    });
 
-    let { data, error } = await (supabase.from('custom_orders') as any)
-      .update(updatePayload)
-      .eq('id', orderId)
-      .select();
+    const json = await resp.json().catch(() => ({}));
+    if (!resp.ok || !json?.success) {
+      return {
+        success: false,
+        error: json?.message || `Failed to update order status (HTTP ${resp.status}).`,
+      };
+    }
 
-    if (error) {
-      console.warn('[Supabase Update Warning] Retrying without custom courier columns:', error.message);
-      // Fallback: If courier_partner/tracking_number columns don't exist in Supabase schema, update status only
-      const fallbackResult = await (supabase.from('custom_orders') as any)
-        .update({ status })
-        .eq('id', orderId)
-        .select();
-
-      if (fallbackResult.error) {
-        throw fallbackResult.error;
+    // Keep local UI cache in sync after confirmed server update
+    try {
+      const localOrders = JSON.parse(localStorage.getItem('teqqno_orders') || '[]');
+      const oIdx = localOrders.findIndex((o: any) => o.id === orderId || o.orderNumber === orderId);
+      if (oIdx !== -1) {
+        localOrders[oIdx].orderStatus =
+          status === 'pending' || status === 'approved'
+            ? 'Artwork Verification'
+            : status === 'in-production'
+              ? 'Manufacturing'
+              : status === 'dispatched'
+                ? 'Dispatched'
+                : status === 'cancelled'
+                  ? 'Cancelled'
+                  : 'Delivered';
+        if (courierPartner) localOrders[oIdx].courierPartner = courierPartner;
+        if (trackingNumber) localOrders[oIdx].trackingNumber = trackingNumber;
+        localStorage.setItem('teqqno_orders', JSON.stringify(localOrders));
       }
-      data = fallbackResult.data;
+    } catch {
+      // ignore local storage sync warning
     }
 
-    return { success: true, data };
+    return { success: true, data: json.order };
   } catch (err: any) {
-    console.error('[Supabase Update Error]:', err);
-    return { success: false, error: err?.message || 'Failed to update order status' };
+    return { success: false, error: err?.message || 'Failed to update order status.' };
   }
 }
 
@@ -642,101 +609,99 @@ export async function fetchAbandonedCheckoutsFromSupabase(): Promise<{
 }
 
 /**
- * 10. Fetch Single Custom Order by ID or Phone (for Customer Real-Time Tracking)
+ * 10. Secure Public / Authenticated Order Tracking via POST /api/orders/track.
+ * - Logged-in customers authenticate with their Supabase JWT and can track their own orders.
+ * - Guest customers must supply BOTH orderRef (Order ID / TQ number / AWB) AND matching contact (email or phone).
+ * - Returns strictly sanitized non-PII tracking fields only.
  */
-export async function fetchCustomOrderById(searchQuery: string): Promise<CustomOrderRow | null> {
-  const clean = searchQuery.trim();
-  if (!clean) return null;
-
-  if (isSupabaseConfigured()) {
-    try {
-      // Try ID match
-      const { data: byId } = await supabase
-        .from('custom_orders')
-        .select('*')
-        .eq('id', clean)
-        .maybeSingle();
-
-      if (byId) return byId as CustomOrderRow;
-
-      // Try phone match
-      const { data: byPhone } = await supabase
-        .from('custom_orders')
-        .select('*')
-        .ilike('phone', `%${clean.replace(/[^0-9]/g, '')}%`)
-        .order('created_at', { ascending: false })
-        .limit(1);
-
-      if (byPhone && byPhone.length > 0) return byPhone[0] as CustomOrderRow;
-    } catch (err) {
-      console.warn('[Supabase Fetch Order By ID]:', err);
-    }
+export async function trackPublicOrder(params: {
+  orderRef: string;
+  contact?: string;
+}): Promise<{
+  success: boolean;
+  tracking?: PublicOrderTrackingResult;
+  code?: string;
+  message?: string;
+}> {
+  const orderRef = (params.orderRef || '').trim();
+  const contact = (params.contact || '').trim();
+  if (!orderRef) {
+    return { success: false, code: 'INVALID_TRACKING_QUERY', message: 'Please enter an Order ID or AWB number.' };
   }
 
-  // Fallback to local storage
   try {
-    const localQuotes: CustomOrderRow[] = JSON.parse(localStorage.getItem('teqqno_supabase_quotes') || '[]');
-    const found = localQuotes.find(q => 
-      q.id.toLowerCase() === clean.toLowerCase() || 
-      (q.tracking_number && q.tracking_number.toLowerCase() === clean.toLowerCase()) ||
-      q.phone.includes(clean)
-    );
-    if (found) return found;
-  } catch {
-    // ignore
-  }
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+    };
+    const { data: sessionData } = await supabase.auth.getSession().catch(() => ({ data: { session: null } }));
+    const accessToken = sessionData?.session?.access_token;
+    if (accessToken) {
+      headers.Authorization = `Bearer ${accessToken}`;
+    }
 
-  return null;
+    const resp = await fetch('/api/orders/track', {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({
+        orderRef,
+        ...(contact ? { contact } : {}),
+      }),
+    });
+
+    const json = await resp.json().catch(() => ({}));
+    if (!resp.ok || !json?.success || !json?.tracking) {
+      return {
+        success: false,
+        code: json?.code,
+        message:
+          json?.message ||
+          'No matching order was found. Please check your Order ID / AWB and registered contact details.',
+      };
+    }
+
+    return {
+      success: true,
+      tracking: json.tracking as PublicOrderTrackingResult,
+    };
+  } catch {
+    return {
+      success: false,
+      message: 'Unable to reach order tracking service right now.',
+    };
+  }
 }
 
 /**
- * 11. Fetch Customer Custom Orders filtered by customer email or phone
- * Used by CustomerDashboard so orders placed on the storefront or updated by Admin sync live.
+ * 11. Fetch Signed-In Customer's Own Orders via GET /api/customer/orders.
+ * Identity is derived strictly from the verified Supabase JWT on the server;
+ * client-supplied email/phone arguments are never trusted or sent to the API.
  */
 export async function fetchCustomerCustomOrders(
-  email?: string | null,
-  phone?: string | null
+  _email?: string | null,
+  _phone?: string | null
 ): Promise<{ data: CustomOrderRow[]; error?: string }> {
-  const cleanEmail = (email || '').trim().toLowerCase();
-  const cleanDigits = (phone || '').replace(/[^0-9]/g, '').slice(-10);
-
-  if (!cleanEmail && cleanDigits.length < 10) {
-    return { data: [] };
-  }
-
-  if (!isSupabaseConfigured()) {
-    try {
-      const local: CustomOrderRow[] = JSON.parse(localStorage.getItem('teqqno_supabase_quotes') || '[]');
-      const filtered = local.filter((row) => {
-        const matchEmail = cleanEmail && (row.customer_email || '').trim().toLowerCase() === cleanEmail;
-        const rowDigits = (row.phone || '').replace(/[^0-9]/g, '').slice(-10);
-        const matchPhone = cleanDigits.length >= 10 && rowDigits === cleanDigits;
-        return Boolean(matchEmail || matchPhone);
-      });
-      return { data: filtered };
-    } catch {
-      return { data: [] };
-    }
-  }
-
   try {
-    const orFilters: string[] = [];
-    if (cleanEmail) orFilters.push(`customer_email.ilike.${cleanEmail}`);
-    if (cleanDigits.length >= 10) orFilters.push(`phone.ilike.%${cleanDigits}%`);
-
-    const { data, error } = await supabase
-      .from('custom_orders')
-      .select('*')
-      .or(orFilters.join(','))
-      .order('created_at', { ascending: false })
-      .limit(100);
-
-    if (error) {
-      console.warn('[Supabase] fetchCustomerCustomOrders error:', error.message);
-      return { data: [], error: error.message };
+    const { data: sessionData } = await supabase.auth.getSession();
+    const accessToken = sessionData?.session?.access_token;
+    if (!accessToken) {
+      return { data: [], error: 'Sign in required to load your order history.' };
     }
 
-    return { data: (data as CustomOrderRow[]) || [] };
+    const resp = await fetch('/api/customer/orders', {
+      method: 'GET',
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+      },
+    });
+    const json = await resp.json().catch(() => ({}));
+    if (!resp.ok || !json?.success) {
+      return {
+        data: [],
+        error: json?.message || `Unable to sync customer orders (HTTP ${resp.status}).`,
+      };
+    }
+
+    return { data: Array.isArray(json.orders) ? (json.orders as CustomOrderRow[]) : [] };
   } catch (err: any) {
     return { data: [], error: err?.message || 'Unable to sync customer orders' };
   }

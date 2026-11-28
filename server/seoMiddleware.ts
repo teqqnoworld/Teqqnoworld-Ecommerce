@@ -11,19 +11,23 @@ import {
   PRIVATE_NOINDEX_PATHS,
   PRODUCT_ID_TO_CANONICAL_SLUG,
   SEO_AFFILIATE_PROGRAM_META,
+  SEO_BLOGS_META,
   SEO_BULK_META,
   SEO_BUNDLE_BUILDER_META,
   SEO_CATALOG_META,
   SEO_CATEGORIES,
+  SEO_GUIDES_META,
   SEO_HOME_META,
   SEO_LEGAL_PAGES,
   SEO_QUOTE_CALCULATOR_META,
+  SEO_RESOURCES_META,
   buildCanonicalUrl,
   buildProductSeoDescription,
   buildProductSeoTitle,
   findCategoryBySlugOrAlias,
   getProductH1,
   getProductSocialImageUrl,
+  resolveAbsoluteSocialImageUrl,
 } from '../src/config/seoRoutes.ts';
 import {
   JSONLD_SCRIPT_ID,
@@ -37,6 +41,11 @@ import {
   getCategoryKeywordEntry,
   getProductKeywordEntry,
 } from '../src/data/seoKeywordMap.ts';
+import type { BlogStore } from './blogEngine.ts';
+
+export interface SeoMiddlewareOptions extends ProductFeedOptions {
+  blogStore?: BlogStore;
+}
 
 // ==============================================================================
 // TEQQNOWORLD PHASE 1 SERVER-SIDE SEO ENGINE
@@ -59,7 +68,7 @@ export interface ResolvedSeoPage {
   description: string;
   canonicalUrl: string;
   robots: string;
-  ogType: 'website' | 'product';
+  ogType: 'website' | 'product' | 'article';
   imageUrl: string;
   imageAlt: string;
   isPrivateNoindex: boolean;
@@ -165,7 +174,7 @@ function buildCrawlableNoscript(params: {
  */
 export async function resolveSeoPageContext(
   rawPathname: string,
-  options: ProductFeedOptions
+  options: SeoMiddlewareOptions
 ): Promise<ResolvedSeoPage> {
   const normalizedPath =
     rawPathname === '/' ? '/' : rawPathname.replace(/\/+$/, '') || '/';
@@ -466,6 +475,140 @@ export async function resolveSeoPageContext(
     }
   }
 
+  // 6B. Public Blog / Guides / Resources Center (/blogs, /guides, /resources)
+  if (
+    normalizedPath === '/blogs' ||
+    normalizedPath === '/guides' ||
+    normalizedPath === '/resources'
+  ) {
+    const meta =
+      normalizedPath === '/guides'
+        ? SEO_GUIDES_META
+        : normalizedPath === '/resources'
+          ? SEO_RESOURCES_META
+          : SEO_BLOGS_META;
+    const contentKind =
+      normalizedPath === '/guides'
+        ? 'guide'
+        : normalizedPath === '/resources'
+          ? 'resource'
+          : undefined;
+    const publishedPosts = options.blogStore
+      ? await options.blogStore.listPublishedPosts({ contentKind })
+      : [];
+    const postLinksHtml = publishedPosts
+      .slice(0, 20)
+      .map(
+        (p) =>
+          `<li><a href="/blogs/${encodeURIComponent(p.slug)}">${escapeHtmlAttr(p.title)}</a> — ${escapeHtmlAttr(p.excerpt)}</li>`
+      )
+      .join('');
+    const noscriptHtml = `<noscript><main style="max-width:960px;margin:0 auto;padding:24px;font-family:system-ui,sans-serif"><h1>${escapeHtmlAttr(meta.h1)}</h1><p>${escapeHtmlAttr(meta.description)}</p>${postLinksHtml ? `<ul>${postLinksHtml}</ul>` : '<p>Explore our active custom printed corporate merchandise catalog while new editorial guides are reviewed.</p>'}<p><a href="/catalog">Browse All Custom Products</a> | <a href="/bulk">Request Bulk Quote</a></p></main></noscript>`;
+
+    return {
+      statusCode: 200,
+      title: meta.title,
+      description: meta.description,
+      canonicalUrl: buildCanonicalUrl(normalizedPath),
+      robots: INDEX_ROBOTS,
+      ogType: 'website',
+      imageUrl: DEFAULT_OG_IMAGE_URL,
+      imageAlt: meta.h1,
+      isPrivateNoindex: false,
+      noscriptHtml,
+      structuredData: buildPageStructuredData({
+        kind: 'blog-list',
+        path: normalizedPath,
+        title: meta.title,
+        description: meta.description,
+        h1: meta.h1,
+        posts: publishedPosts.map((p) => ({
+          slug: p.slug,
+          title: p.title,
+          excerpt: p.excerpt,
+          publishedAt: p.publishedAt,
+        })),
+      }),
+    };
+  }
+
+  // 6C. Individual Published Blog Article (/blogs/<slug>)
+  //     Drafts, future-scheduled articles, and unknown slugs strictly fall through to HTTP 404.
+  if (normalizedPath.startsWith('/blogs/')) {
+    const rawSlug = normalizedPath.slice('/blogs/'.length);
+    let slug = rawSlug;
+    try {
+      slug = decodeURIComponent(rawSlug);
+    } catch {
+      // fall through to 404
+    }
+
+    if (options.blogStore && slug && !slug.includes('/')) {
+      const lookup = await options.blogStore.getPublicPostBySlug(slug);
+      if (lookup.post) {
+        const post = lookup.post;
+        const postTitle = post.seoTitle || `${post.title} | TeqqnoWorld`;
+        const postDesc = post.metaDescription || post.excerpt;
+        const canonical = post.canonicalUrl || buildCanonicalUrl(`/blogs/${post.slug}`);
+        const socialImage = resolveAbsoluteSocialImageUrl(post.featuredImageUrl);
+        const relatedProductsHtml = post.relatedProductIds
+          .map((pid) => activeProducts.find((ap) => ap.item_id === pid))
+          .filter((ap): ap is ProductFeedItem => Boolean(ap))
+          .map(
+            (ap) =>
+              `<li><a href="${escapeHtmlAttr(ap.url.replace(CANONICAL_ORIGIN, ''))}">${escapeHtmlAttr(getProductH1(ap.item_id, ap.title))}</a></li>`
+          )
+          .join('');
+        const bodyPreviewParagraphs = post.content
+          .split(/\n{2,}/)
+          .slice(0, 12)
+          .map((blk) => {
+            const clean = blk.trim();
+            if (clean.startsWith('## ')) return `<h2>${escapeHtmlAttr(clean.slice(3))}</h2>`;
+            if (clean.startsWith('### ')) return `<h3>${escapeHtmlAttr(clean.slice(4))}</h3>`;
+            return `<p>${escapeHtmlAttr(clean)}</p>`;
+          })
+          .join('');
+
+        return {
+          statusCode: 200,
+          title: postTitle,
+          description: postDesc,
+          canonicalUrl: canonical,
+          robots: INDEX_ROBOTS,
+          ogType: 'article',
+          imageUrl: socialImage,
+          imageAlt: post.featuredImageAlt || post.title,
+          isPrivateNoindex: false,
+          noscriptHtml: `<noscript><article style="max-width:960px;margin:0 auto;padding:24px;font-family:system-ui,sans-serif"><h1>${escapeHtmlAttr(post.title)}</h1><p>${escapeHtmlAttr(post.excerpt)}</p>${bodyPreviewParagraphs}${relatedProductsHtml ? `<h2>Related Custom Products</h2><ul>${relatedProductsHtml}</ul>` : ''}<p><a href="/blogs">Back to All Articles</a></p></article></noscript>`,
+          structuredData: buildPageStructuredData({
+            kind: 'blog-post',
+            post: {
+              slug: post.slug,
+              title: post.title,
+              seoTitle: postTitle,
+              metaDescription: postDesc,
+              excerpt: post.excerpt,
+              authorName: post.authorName,
+              featuredImageUrl: post.featuredImageUrl,
+              featuredImageAlt: post.featuredImageAlt,
+              featuredImageWidth: post.featuredImageWidth,
+              featuredImageHeight: post.featuredImageHeight,
+              categoryName: post.categoryName || post.categorySlug,
+              focusKeyword: post.focusKeyword,
+              tags: post.tags,
+              readingTimeMinutes: post.readingTimeMinutes,
+              publishedAt: post.publishedAt,
+              updatedAt: post.updatedAt,
+              canonicalUrl: canonical,
+              faqs: post.faqs,
+            },
+          }),
+        };
+      }
+    }
+  }
+
   // 7. Legal & Policy Pages
   const legalPage = SEO_LEGAL_PAGES.find((p) => p.path === normalizedPath);
   if (legalPage) {
@@ -630,8 +773,11 @@ export function buildRobotsTxt(): string {
  * Generates dynamic XML sitemap (with Google Image Sitemap namespace) for all
  * indexable public pages and live active products on https://teqqnoworld.com.
  */
-export async function buildSitemapXml(options: ProductFeedOptions): Promise<string> {
+export async function buildSitemapXml(options: SeoMiddlewareOptions): Promise<string> {
   const products = await buildDynamicProductFeed(options);
+  const publishedBlogs = options.blogStore
+    ? await options.blogStore.listPublishedPosts()
+    : [];
   const today = new Date().toISOString().split('T')[0];
 
   const entries: string[] = [];
@@ -639,7 +785,8 @@ export async function buildSitemapXml(options: ProductFeedOptions): Promise<stri
     loc: string,
     changefreq: string,
     priority: string,
-    images?: Array<{ loc: string; title: string }>
+    images?: Array<{ loc: string; title: string }>,
+    lastmodOverride?: string
   ) => {
     const imageXml = (images || [])
       .map(
@@ -652,7 +799,7 @@ export async function buildSitemapXml(options: ProductFeedOptions): Promise<stri
       [
         '  <url>',
         `    <loc>${escapeXml(loc)}</loc>`,
-        `    <lastmod>${today}</lastmod>`,
+        `    <lastmod>${escapeXml(lastmodOverride || today)}</lastmod>`,
         `    <changefreq>${changefreq}</changefreq>`,
         `    <priority>${priority}</priority>`,
         imageXml,
@@ -666,6 +813,9 @@ export async function buildSitemapXml(options: ProductFeedOptions): Promise<stri
   // Core public pages
   pushUrl(buildCanonicalUrl('/'), 'daily', '1.0');
   pushUrl(buildCanonicalUrl('/catalog'), 'daily', '0.9');
+  pushUrl(buildCanonicalUrl('/blogs'), 'weekly', '0.8');
+  pushUrl(buildCanonicalUrl('/guides'), 'weekly', '0.75');
+  pushUrl(buildCanonicalUrl('/resources'), 'weekly', '0.75');
   pushUrl(buildCanonicalUrl('/affiliate-program'), 'weekly', '0.7');
 
   // Category landing pages
@@ -686,6 +836,20 @@ export async function buildSitemapXml(options: ProductFeedOptions): Promise<stri
       imgs.push({ loc: extra, title: cleanImageTitle });
     }
     pushUrl(product.url, 'daily', '0.9', imgs);
+  }
+
+  // Published public blog articles ONLY (drafts & future-scheduled posts are NEVER included)
+  for (const post of publishedBlogs) {
+    const postUrl = buildCanonicalUrl(`/blogs/${encodeURIComponent(post.slug)}`);
+    const lastmod = (post.updatedAt || post.publishedAt || today).slice(0, 10);
+    const imgs: Array<{ loc: string; title: string }> = [];
+    if (post.featuredImageUrl) {
+      imgs.push({
+        loc: resolveAbsoluteSocialImageUrl(post.featuredImageUrl),
+        title: post.featuredImageAlt || post.title,
+      });
+    }
+    pushUrl(postUrl, 'weekly', '0.75', imgs, lastmod);
   }
 
   // Secondary commercial & legal pages
@@ -717,7 +881,7 @@ export async function buildSitemapXml(options: ProductFeedOptions): Promise<stri
  *  2. GET /sitemap.xml
  *  3. Server-side 301 redirect middleware for legacy paths, trailing slashes & aliases
  */
-export function registerSeoPublicEndpoints(app: Express, options: ProductFeedOptions): void {
+export function registerSeoPublicEndpoints(app: Express, options: SeoMiddlewareOptions): void {
   // 0. Canonical host 301 redirect (www.teqqnoworld.com -> https://teqqnoworld.com)
   //    Strictly scoped to www.teqqnoworld.com only; never alters teqqnoworld.in, localhost, or API routes.
   app.use((req: Request, res: Response, next: NextFunction) => {
@@ -761,8 +925,8 @@ export function registerSeoPublicEndpoints(app: Express, options: ProductFeedOpt
     }
   });
 
-  // 3. Server-side 301 Redirect Middleware for legacy paths & URL normalization
-  app.use((req: Request, res: Response, next: NextFunction) => {
+  // 3. Server-side 301 Redirect Middleware for legacy paths, blog slug changes & URL normalization
+  app.use(async (req: Request, res: Response, next: NextFunction) => {
     if (req.method !== 'GET' && req.method !== 'HEAD') {
       return next();
     }
@@ -784,9 +948,12 @@ export function registerSeoPublicEndpoints(app: Express, options: ProductFeedOpt
 
     const lowerPath = reqPath.toLowerCase();
 
-    // 3b. Legacy /products -> /catalog
+    // 3b. Legacy /products -> /catalog & /blog -> /blogs
     if (lowerPath === '/products' || lowerPath === '/shop') {
       return res.redirect(301, `/catalog${rawSearch}`);
+    }
+    if (lowerPath === '/blog') {
+      return res.redirect(301, `/blogs${rawSearch}`);
     }
 
     // 3c. Legacy /product/<product-id> -> /product/<canonical-slug>
@@ -824,9 +991,36 @@ export function registerSeoPublicEndpoints(app: Express, options: ProductFeedOpt
       }
     }
 
-    // 3e. Normalize uppercase on known static/legal/app paths
+    // 3e. Blog slug change 301 redirect (/blogs/<old-slug> -> /blogs/<new-slug>)
+    if (lowerPath.startsWith('/blogs/') && options.blogStore) {
+      const segment = reqPath.slice('/blogs/'.length);
+      if (segment && !segment.includes('/')) {
+        let decoded = segment;
+        try {
+          decoded = decodeURIComponent(segment);
+        } catch {
+          // leave raw
+        }
+        try {
+          const redirectedSlug = await options.blogStore.resolveSlugRedirect(decoded);
+          if (redirectedSlug && redirectedSlug !== decoded.toLowerCase()) {
+            return res.redirect(301, `/blogs/${encodeURIComponent(redirectedSlug)}${rawSearch}`);
+          }
+        } catch {
+          // continue cleanly
+        }
+        if (reqPath !== lowerPath) {
+          return res.redirect(301, `${lowerPath}${rawSearch}`);
+        }
+      }
+    }
+
+    // 3f. Normalize uppercase on known static/legal/app paths
     const knownLowerPaths = new Set([
       '/catalog',
+      '/blogs',
+      '/guides',
+      '/resources',
       '/bulk',
       '/quote-calculator',
       '/bundle-builder',

@@ -1319,7 +1319,7 @@ export const CheckoutView: React.FC<CheckoutViewProps> = ({
                 <div className="font-bold text-red-900">Supabase Order Insertion Failed</div>
                 <p className="mt-0.5 text-red-700 leading-relaxed">{orderError}</p>
                 <div className="mt-2 text-[11px] text-red-600 font-mono">
-                  Make sure Supabase RLS Policy on table <code>custom_orders</code> allows <code>INSERT</code> for public/anon.
+                  Orders are saved securely on the server. Verify server-side Supabase configuration if this persists.
                 </div>
               </div>
               <button

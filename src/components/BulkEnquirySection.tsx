@@ -13,6 +13,7 @@ import { PRODUCTS } from '../data/mockData';
 import { compressImageFile } from '../utils/imageCompressor';
 import { VoiceInstructionsCard } from './VoiceInstructionsCard';
 import { triggerCelebration } from '../services/celebrationService';
+import { trackQuoteRequest } from '../utils/analyticsTracker';
 
 interface BulkEnquirySectionProps {
   prefilledItemName?: string;
@@ -99,6 +100,14 @@ export const BulkEnquirySection: React.FC<BulkEnquirySectionProps> = ({
     });
 
     if (quoteRes.success) {
+      const selectedProd = PRODUCTS.find((p) => p.id === selectedProductId);
+      trackQuoteRequest({
+        leadId: quoteRes.orderId,
+        formName: 'bulk_enquiry_section',
+        productId: selectedProductId,
+        productName: selectedProd?.name,
+        quantity,
+      });
       triggerCelebration({
         level: 'premium',
         sound: 'celebration',

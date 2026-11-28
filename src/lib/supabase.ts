@@ -4,7 +4,7 @@ import { createClient, SupabaseClient } from '@supabase/supabase-js';
 // SUPABASE TYPES & INTERFACES
 // ==============================================================================
 
-export type OrderStatus = 'pending' | 'approved' | 'in-production' | 'dispatched' | 'delivered';
+export type OrderStatus = 'pending' | 'approved' | 'in-production' | 'dispatched' | 'delivered' | 'cancelled';
 
 export interface ProductColorOption {
   name: string;
@@ -290,51 +290,37 @@ export async function saveAppointmentToSupabase(bookingData: AppointmentBookingD
   data?: any;
 }> {
   try {
-    // 1. Try insert into appointments table
-    const { data, error } = await (supabase.from('appointments') as any)
-      .insert({
+    const resp = await fetch('/api/quotes/submit', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        submissionType: 'consultation',
         name: bookingData.name,
         email: bookingData.email,
         phone: bookingData.phone,
         company: bookingData.company || null,
-        appointment_date: bookingData.appointmentDate,
-        appointment_time: bookingData.appointmentTime,
-        service_type: bookingData.serviceType,
-        meeting_mode: bookingData.meetingMode,
-        estimated_quantity: bookingData.estimatedQuantity || null,
+        appointmentDate: bookingData.appointmentDate,
+        appointmentTime: bookingData.appointmentTime,
+        serviceType: bookingData.serviceType,
+        meetingMode: bookingData.meetingMode,
+        estimatedQuantity: bookingData.estimatedQuantity || null,
         notes: bookingData.notes || null,
-      })
-      .select()
-      .single();
+      }),
+    });
 
-    if (!error) {
-      return { success: true, tableUsed: 'appointments', data };
+    const json = await resp.json().catch(() => ({}));
+    if (!resp.ok || !json?.success) {
+      return {
+        success: false,
+        error: json?.message || `Failed to submit consultation booking (HTTP ${resp.status}).`,
+      };
     }
 
-    // 2. Fallback: Also log into custom_orders so quotes & consultation requests are captured together
-    const { data: quoteData, error: quoteError } = await (supabase.from('custom_orders') as any)
-      .insert({
-        customer_name: bookingData.name,
-        customer_email: bookingData.email,
-        company: bookingData.company || null,
-        phone: bookingData.phone,
-        product_id: null,
-        quantity: bookingData.estimatedQuantity || 50,
-        custom_notes: `[Consultation: ${bookingData.serviceType} / ${bookingData.meetingMode} on ${bookingData.appointmentDate} at ${bookingData.appointmentTime}] ${bookingData.notes || ''}`,
-        status: 'pending',
-      })
-      .select()
-      .single();
-
-    if (!quoteError) {
-      return { success: true, tableUsed: 'custom_orders', data: quoteData };
-    }
-
-    if (error?.code === '42P01' || error?.message?.includes('does not exist')) {
-      return { success: false, needsTableCreation: true, error: error.message };
-    }
-
-    return { success: false, error: error?.message || quoteError?.message };
+    return {
+      success: true,
+      tableUsed: json.tableUsed || 'custom_orders',
+      data: { id: json.orderId, orderNumber: json.orderNumber },
+    };
   } catch (err: any) {
     return { success: false, error: err?.message || 'Failed to submit appointment' };
   }

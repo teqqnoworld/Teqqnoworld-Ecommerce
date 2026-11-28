@@ -1808,6 +1808,7 @@ export const CustomerBulkRfqView: React.FC<{
     setIsSubmitting(true);
     try {
       const res = await submitCustomOrderQuote({
+        submissionType: 'rfq',
         customerName: user.name,
         customerEmail: user.email,
         company: user.companyName,

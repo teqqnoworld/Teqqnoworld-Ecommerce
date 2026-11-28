@@ -306,6 +306,34 @@ export const Footer: React.FC<FooterProps> = ({ onNavigate, onOpenSupabaseDev })
               </li>
               <li>
                 <a
+                  href="/blogs"
+                  onClick={(e) => {
+                    if (!e.metaKey && !e.ctrlKey && !e.shiftKey && !e.altKey && e.button === 0) {
+                      e.preventDefault();
+                      onNavigate('/blogs');
+                    }
+                  }}
+                  className="hover:text-white transition-colors cursor-pointer text-left inline-block"
+                >
+                  Blogs &amp; Buying Guides
+                </a>
+              </li>
+              <li>
+                <a
+                  href="/resources"
+                  onClick={(e) => {
+                    if (!e.metaKey && !e.ctrlKey && !e.shiftKey && !e.altKey && e.button === 0) {
+                      e.preventDefault();
+                      onNavigate('/resources');
+                    }
+                  }}
+                  className="hover:text-white transition-colors cursor-pointer text-left inline-block"
+                >
+                  Print &amp; Merchandising Resources
+                </a>
+              </li>
+              <li>
+                <a
                   href="/pricing-and-taxes"
                   onClick={(e) => {
                     if (!e.metaKey && !e.ctrlKey && !e.shiftKey && !e.altKey && e.button === 0) {

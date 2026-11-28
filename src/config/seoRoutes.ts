@@ -344,6 +344,40 @@ export const SEO_AFFILIATE_PROGRAM_META: SeoStaticPageDefinition = {
   sitemapChangefreq: 'weekly',
 };
 
+export const SEO_BLOGS_META: SeoStaticPageDefinition = {
+  path: '/blogs',
+  title: 'Custom Printing Blog, Buying Guides & Resources India | TeqqnoWorld',
+  description:
+    'Explore practical Indian buying guides, fabric comparisons, artwork setup checklists, and corporate branding resources for custom polo T-shirts, mugs, visiting cards & displays.',
+  h1: 'TeqqnoWorld Blog & Custom Printing Resource Center',
+  sitemapPriority: '0.8',
+  sitemapChangefreq: 'weekly',
+};
+
+export const SEO_GUIDES_META: SeoStaticPageDefinition = {
+  path: '/guides',
+  title: 'Custom Merchandise & Printing Buying Guides India | TeqqnoWorld',
+  description:
+    'Step-by-step Indian buying guides comparing polo T-shirt fabrics, embroidery vs DTF printing, canopy kiosk sizes, and rollup standee layouts.',
+  h1: 'Custom Printing & Corporate Merchandise Buying Guides',
+  sitemapPriority: '0.75',
+  sitemapChangefreq: 'weekly',
+};
+
+export const SEO_RESOURCES_META: SeoStaticPageDefinition = {
+  path: '/resources',
+  title: 'Print Artwork Templates, Checklists & B2B Resources | TeqqnoWorld',
+  description:
+    'Artwork bleed guides, wrap-print dimension checklists, exhibition booth kits, and 18% GST B2B procurement resources for Indian businesses.',
+  h1: 'Print Pre-Press Checklists & B2B Branding Resources',
+  sitemapPriority: '0.75',
+  sitemapChangefreq: 'weekly',
+};
+
+export function getBlogPath(slug: string): string {
+  return `/blogs/${encodeURIComponent(slug.trim())}`;
+}
+
 // Product ID -> Canonical SEO Slug mapping (used for 301 redirects from /product/<id>)
 export const PRODUCT_ID_TO_CANONICAL_SLUG: Readonly<Record<string, string>> = {
   'prod-ceramic-mug': 'promotional-ceramic-mug',

@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { CheckCircle2, XCircle, Loader2, ArrowLeft, Package, ShieldCheck, AlertCircle } from 'lucide-react';
 import { submitWhatsAppOrderAction } from '../services/aisensyService';
-import { updateCustomOrderStatus } from '../services/supabaseService';
 import { WhatsAppIcon } from './WhatsAppIcon';
 
 interface OrderActionViewProps {
@@ -49,11 +48,6 @@ export const OrderActionView: React.FC<OrderActionViewProps> = ({
       setResultStatus(res.whatsappActionStatus);
       setMessage(res.message);
       setUpdatedAt(res.updatedAt || new Date().toISOString());
-
-      // Sync Supabase custom_orders if confirmed
-      if (res.whatsappActionStatus === 'confirmed' && orderId) {
-        await updateCustomOrderStatus(orderId, 'approved').catch(() => {});
-      }
 
       onOrderActionComplete(orderId, orderNumber, res.whatsappActionStatus);
     } catch (err: any) {

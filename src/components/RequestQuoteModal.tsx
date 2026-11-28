@@ -10,6 +10,7 @@ import { PRODUCTS } from '../data/mockData';
 import { compressImageFile } from '../utils/imageCompressor';
 import { VoiceInstructionsCard } from './VoiceInstructionsCard';
 import { triggerCelebration } from '../services/celebrationService';
+import { trackQuoteRequest } from '../utils/analyticsTracker';
 
 interface RequestQuoteModalProps {
   isOpen: boolean;
@@ -112,6 +113,14 @@ export const RequestQuoteModal: React.FC<RequestQuoteModalProps> = ({
     });
 
     if (res.success) {
+      const selectedProd = PRODUCTS.find((p) => p.id === productId);
+      trackQuoteRequest({
+        leadId: res.orderId,
+        formName: 'request_quote_modal',
+        productId,
+        productName: selectedProd?.name,
+        quantity,
+      });
       triggerCelebration({
         level: 'premium',
         sound: 'celebration',

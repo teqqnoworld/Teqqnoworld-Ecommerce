@@ -27,6 +27,14 @@ import {
   registerSeoPublicEndpoints,
   resolveSeoPageContext,
 } from './server/seoMiddleware.ts';
+import { createSeoAnalyticsRouter } from './server/seoAnalyticsRoutes.ts';
+import { BlogStore } from './server/blogEngine.ts';
+import { createBlogRouter } from './server/blogRoutes.ts';
+import {
+  createCustomOrdersRouter,
+  createExpiringOrderActionToken,
+  processSignedWhatsAppOrderAction,
+} from './server/customOrdersRoutes.ts';
 import { BUSINESS_CONFIG } from './src/config/business.ts';
 
 dotenv.config();
@@ -6840,6 +6848,7 @@ interface WhatsAppDispatchLog {
 interface AiSensyLedgerState {
   orders: Record<string, WhatsAppOrderRecord>;
   recoverySentSessions: Record<string, { sentAt: number; couponCode: string; expiresAt: number }>;
+  consumedActionTokens?: Record<string, { orderId: string; action: 'confirm' | 'cancel'; usedAt: string }>;
   logs: WhatsAppDispatchLog[];
 }
 
@@ -6850,18 +6859,25 @@ function loadAiSensyLedger(): AiSensyLedgerState {
       return {
         orders: parsed.orders || {},
         recoverySentSessions: parsed.recoverySentSessions || {},
+        consumedActionTokens: parsed.consumedActionTokens || {},
         logs: Array.isArray(parsed.logs) ? parsed.logs : [],
       };
     }
   } catch {
     // ignore corrupt cache
   }
-  return { orders: {}, recoverySentSessions: {}, logs: [] };
+  return { orders: {}, recoverySentSessions: {}, consumedActionTokens: {}, logs: [] };
 }
 
 function saveAiSensyLedger(state: AiSensyLedgerState) {
   try {
     state.logs = state.logs.slice(0, 100);
+    if (state.consumedActionTokens) {
+      const entries = Object.entries(state.consumedActionTokens);
+      if (entries.length > 500) {
+        state.consumedActionTokens = Object.fromEntries(entries.slice(-500));
+      }
+    }
     fs.writeFileSync(AISENSY_LEDGER_PATH, JSON.stringify(state, null, 2), 'utf8');
   } catch (err) {
     console.warn('[AiSensy Ledger Write Warning]:', err);
@@ -6887,19 +6903,7 @@ function normalizeWhatsAppPhone(rawPhone?: string | null): string {
 
 function createOrderActionToken(orderId: string, action: 'confirm' | 'cancel'): string {
   const secret = getAiSensyConfig().webhookSecret;
-  return crypto
-    .createHmac('sha256', secret)
-    .update(`${orderId}:${action}`)
-    .digest('hex')
-    .slice(0, 24);
-}
-
-function verifyOrderActionToken(orderId: string, action: 'confirm' | 'cancel', token?: string): boolean {
-  if (!token) return false;
-  const expected = createOrderActionToken(orderId, action);
-  const bufA = Buffer.from(expected, 'utf8');
-  const bufB = Buffer.from(String(token), 'utf8');
-  return bufA.length === bufB.length && crypto.timingSafeEqual(bufA, bufB);
+  return createExpiringOrderActionToken(orderId, action, secret);
 }
 
 function resolveAppOrigin(req: Request, bodyOrigin?: string): string {
@@ -7303,7 +7307,12 @@ async function notifyAdminOrderActionEmail(record: WhatsAppOrderRecord, action: 
 app.post('/api/aisensy/order-action', async (req: Request, res: Response) => {
   try {
     const { orderId, orderNumber, action, token, source = 'whatsapp_link' } = req.body || {};
-    const cleanAction = action === 'cancel' || action === 'cancelled' ? 'cancel' : action === 'confirm' || action === 'confirmed' ? 'confirm' : null;
+    const cleanAction =
+      action === 'cancel' || action === 'cancelled'
+        ? 'cancel'
+        : action === 'confirm' || action === 'confirmed'
+          ? 'confirm'
+          : null;
     if (!cleanAction || (!orderId && !orderNumber)) {
       return res.status(400).json({
         success: false,
@@ -7312,27 +7321,52 @@ app.post('/api/aisensy/order-action', async (req: Request, res: Response) => {
     }
 
     const ledger = loadAiSensyLedger();
+    if (!ledger.consumedActionTokens) {
+      ledger.consumedActionTokens = {};
+    }
+
     let record =
       (orderId && ledger.orders[String(orderId)]) ||
       Object.values(ledger.orders).find((o) => o.orderNumber === String(orderNumber)) ||
       null;
 
-    // Validate token when token is supplied for an existing orderId
-    if (token && record && !verifyOrderActionToken(record.orderId, cleanAction, String(token))) {
-      return res.status(403).json({
+    const resolvedOrderId = String(record?.orderId || orderId || '').trim();
+    if (!resolvedOrderId) {
+      return res.status(400).json({
         success: false,
-        message: 'Invalid or expired WhatsApp order action token.',
+        message: 'Valid orderId is required for WhatsApp order verification.',
       });
     }
 
-    const targetStatus: 'confirmed' | 'cancelled' = cleanAction === 'confirm' ? 'confirmed' : 'cancelled';
+    // Strictly verify expiring HMAC token + enforce replay protection + update custom_orders server-side
+    const actionResult = await processSignedWhatsAppOrderAction({
+      orderId: resolvedOrderId,
+      action: cleanAction,
+      token: typeof token === 'string' ? token : undefined,
+      secret: getAiSensyConfig().webhookSecret,
+      hasConsumedToken: (tokenHash) => Boolean(ledger.consumedActionTokens?.[tokenHash]),
+      markTokenConsumed: (tokenHash, meta) => {
+        ledger.consumedActionTokens = ledger.consumedActionTokens || {};
+        ledger.consumedActionTokens[tokenHash] = meta;
+      },
+      storage: customOrdersSystem.storage,
+    });
+
+    if (!actionResult.ok || !actionResult.targetStatus) {
+      return res.status(actionResult.httpStatus).json({
+        success: false,
+        code: actionResult.code,
+        message: actionResult.message,
+      });
+    }
+
+    const targetStatus = actionResult.targetStatus;
     const nowIso = new Date().toISOString();
 
     if (!record) {
-      const resolvedId = String(orderId || orderNumber);
       record = {
-        orderId: resolvedId,
-        orderNumber: String(orderNumber || resolvedId),
+        orderId: resolvedOrderId,
+        orderNumber: String(orderNumber || resolvedOrderId),
         customerName: 'Customer',
         phone: '',
         total: 0,
@@ -7343,7 +7377,7 @@ app.post('/api/aisensy/order-action', async (req: Request, res: Response) => {
         updatedAt: nowIso,
         actionSource: String(source),
       };
-      ledger.orders[resolvedId] = record;
+      ledger.orders[resolvedOrderId] = record;
     } else {
       record.whatsappActionStatus = targetStatus;
       record.updatedAt = nowIso;
@@ -7369,7 +7403,7 @@ app.post('/api/aisensy/order-action', async (req: Request, res: Response) => {
     // H3: Trigger policy-controlled atomic coupon restoration on verified WhatsApp cancellation
     if (targetStatus === 'cancelled') {
       const couponEngine = getSharedCouponEngine();
-      if (couponEngine && (token || record.createdAt !== nowIso)) {
+      if (couponEngine) {
         await couponEngine
           .handleOrderCancelledOrRefunded({
             orderId: record.orderId,
@@ -7386,6 +7420,7 @@ app.post('/api/aisensy/order-action', async (req: Request, res: Response) => {
       orderId: record.orderId,
       orderNumber: record.orderNumber,
       whatsappActionStatus: targetStatus,
+      orderStatus: actionResult.dbOrderStatus,
       updatedAt: nowIso,
       message:
         targetStatus === 'confirmed'
@@ -7615,8 +7650,15 @@ app.post('/api/aisensy/test', async (req: Request, res: Response) => {
 // 3Z. DYNAMIC PUBLIC PRODUCT FEEDS & PHASE 1 SEO (ROBOTS, SITEMAP, 301, META, 404)
 // ==============================================================================
 
+const sharedBlogStore = new BlogStore({
+  supabaseUrl: process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL,
+  supabaseServiceKey: process.env.SUPABASE_SERVICE_ROLE_KEY,
+  uploadDir: path.join(__dirname, 'public', 'assets', 'blog'),
+});
+
 const seoAndFeedOptions = {
   rootDir: __dirname,
+  blogStore: sharedBlogStore,
   getSupabaseConfig: () => {
     const pub = getSupabasePublicConfig();
     return {
@@ -7785,6 +7827,84 @@ const couponSystem = createCouponRouter({
 });
 
 app.use('/api', couponSystem.router);
+
+// ==============================================================================
+// 3Z-5. PHASE 5 — GOOGLE SEARCH MONITORING & SEO ANALYTICS API
+// ==============================================================================
+const seoAnalyticsSystem = createSeoAnalyticsRouter({
+  rootDir: __dirname,
+  blogStore: sharedBlogStore,
+  verifyAdminRequest: (req: Request) => ({
+    valid: verifySignedAdminToken(extractAdminBearerToken(req), 'session'),
+    email: getSmtpConfig().adminEmailList[0] || 'admin',
+  }),
+  getSupabaseAdminConfig: () => {
+    const cfg = getSupabaseAdminConfig();
+    return {
+      configured: Boolean(cfg.url && cfg.serviceRoleKey),
+      url: cfg.url,
+      serviceRoleKey: cfg.serviceRoleKey,
+    };
+  },
+  buildSupabaseAdminHeaders: (serviceRoleKey: string, extra?: Record<string, string>) => ({
+    ...buildSupabaseAdminHeaders(serviceRoleKey, true),
+    ...(extra || {}),
+  }),
+});
+
+app.use('/api', seoAnalyticsSystem.router);
+
+// ==============================================================================
+// 3Z-6. PHASE 6 — CONTENT SEO & BLOG CMS API
+// ==============================================================================
+const blogCmsSystem = createBlogRouter({
+  sharedStore: sharedBlogStore,
+  uploadDir: path.join(__dirname, 'public', 'assets', 'blog'),
+  verifyAdminRequest: (req: Request) => ({
+    valid: verifySignedAdminToken(extractAdminBearerToken(req), 'session'),
+    email: getSmtpConfig().adminEmailList[0] || 'admin',
+  }),
+});
+
+// ==============================================================================
+// 3Z-7. HARDENED CUSTOM ORDERS, TRACKING & QUOTES API (SERVICE-ROLE ONLY)
+// ==============================================================================
+const customOrdersSystem = createCustomOrdersRouter({
+  verifyAdminRequest: (req: Request) => ({
+    valid: verifySignedAdminToken(extractAdminBearerToken(req), 'session'),
+    email: getSmtpConfig().adminEmailList[0] || 'admin',
+  }),
+  verifyCustomerJwt: verifySupabaseCustomerJwt,
+  isProduction: isProductionEnv,
+  getSupabaseAdminConfig: () => {
+    const cfg = getSupabaseAdminConfig();
+    return {
+      configured: Boolean(cfg.url && cfg.serviceRoleKey),
+      url: cfg.url,
+      serviceRoleKey: cfg.serviceRoleKey,
+    };
+  },
+  buildSupabaseAdminHeaders: (serviceRoleKey: string, extra?: Record<string, string>) => ({
+    ...buildSupabaseAdminHeaders(serviceRoleKey, true),
+    ...(extra || {}),
+  }),
+  fetchSupabaseProductCatalog: () =>
+    fetchSupabaseProductCatalog(
+      () => {
+        const cfg = getSupabaseAdminConfig();
+        return {
+          configured: Boolean(cfg.url && cfg.serviceRoleKey),
+          url: cfg.url,
+          serviceRoleKey: cfg.serviceRoleKey,
+        };
+      },
+      (key) => buildSupabaseAdminHeaders(key, false)
+    ),
+});
+
+app.use('/api', customOrdersSystem.router);
+
+app.use('/api', blogCmsSystem.router);
 
 // ==============================================================================
 // 4. DEV SERVER & STATIC FILE SERVING

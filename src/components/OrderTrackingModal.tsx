@@ -17,8 +17,8 @@ import {
   RefreshCw
 } from 'lucide-react';
 import { Order } from '../types';
-import { fetchCustomOrderById } from '../services/supabaseService';
-import { CustomOrderRow } from '../lib/supabase';
+import { trackPublicOrder, type PublicOrderTrackingResult } from '../services/supabaseService';
+import { supabase } from '../lib/supabase';
 
 interface OrderTrackingModalProps {
   isOpen: boolean;
@@ -36,34 +36,96 @@ export const OrderTrackingModal: React.FC<OrderTrackingModalProps> = ({
   onSelectProof,
 }) => {
   const [searchQuery, setSearchQuery] = useState(initialOrderNumber);
+  const [contactQuery, setContactQuery] = useState('');
+  const [hasCustomerSession, setHasCustomerSession] = useState(false);
   const [copiedAwb, setCopiedAwb] = useState(false);
-  const [liveSupabaseOrder, setLiveSupabaseOrder] = useState<CustomOrderRow | null>(null);
+  const [liveTrackedOrder, setLiveTrackedOrder] = useState<PublicOrderTrackingResult | null>(null);
   const [isSearchingLive, setIsSearchingLive] = useState(false);
+  const [trackingNotice, setTrackingNotice] = useState<string | null>(null);
+
+  // Detect signed-in customer session so logged-in customers can track their own orders directly
+  useEffect(() => {
+    if (!isOpen) return;
+    let active = true;
+    supabase.auth
+      .getSession()
+      .then(({ data }) => {
+        if (active) setHasCustomerSession(Boolean(data?.session?.access_token));
+      })
+      .catch(() => {
+        if (active) setHasCustomerSession(false);
+      });
+    return () => {
+      active = false;
+    };
+  }, [isOpen]);
 
   // Sync initial search query when modal opens
   useEffect(() => {
     if (isOpen && initialOrderNumber) {
       setSearchQuery(initialOrderNumber);
+      setTrackingNotice(null);
     }
   }, [isOpen, initialOrderNumber]);
 
-  // Live Supabase lookup for real-time status and courier updates
-  useEffect(() => {
-    if (!isOpen) return;
-    const query = searchQuery.trim();
-    if (!query) {
-      setLiveSupabaseOrder(null);
+  const executeLiveTrackingLookup = async (orderRefInput: string, contactInput: string) => {
+    const cleanRef = orderRefInput.trim();
+    const cleanContact = contactInput.trim();
+    if (!cleanRef) {
+      setLiveTrackedOrder(null);
+      setTrackingNotice(null);
+      return;
+    }
+    if (!hasCustomerSession && !cleanContact) {
+      setLiveTrackedOrder(null);
+      setTrackingNotice(
+        'Enter your registered email or 10-digit phone number alongside the Order ID / AWB to verify and track this order.'
+      );
       return;
     }
 
+    setIsSearchingLive(true);
+    setTrackingNotice(null);
+    try {
+      const res = await trackPublicOrder({
+        orderRef: cleanRef,
+        contact: cleanContact || undefined,
+      });
+      if (res.success && res.tracking) {
+        setLiveTrackedOrder(res.tracking);
+        setTrackingNotice(null);
+      } else {
+        setLiveTrackedOrder(null);
+        setTrackingNotice(
+          res.message ||
+            'No matching order was found. Please check your Order ID / AWB and registered contact details.'
+        );
+      }
+    } finally {
+      setIsSearchingLive(false);
+    }
+  };
+
+  // Auto-sync live status for authenticated customers viewing an order
+  useEffect(() => {
+    if (!isOpen || !hasCustomerSession) return;
+    const query = searchQuery.trim();
+    if (!query) {
+      setLiveTrackedOrder(null);
+      return;
+    }
     let isMounted = true;
     setIsSearchingLive(true);
-    fetchCustomOrderById(query)
+    trackPublicOrder({ orderRef: query })
       .then((res) => {
-        if (isMounted) {
-          setLiveSupabaseOrder(res);
-          setIsSearchingLive(false);
+        if (!isMounted) return;
+        if (res.success && res.tracking) {
+          setLiveTrackedOrder(res.tracking);
+          setTrackingNotice(null);
+        } else {
+          setLiveTrackedOrder(null);
         }
+        setIsSearchingLive(false);
       })
       .catch(() => {
         if (isMounted) setIsSearchingLive(false);
@@ -72,17 +134,18 @@ export const OrderTrackingModal: React.FC<OrderTrackingModalProps> = ({
     return () => {
       isMounted = false;
     };
-  }, [isOpen, searchQuery]);
+  }, [isOpen, searchQuery, hasCustomerSession]);
 
   if (!isOpen) return null;
 
-  // Find order in local state first
+  // Find order in local session state first (only orders already belonging to this browser session)
   const trimmedQuery = searchQuery.trim().toLowerCase();
   const localMatch = trimmedQuery
     ? orders.find(
-        o => o.orderNumber.toLowerCase() === trimmedQuery ||
-             o.id.toLowerCase() === trimmedQuery ||
-             (o.trackingNumber && o.trackingNumber.toLowerCase() === trimmedQuery)
+        (o) =>
+          o.orderNumber.toLowerCase() === trimmedQuery ||
+          o.id.toLowerCase() === trimmedQuery ||
+          (o.trackingNumber && o.trackingNumber.toLowerCase() === trimmedQuery)
       )
     : orders[0];
 
@@ -97,52 +160,71 @@ export const OrderTrackingModal: React.FC<OrderTrackingModalProps> = ({
     return awb;
   };
 
-  // Derive consolidated active order (incorporating live Supabase courier & status if found)
-  const activeOrder: Order | null = localMatch ? {
-    ...localMatch,
-    courierPartner: normalizeCourier(liveSupabaseOrder?.courier_partner || localMatch.courierPartner),
-    trackingNumber: normalizeTracking(liveSupabaseOrder?.tracking_number || localMatch.trackingNumber),
-    orderStatus: liveSupabaseOrder?.status === 'dispatched' ? 'Dispatched' :
-      liveSupabaseOrder?.status === 'delivered' ? 'Delivered' :
-      liveSupabaseOrder?.status === 'in-production' ? 'Manufacturing' :
-      localMatch.orderStatus,
-    proofStatus: liveSupabaseOrder?.status === 'approved' || liveSupabaseOrder?.status === 'in-production' || liveSupabaseOrder?.status === 'dispatched' || liveSupabaseOrder?.status === 'delivered'
-      ? 'Approved by Client'
-      : localMatch.proofStatus,
-  } : liveSupabaseOrder ? {
-    id: liveSupabaseOrder.id,
-    orderNumber: liveSupabaseOrder.id.startsWith('TQ-') ? liveSupabaseOrder.id : `TQ-${liveSupabaseOrder.id.slice(0, 8).toUpperCase()}`,
-    createdAt: liveSupabaseOrder.created_at,
-    items: [],
-    subtotal: 998,
-    gstRate: 0.18,
-    gstAmount: 180,
-    shippingFee: 0,
-    total: 1178,
-    shippingAddress: {
-      fullName: liveSupabaseOrder.customer_name,
-      companyName: liveSupabaseOrder.company || undefined,
-      email: liveSupabaseOrder.customer_email,
-      phone: liveSupabaseOrder.phone,
-      street: 'Corporate Hub Delivery',
-      city: 'Metro Hub',
-      state: 'India',
-      pincode: '560001',
-      isB2BInvoice: true,
-    },
-    proofStatus: liveSupabaseOrder.status === 'approved' || liveSupabaseOrder.status === 'in-production' || liveSupabaseOrder.status === 'dispatched' || liveSupabaseOrder.status === 'delivered'
-      ? 'Approved by Client'
-      : 'Proof Ready - Needs Approval',
-    orderStatus: liveSupabaseOrder.status === 'dispatched' ? 'Dispatched' :
-      liveSupabaseOrder.status === 'delivered' ? 'Delivered' :
-      liveSupabaseOrder.status === 'in-production' ? 'Manufacturing' :
-      'Artwork Verification',
-    estimatedDispatch: new Date(Date.now() + 24 * 3600 * 1000).toISOString().split('T')[0],
-    trackingNumber: normalizeTracking(liveSupabaseOrder.tracking_number),
-    courierPartner: normalizeCourier(liveSupabaseOrder.courier_partner),
-    paymentMode: 'Full Prepaid (100% Online)',
-    paymentStatus: 'Paid in Full (Razorpay)',
-  } : null;
+  // Derive consolidated active order (strictly sanitized — zero PII from public tracking response)
+  const activeOrder: Order | null = localMatch
+    ? {
+        ...localMatch,
+        courierPartner: normalizeCourier(liveTrackedOrder?.courierPartner || localMatch.courierPartner),
+        trackingNumber: normalizeTracking(liveTrackedOrder?.trackingNumber || localMatch.trackingNumber),
+        orderStatus:
+          liveTrackedOrder?.status === 'dispatched'
+            ? 'Dispatched'
+            : liveTrackedOrder?.status === 'delivered'
+              ? 'Delivered'
+              : liveTrackedOrder?.status === 'in-production'
+                ? 'Manufacturing'
+                : localMatch.orderStatus,
+        proofStatus:
+          liveTrackedOrder?.status === 'approved' ||
+          liveTrackedOrder?.status === 'in-production' ||
+          liveTrackedOrder?.status === 'dispatched' ||
+          liveTrackedOrder?.status === 'delivered'
+            ? 'Approved by Client'
+            : localMatch.proofStatus,
+      }
+    : liveTrackedOrder
+      ? {
+          id: liveTrackedOrder.orderId,
+          orderNumber: liveTrackedOrder.orderNumber,
+          createdAt: liveTrackedOrder.createdAt,
+          items: [],
+          subtotal: 0,
+          gstRate: 0.18,
+          gstAmount: 0,
+          shippingFee: 0,
+          total: 0,
+          shippingAddress: {
+            fullName: 'Verified Customer',
+            email: '',
+            phone: '',
+            street: '',
+            city: 'Pan India',
+            state: 'India',
+            pincode: '',
+            isB2BInvoice: true,
+          },
+          proofStatus:
+            liveTrackedOrder.status === 'approved' ||
+            liveTrackedOrder.status === 'in-production' ||
+            liveTrackedOrder.status === 'dispatched' ||
+            liveTrackedOrder.status === 'delivered'
+              ? 'Approved by Client'
+              : 'Proof Ready - Needs Approval',
+          orderStatus:
+            liveTrackedOrder.status === 'dispatched'
+              ? 'Dispatched'
+              : liveTrackedOrder.status === 'delivered'
+                ? 'Delivered'
+                : liveTrackedOrder.status === 'in-production'
+                  ? 'Manufacturing'
+                  : 'Artwork Verification',
+          estimatedDispatch: liveTrackedOrder.estimatedDispatch,
+          trackingNumber: normalizeTracking(liveTrackedOrder.trackingNumber),
+          courierPartner: normalizeCourier(liveTrackedOrder.courierPartner),
+          paymentMode: 'Full Prepaid (100% Online)',
+          paymentStatus: 'Paid in Full (Razorpay)',
+        }
+      : null;
 
   const handleCopyAwb = (awb: string) => {
     navigator.clipboard.writeText(awb);
@@ -263,30 +345,65 @@ export const OrderTrackingModal: React.FC<OrderTrackingModalProps> = ({
 
         {/* Scrollable Body */}
         <div className="p-5 sm:p-7 space-y-6 overflow-y-auto flex-1 bg-[#F8FAFC]">
-          {/* Search Bar for Order ID */}
-          <div className="flex flex-col sm:flex-row gap-2.5 animate-admin-fade-up">
-            <div className="relative flex-1">
-              <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
-              <input
-                type="text"
-                placeholder="Search by Order ID (e.g. TQ-89201) or Delhivery AWB Number..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-10 pr-4 py-2.5 text-xs bg-white border border-slate-200 rounded-xl outline-none focus:border-[#FF7900] focus:ring-2 focus:ring-[#FF7900]/15 text-[#071B35] shadow-2xs transition-all min-h-[42px]"
-              />
-            </div>
-            {orders.length > 1 && (
-              <select
-                value={activeOrder?.orderNumber || ''}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="px-3.5 py-2.5 text-xs font-mono font-semibold border border-slate-200 rounded-xl bg-white text-[#071B35] outline-none focus:border-[#FF7900] shadow-2xs min-h-[42px] cursor-pointer"
+          {/* Verified Order Tracking Form (Dual-Factor for Guests, 1-Click for Signed-In Customers) */}
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              void executeLiveTrackingLookup(searchQuery, contactQuery);
+            }}
+            className="space-y-2.5 animate-admin-fade-up"
+          >
+            <div className="flex flex-col sm:flex-row gap-2.5">
+              <div className="relative flex-1">
+                <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                <input
+                  type="text"
+                  placeholder="Order ID (e.g. TQ-89201) or Delhivery AWB..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="w-full pl-10 pr-4 py-2.5 text-xs bg-white border border-slate-200 rounded-xl outline-none focus:border-[#FF7900] focus:ring-2 focus:ring-[#FF7900]/15 text-[#071B35] shadow-2xs transition-all min-h-[42px]"
+                />
+              </div>
+              {!hasCustomerSession && (
+                <div className="relative flex-1">
+                  <ShieldCheck className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                  <input
+                    type="text"
+                    placeholder="Registered Email or 10-Digit Phone..."
+                    value={contactQuery}
+                    onChange={(e) => setContactQuery(e.target.value)}
+                    className="w-full pl-10 pr-4 py-2.5 text-xs bg-white border border-slate-200 rounded-xl outline-none focus:border-[#FF7900] focus:ring-2 focus:ring-[#FF7900]/15 text-[#071B35] shadow-2xs transition-all min-h-[42px]"
+                  />
+                </div>
+              )}
+              <button
+                type="submit"
+                disabled={isSearchingLive}
+                className="px-4 py-2.5 rounded-xl bg-[#071B35] hover:bg-[#0B2347] disabled:opacity-60 text-white text-xs font-semibold whitespace-nowrap min-h-[42px] cursor-pointer transition-colors"
               >
-                {orders.map(o => (
-                  <option key={o.id} value={o.orderNumber}>{o.orderNumber}</option>
-                ))}
-              </select>
+                {isSearchingLive ? 'Verifying...' : 'Track Order'}
+              </button>
+              {orders.length > 1 && (
+                <select
+                  value={activeOrder?.orderNumber || ''}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="px-3.5 py-2.5 text-xs font-mono font-semibold border border-slate-200 rounded-xl bg-white text-[#071B35] outline-none focus:border-[#FF7900] shadow-2xs min-h-[42px] cursor-pointer"
+                >
+                  {orders.map((o) => (
+                    <option key={o.id} value={o.orderNumber}>
+                      {o.orderNumber}
+                    </option>
+                  ))}
+                </select>
+              )}
+            </div>
+            {trackingNotice && !activeOrder && (
+              <div className="flex items-start gap-2 text-xs text-amber-800 bg-amber-50 border border-amber-200/80 rounded-xl px-3.5 py-2.5">
+                <AlertCircle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+                <span>{trackingNotice}</span>
+              </div>
             )}
-          </div>
+          </form>
 
           {activeOrder ? (
             <div className="space-y-5">
@@ -303,13 +420,25 @@ export const OrderTrackingModal: React.FC<OrderTrackingModalProps> = ({
                         {activeOrder.orderNumber}
                       </span>
                       <span className="text-xs text-slate-300 font-medium">
-                        {activeOrder.items.reduce((sum, i) => sum + i.quantity, 0)} Total Units
+                        {activeOrder.items.length > 0
+                          ? activeOrder.items.reduce((sum, i) => sum + i.quantity, 0)
+                          : liveTrackedOrder?.quantity || 1}{' '}
+                        Total Units
                       </span>
                     </div>
                     <div className="text-xs text-slate-300 flex items-center gap-1.5">
                       <MapPin className="w-3.5 h-3.5 text-[#FF7900] shrink-0" />
                       <span>
-                        Deliver to: <strong className="text-white">{activeOrder.shippingAddress.fullName}</strong> ({activeOrder.shippingAddress.city}, {activeOrder.shippingAddress.pincode})
+                        {localMatch ? (
+                          <>
+                            Deliver to: <strong className="text-white">{activeOrder.shippingAddress.fullName}</strong> ({activeOrder.shippingAddress.city}, {activeOrder.shippingAddress.pincode})
+                          </>
+                        ) : (
+                          <>
+                            Status verified via encrypted TeqqnoWorld tracking · Est. Dispatch:{' '}
+                            <strong className="text-white">{activeOrder.estimatedDispatch}</strong>
+                          </>
+                        )}
                       </span>
                     </div>
                   </div>

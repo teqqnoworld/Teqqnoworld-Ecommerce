@@ -82,13 +82,32 @@ export const OrderConfirmationView: React.FC<OrderConfirmationViewProps> = ({
       .catch(() => {});
   }, [order.id, order.orderNumber, order.whatsappActionStatus]);
 
+  const extractSignedActionToken = (actionUrl?: string): string | undefined => {
+    if (!actionUrl) return undefined;
+    try {
+      const qIdx = actionUrl.indexOf('?');
+      if (qIdx === -1) return undefined;
+      const params = new URLSearchParams(actionUrl.slice(qIdx + 1));
+      return params.get('token') || undefined;
+    } catch {
+      return undefined;
+    }
+  };
+
   const handleTriggerWaAction = async (action: 'confirm' | 'cancel') => {
     setWaActionLoading(true);
     try {
+      const actionUrl =
+        action === 'confirm'
+          ? order.whatsappNotification?.confirmUrl
+          : order.whatsappNotification?.cancelUrl;
+      const signedToken = extractSignedActionToken(actionUrl);
+
       const res = await submitWhatsAppOrderAction({
         orderId: order.id,
         orderNumber: order.orderNumber,
         action,
+        token: signedToken,
         source: 'order_confirmation_card',
       });
       if (res.success && res.whatsappActionStatus) {
