@@ -7,24 +7,24 @@
 
 const OPTIMIZED_VARIANT_MAP: Record<string, readonly number[]> = {
   // 5 Circular Category Badges (1200x1200 originals; rendered 162px mobile / 202px tablet / 222px desktop)
-  '/assets/aistudio/Corporate_Gifting_Badge_with_Branded_Essentials_11cc4d80.webp': [240, 400],
-  '/assets/aistudio/Promotional_Products_Showcase_Badge_12258b82.webp': [240, 400],
-  '/assets/aistudio/Tipping_and_Classic_Polo_Shirt_Showcase_e4ad53f7.webp': [240, 400],
-  '/assets/aistudio/Professional_Printing_Items_Badge_03c76e87.webp': [240, 400],
-  '/assets/aistudio/Custom_Caps_Promotional_Badge_4c597194.webp': [240, 400],
+  '/assets/aistudio/Corporate_Gifting_Badge_with_Branded_Essentials_11cc4d80.webp': [240, 320, 400],
+  '/assets/aistudio/Promotional_Products_Showcase_Badge_12258b82.webp': [240, 320, 400],
+  '/assets/aistudio/Tipping_and_Classic_Polo_Shirt_Showcase_e4ad53f7.webp': [240, 320, 400],
+  '/assets/aistudio/Professional_Printing_Items_Badge_03c76e87.webp': [240, 320, 400],
+  '/assets/aistudio/Custom_Caps_Promotional_Badge_4c597194.webp': [240, 320, 400],
 
   // 11 Product Card Images (1200-1672px originals; rendered ~380px mobile / ~384px desktop)
-  '/assets/aistudio/ceramic_mug_banner_1672x941_dc952a76.webp': [480, 800],
-  '/assets/promo-table/promo-table-banner.webp': [480, 800],
-  '/assets/aistudio/Custom_Printed_Branding_Umbrella_Banner_ddb8aff0.webp': [480, 800],
-  '/assets/aistudio/Promotional_Canopy_Kiosk_Feature_Graphic_58ea1c0d.webp': [480, 800],
-  '/assets/aistudio/Premium_Rollup_Standee_Infographic_4941e995.webp': [480, 800],
-  '/assets/aistudio/Premium_300_GSM_Business_Cards__1__cc07b248.webp': [480, 800],
-  '/assets/aistudio/Classic_Plain_Polo_Color_Collection_17e25f68.webp': [480, 800],
-  '/assets/products/prod_tipping_polo.webp': [480, 800],
-  '/assets/aistudio/JOAB_Coolmax_Polo_Shirt_Showcase_0673e0a4.webp': [480, 800],
-  '/assets/aistudio/Premium_Matty_Polo_T-Shirt_Banner_45dae9b5.webp': [480, 800],
-  '/assets/aistudio/Cotton_Flexi_Caps_Product_Banner_7057e0bd.webp': [480, 800],
+  '/assets/aistudio/ceramic_mug_banner_1672x941_dc952a76.webp': [480, 640, 800],
+  '/assets/promo-table/promo-table-banner.webp': [480, 640, 800],
+  '/assets/aistudio/Custom_Printed_Branding_Umbrella_Banner_ddb8aff0.webp': [480, 640, 800],
+  '/assets/aistudio/Promotional_Canopy_Kiosk_Feature_Graphic_58ea1c0d.webp': [480, 640, 800],
+  '/assets/aistudio/Premium_Rollup_Standee_Infographic_4941e995.webp': [480, 640, 800],
+  '/assets/aistudio/Premium_300_GSM_Business_Cards__1__cc07b248.webp': [480, 640, 800],
+  '/assets/aistudio/Classic_Plain_Polo_Color_Collection_17e25f68.webp': [480, 640, 800],
+  '/assets/products/prod_tipping_polo.webp': [480, 640, 800],
+  '/assets/aistudio/JOAB_Coolmax_Polo_Shirt_Showcase_0673e0a4.webp': [480, 640, 800],
+  '/assets/aistudio/Premium_Matty_Polo_T-Shirt_Banner_45dae9b5.webp': [480, 640, 800],
+  '/assets/aistudio/Cotton_Flexi_Caps_Product_Banner_7057e0bd.webp': [480, 640, 800],
 
   // 6 Client Logos (500x500 originals; rendered 64-96px)
   '/assets/aistudio/Herbalife_Green_Circle_Logo-removebg-preview_2f94e509.webp': [128, 192],
@@ -70,8 +70,8 @@ export function getResponsiveImageProps(
 }
 
 /**
- * Returns optimized WebP srcSet and src for <picture> elements using verified
- * deployed variants in /assets/opt/ so images never break with 404 across deployments.
+ * Returns optimized AVIF and WebP srcSet values plus a WebP fallback src for
+ * <picture> elements using verified pre-generated variants in /assets/opt/.
  */
 export function getResponsivePictureSources(
   originalSrc: string,
@@ -83,6 +83,9 @@ export function getResponsivePictureSources(
   }
 
   const base = getBaseName(originalSrc);
+  const avifSrcSet = widths
+    .map((w) => `/assets/opt/${base}-w${w}.avif ${w}w`)
+    .join(', ');
   const webpSrcSet = widths
     .map((w) => `/assets/opt/${base}-w${w}.webp ${w}w`)
     .join(', ');
@@ -90,6 +93,7 @@ export function getResponsivePictureSources(
   return {
     src: `/assets/opt/${base}-w${widths[0]}.webp`,
     webpSrcSet,
+    avifSrcSet,
     ...(sizes ? { sizes } : {}),
   };
 }

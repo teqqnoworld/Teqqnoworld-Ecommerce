@@ -7994,6 +7994,11 @@ async function startServer() {
         immutable: true,
         etag: true,
         index: false,
+        setHeaders: (res, filePath) => {
+          if (filePath.endsWith('.avif')) {
+            res.setHeader('Content-Type', 'image/avif');
+          }
+        },
       })
     );
     // Graceful fallback if a requested /assets/opt/<base>-w<width>.(avif|webp) variant is absent on disk
