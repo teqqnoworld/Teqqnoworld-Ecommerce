@@ -233,7 +233,9 @@ import {
 import type { BlogPost } from './types/blog';
 import { getProductKeywordEntry } from './data/seoKeywordMap';
 import {
+  resetActiveProductView,
   trackAddToCart,
+  trackAddToCartItems,
   trackBeginCheckout,
   trackPageView,
   trackPurchaseOnce,
@@ -990,13 +992,6 @@ export default function App() {
       });
       const productPagePath = getProductPath(selectedProduct.slug);
       trackPageView({ pagePath: productPagePath, pageTitle: productTitle });
-      trackViewItem({
-        productId: selectedProduct.id,
-        productName: cleanProductH1,
-        categorySlug: productSeoEntry?.categorySlug || selectedProduct.category,
-        priceInr: selectedProduct.basePrice,
-        pagePath: productPagePath,
-      });
       return;
     }
 
@@ -1255,6 +1250,39 @@ export default function App() {
     activeBlogSlug,
     activeBlogPost,
   ]);
+
+  // Isolated GA4 view_item effect: decoupled from async reviewSummaries/blog SEO updates to prevent duplicate fires
+  useEffect(() => {
+    if (currentTab !== 'product-detail' || !selectedProduct) {
+      resetActiveProductView();
+      return;
+    }
+    const productSeoEntry = getProductKeywordEntry(selectedProduct.id);
+    const cleanProductH1 = getProductH1(selectedProduct.id, selectedProduct.name);
+    const productPagePath = getProductPath(selectedProduct.slug);
+    trackViewItem({
+      productId: selectedProduct.id,
+      productName: cleanProductH1,
+      categorySlug: productSeoEntry?.categorySlug || selectedProduct.category,
+      priceInr: selectedProduct.basePrice,
+      pagePath: productPagePath,
+    });
+  }, [currentTab, selectedProduct?.id]);
+
+  // Direct /checkout visit or page reload tracking with valid cart items (deduplicated by cart signature)
+  useEffect(() => {
+    if (currentTab !== 'checkout' || cartItems.length === 0) return;
+    trackBeginCheckout({
+      valueInr: cartItems.reduce((sum, i) => sum + i.totalPrice, 0),
+      items: cartItems.map((i) => ({
+        item_id: i.product.id,
+        item_name: getProductH1(i.product.id, i.product.name),
+        item_category: i.product.category,
+        price: i.unitPrice,
+        quantity: i.quantity,
+      })),
+    });
+  }, [currentTab, cartItems]);
 
   // Helper to safely push clean path URLs
   const pushCleanUrl = (targetPath: string) => {
@@ -1545,6 +1573,25 @@ export default function App() {
   };
 
   const handleUpdateQuantity = (id: string, delta: number) => {
+    if (delta > 0) {
+      const targetItem = cartItems.find((item) => item.id === id);
+      if (targetItem) {
+        const minAllowed = targetItem.product.moq || 1;
+        const newQty = Math.max(minAllowed, targetItem.quantity + delta);
+        const addedQty = newQty - targetItem.quantity;
+        if (addedQty > 0) {
+          const pricing = calculateProductPrice(targetItem.product.id, newQty, targetItem.size);
+          trackAddToCart({
+            productId: targetItem.product.id,
+            productName: getProductH1(targetItem.product.id, targetItem.product.name),
+            categorySlug: targetItem.product.category,
+            unitPriceInr: pricing.unitPrice,
+            quantity: addedQty,
+            totalPriceInr: Math.max(0, Math.round(pricing.unitPrice * addedQty * 100) / 100),
+          });
+        }
+      }
+    }
     setCartItems(prev => prev.map(item => {
       if (item.id === id) {
         const minAllowed = item.product.moq || 1;
@@ -1657,6 +1704,7 @@ export default function App() {
       valueInr: Number(newOrder.total || 0),
       taxInr: Number(newOrder.gstAmount || 0),
       shippingInr: Number(newOrder.shippingFee || 0),
+      couponCode: newOrder.couponCode,
       items: (newOrder.items || []).map((item) => ({
         item_id: item.product.id,
         item_name: getProductH1(item.product.id, item.product.name),
@@ -1726,6 +1774,21 @@ export default function App() {
   const handleReorder = (order: Order) => {
     setCartItems(prev => [...order.items, ...prev]);
     setIsCartOpen(true);
+    if (order.items && order.items.length > 0) {
+      trackAddToCartItems({
+        valueInr: order.items.reduce(
+          (sum, item) => sum + Number(item.totalPrice || item.unitPrice * item.quantity || 0),
+          0
+        ),
+        items: order.items.map((item) => ({
+          item_id: item.product.id,
+          item_name: getProductH1(item.product.id, item.product.name),
+          item_category: item.product.category,
+          price: item.unitPrice,
+          quantity: item.quantity,
+        })),
+      });
+    }
     triggerCelebration({
       level: 'premium',
       sound: 'celebration',

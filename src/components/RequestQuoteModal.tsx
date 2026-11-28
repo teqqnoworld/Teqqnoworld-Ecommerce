@@ -7,6 +7,7 @@ import { useRequestQuote } from '../hooks/useSupabase';
 import { isSupabaseConfigured } from '../lib/supabase';
 import { uploadDataUrlToStorage } from '../services/supabaseService';
 import { PRODUCTS } from '../data/mockData';
+import { calculateProductPrice } from '../data/pricingRules';
 import { compressImageFile } from '../utils/imageCompressor';
 import { VoiceInstructionsCard } from './VoiceInstructionsCard';
 import { triggerCelebration } from '../services/celebrationService';
@@ -114,12 +115,17 @@ export const RequestQuoteModal: React.FC<RequestQuoteModalProps> = ({
 
     if (res.success) {
       const selectedProd = PRODUCTS.find((p) => p.id === productId);
+      const estimatedLeadValue =
+        selectedProd && Number.isFinite(quantity) && quantity >= 1
+          ? calculateProductPrice(selectedProd.id, quantity).totalPrice
+          : undefined;
       trackQuoteRequest({
         leadId: res.orderId,
         formName: 'request_quote_modal',
         productId,
         productName: selectedProd?.name,
         quantity,
+        valueInr: estimatedLeadValue,
       });
       triggerCelebration({
         level: 'premium',

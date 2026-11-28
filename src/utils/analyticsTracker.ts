@@ -21,8 +21,11 @@ declare global {
 
 const SESSION_ATTR_STORAGE_KEY = 'teqqno_seo_session_attr_v1';
 const FIRED_PURCHASE_STORAGE_KEY = 'teqqno_ga4_fired_purchases_v1';
+const FIRED_CHECKOUT_STORAGE_KEY = 'teqqno_ga4_fired_checkouts_v1';
 const memoryFiredPurchases = new Set<string>();
+const memoryFiredCheckouts = new Set<string>();
 const memoryFiredKeys = new Set<string>();
+let lastActiveProductViewKey: string | null = null;
 
 interface SessionAttributionContext {
   sessionId: string;
@@ -207,6 +210,59 @@ function markPurchaseFired(transactionId: string): void {
   }
 }
 
+function buildCheckoutSignature(valueInr: number, items: Ga4ProductItemInput[]): string {
+  const normalizedItems = items
+    .map((i) => ({
+      id: String(i.item_id || '').trim(),
+      qty: Math.max(1, Math.round(Number(i.quantity || 1))),
+      price: Number(Number(i.price || 0).toFixed(2)),
+    }))
+    .sort((a, b) => a.id.localeCompare(b.id) || a.price - b.price || a.qty - b.qty);
+  const normalizedValue = Number(Number(valueInr || 0).toFixed(2));
+  return `${normalizedValue}|${normalizedItems.map((i) => `${i.id}:${i.qty}:${i.price}`).join(',')}`;
+}
+
+function hasCheckoutAlreadyFired(signature: string): boolean {
+  if (!signature) return false;
+  if (memoryFiredCheckouts.has(signature)) return true;
+  if (typeof window === 'undefined') return false;
+  try {
+    const raw = window.sessionStorage.getItem(FIRED_CHECKOUT_STORAGE_KEY);
+    const list: string[] = raw ? JSON.parse(raw) : [];
+    if (Array.isArray(list) && list.includes(signature)) {
+      memoryFiredCheckouts.add(signature);
+      return true;
+    }
+  } catch {
+    // ignore
+  }
+  return false;
+}
+
+function markCheckoutFired(signature: string): void {
+  if (!signature) return;
+  memoryFiredCheckouts.add(signature);
+  if (typeof window === 'undefined') return;
+  try {
+    const raw = window.sessionStorage.getItem(FIRED_CHECKOUT_STORAGE_KEY);
+    const list: string[] = raw ? JSON.parse(raw) : [];
+    const next = Array.from(new Set([...(Array.isArray(list) ? list : []), signature])).slice(-20);
+    window.sessionStorage.setItem(FIRED_CHECKOUT_STORAGE_KEY, JSON.stringify(next));
+  } catch {
+    // ignore
+  }
+}
+
+function clearFiredCheckouts(): void {
+  memoryFiredCheckouts.clear();
+  if (typeof window === 'undefined') return;
+  try {
+    window.sessionStorage.removeItem(FIRED_CHECKOUT_STORAGE_KEY);
+  } catch {
+    // ignore
+  }
+}
+
 function pushToDataLayer(payload: Record<string, unknown>): void {
   if (typeof window === 'undefined') return;
   try {
@@ -281,6 +337,11 @@ export function trackPageView(params: { pagePath: string; pageTitle: string; cat
   const cleanPath = (params.pagePath || '/').replace(/\/+$/, '') || '/';
   if (cleanPath.startsWith('/admin')) return;
 
+  // Leaving a product page clears the active view_item guard so revisiting the product later counts as a genuine view
+  if (!cleanPath.startsWith('/product/')) {
+    lastActiveProductViewKey = null;
+  }
+
   const dedupeKey = `pv:${cleanPath}:${Math.floor(Date.now() / 3000)}`;
   if (memoryFiredKeys.has(dedupeKey)) return;
   memoryFiredKeys.add(dedupeKey);
@@ -299,13 +360,28 @@ export function trackPageView(params: { pagePath: string; pageTitle: string; cat
   });
 }
 
+export function resetActiveProductView(): void {
+  lastActiveProductViewKey = null;
+}
+
 export function trackViewItem(params: {
   productId: string;
   productName: string;
   categorySlug?: string;
   priceInr: number;
   pagePath: string;
-}) {
+}): boolean {
+  const cleanProductId = String(params.productId || '').trim();
+  const cleanPath = (params.pagePath || '/').replace(/\/+$/, '') || '/';
+  if (!cleanProductId) return false;
+
+  // Prevent duplicate view_item pushes for the same active product view (e.g. async state updates or StrictMode double-effects)
+  const viewKey = `${cleanProductId}:${cleanPath}`;
+  if (lastActiveProductViewKey === viewKey) {
+    return false;
+  }
+  lastActiveProductViewKey = viewKey;
+
   pushToDataLayer({
     event: 'view_item',
     ecommerce: {
@@ -313,7 +389,7 @@ export function trackViewItem(params: {
       value: Number(params.priceInr || 0),
       items: [
         {
-          item_id: params.productId,
+          item_id: cleanProductId,
           item_name: params.productName,
           item_category: params.categorySlug || 'custom-merchandise',
           price: Number(params.priceInr || 0),
@@ -324,12 +400,13 @@ export function trackViewItem(params: {
   });
   sendFirstPartyAttributionBeacon({
     eventName: 'view_item',
-    pagePath: params.pagePath,
-    productId: params.productId,
+    pagePath: cleanPath,
+    productId: cleanProductId,
     productName: params.productName,
     categorySlug: params.categorySlug,
     valueInr: Number(params.priceInr || 0),
   });
+  return true;
 }
 
 export function trackViewItemList(params: {
@@ -390,18 +467,22 @@ export function trackAddToCart(params: {
   quantity: number;
   totalPriceInr: number;
 }) {
+  const safeQty = Math.max(1, Math.round(params.quantity || 1));
+  const safeUnitPrice = Number(params.unitPriceInr || 0);
+  const safeTotal = Number(params.totalPriceInr || 0);
+
   pushToDataLayer({
     event: 'add_to_cart',
     ecommerce: {
       currency: 'INR',
-      value: Number(params.totalPriceInr || 0),
+      value: safeTotal,
       items: [
         {
           item_id: params.productId,
           item_name: params.productName,
           item_category: params.categorySlug || 'custom-merchandise',
-          price: Number(params.unitPriceInr || 0),
-          quantity: Math.max(1, Math.round(params.quantity || 1)),
+          price: safeUnitPrice,
+          quantity: safeQty,
         },
       ],
     },
@@ -411,29 +492,85 @@ export function trackAddToCart(params: {
     productId: params.productId,
     productName: params.productName,
     categorySlug: params.categorySlug,
-    valueInr: Number(params.totalPriceInr || 0),
-    quantity: Math.max(1, Math.round(params.quantity || 1)),
+    valueInr: safeTotal,
+    quantity: safeQty,
   });
+}
+
+export function trackAddToCartItems(params: {
+  valueInr: number;
+  items: Ga4ProductItemInput[];
+}): boolean {
+  const validItems = (params.items || [])
+    .filter((i) => Boolean(i?.item_id && i?.item_name))
+    .map((i) => ({
+      item_id: String(i.item_id).trim(),
+      item_name: String(i.item_name).trim(),
+      item_category: i.item_category || 'custom-merchandise',
+      price: Number(i.price || 0),
+      quantity: Math.max(1, Math.round(Number(i.quantity || 1))),
+    }));
+  if (validItems.length === 0) return false;
+
+  const safeTotal = Number(params.valueInr || 0);
+  pushToDataLayer({
+    event: 'add_to_cart',
+    ecommerce: {
+      currency: 'INR',
+      value: safeTotal,
+      items: validItems,
+    },
+  });
+
+  const primaryItem = validItems[0];
+  sendFirstPartyAttributionBeacon({
+    eventName: 'add_to_cart',
+    productId: primaryItem.item_id,
+    productName: primaryItem.item_name,
+    categorySlug: primaryItem.item_category,
+    valueInr: safeTotal,
+    quantity: validItems.reduce((sum, i) => sum + i.quantity, 0),
+  });
+  return true;
 }
 
 export function trackBeginCheckout(params: {
   valueInr: number;
   items: Ga4ProductItemInput[];
-}) {
+}): boolean {
+  const validItems = (params.items || [])
+    .filter((i) => Boolean(i?.item_id && i?.item_name))
+    .map((i) => ({
+      item_id: String(i.item_id).trim(),
+      item_name: String(i.item_name).trim(),
+      item_category: i.item_category || 'custom-merchandise',
+      price: Number(i.price || 0),
+      quantity: Math.max(1, Math.round(Number(i.quantity || 1))),
+    }));
+  if (validItems.length === 0) return false;
+
+  const safeValue = Number(params.valueInr || 0);
+  const signature = buildCheckoutSignature(safeValue, validItems);
+  if (hasCheckoutAlreadyFired(signature)) {
+    return false;
+  }
+  markCheckoutFired(signature);
+
   pushToDataLayer({
     event: 'begin_checkout',
     ecommerce: {
       currency: 'INR',
-      value: Number(params.valueInr || 0),
-      items: params.items,
+      value: safeValue,
+      items: validItems,
     },
   });
   sendFirstPartyAttributionBeacon({
     eventName: 'begin_checkout',
     pagePath: '/checkout',
-    valueInr: Number(params.valueInr || 0),
-    quantity: params.items.reduce((sum, i) => sum + (i.quantity || 1), 0),
+    valueInr: safeValue,
+    quantity: validItems.reduce((sum, i) => sum + i.quantity, 0),
   });
+  return true;
 }
 
 /**
@@ -453,6 +590,9 @@ export function trackPurchaseOnce(params: {
     return false;
   }
   markPurchaseFired(txId);
+  clearFiredCheckouts();
+
+  const cleanCoupon = String(params.couponCode || '').trim().toUpperCase();
 
   pushToDataLayer({
     event: 'purchase',
@@ -462,7 +602,7 @@ export function trackPurchaseOnce(params: {
       value: Number(params.valueInr || 0),
       tax: Number(params.taxInr || 0),
       shipping: Number(params.shippingInr || 0),
-      ...(params.couponCode ? { coupon: params.couponCode } : {}),
+      ...(cleanCoupon ? { coupon: cleanCoupon } : {}),
       items: params.items,
     },
   });
@@ -488,10 +628,19 @@ export function trackQuoteRequest(params: {
   productId?: string;
   productName?: string;
   quantity?: number;
+  valueInr?: number;
 }) {
   const eventKey = params.leadId ? `quote:${params.leadId}` : undefined;
   if (eventKey && memoryFiredKeys.has(eventKey)) return;
   if (eventKey) memoryFiredKeys.add(eventKey);
+
+  const hasValidBusinessValue =
+    typeof params.valueInr === 'number' &&
+    Number.isFinite(params.valueInr) &&
+    params.valueInr > 0;
+  const roundedValue = hasValidBusinessValue
+    ? Number(params.valueInr!.toFixed(2))
+    : undefined;
 
   pushToDataLayer({
     event: 'generate_lead',
@@ -500,7 +649,7 @@ export function trackQuoteRequest(params: {
     item_id: params.productId || 'bulk-quote',
     item_name: params.productName || 'Bulk Corporate Quote',
     quantity: params.quantity || 1,
-    currency: 'INR',
+    ...(roundedValue !== undefined ? { currency: 'INR', value: roundedValue } : {}),
   });
   pushToDataLayer({
     event: 'form_submit',
@@ -512,6 +661,7 @@ export function trackQuoteRequest(params: {
     eventKey,
     productId: params.productId,
     productName: params.productName,
+    valueInr: roundedValue,
     quantity: params.quantity,
   });
 }
@@ -660,5 +810,15 @@ export function trackBlogShare(params: {
 
 export function __resetAnalyticsTrackerForTests(): void {
   memoryFiredPurchases.clear();
+  memoryFiredCheckouts.clear();
   memoryFiredKeys.clear();
+  lastActiveProductViewKey = null;
+  if (typeof window !== 'undefined') {
+    try {
+      window.sessionStorage.removeItem(FIRED_PURCHASE_STORAGE_KEY);
+      window.sessionStorage.removeItem(FIRED_CHECKOUT_STORAGE_KEY);
+    } catch {
+      // ignore
+    }
+  }
 }

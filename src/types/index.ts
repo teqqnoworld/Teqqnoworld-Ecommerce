@@ -315,6 +315,7 @@ export interface Order {
   balanceDue?: number;
   razorpayOrderId?: string;
   razorpayPaymentId?: string;
+  couponCode?: string;
   orderVoiceNoteUrl?: string;
   orderNotes?: string;
   emailNotification?: {

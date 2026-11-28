@@ -20,9 +20,16 @@ import {
 import { createSeoAnalyticsRouter } from '../server/seoAnalyticsRoutes.ts';
 import {
   classifyTrafficChannel,
+  resetActiveProductView,
+  trackViewItem,
+  trackAddToCart,
+  trackAddToCartItems,
+  trackBeginCheckout,
   trackPurchaseOnce,
+  trackQuoteRequest,
   __resetAnalyticsTrackerForTests,
 } from '../src/utils/analyticsTracker.ts';
+import { calculateProductPrice } from '../src/data/pricingRules.ts';
 
 function createTempStorePath(suffix: string): string {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), `teqqno-seo-p5-${suffix}-`));
@@ -370,4 +377,176 @@ test('7. Additive Supabase migration enforces RLS, service-role-only access, ded
   assert.ok(sql.includes('SET search_path = pg_catalog, public, pg_temp'));
   // Ensure no destructive DROP TABLE / TRUNCATE statements exist
   assert.equal(/DROP\s+TABLE|TRUNCATE\s+/i.test(sql), false);
+});
+
+test('8. Phase 1 GA4 analytics: view_item dedupe, reorder/qty add_to_cart, direct checkout dedupe, coupon purchase without PII, and generate_lead numeric value', () => {
+  const storageMap = new Map<string, string>();
+  const dataLayer: Array<Record<string, unknown>> = [];
+  const prevWindow = (globalThis as any).window;
+  const prevDocument = (globalThis as any).document;
+  const prevFetch = globalThis.fetch;
+
+  (globalThis as any).window = {
+    dataLayer,
+    location: { origin: 'https://teqqnoworld.com', pathname: '/product/plain-polo', search: '', hostname: 'teqqnoworld.com' },
+    sessionStorage: {
+      getItem: (k: string) => (storageMap.has(k) ? storageMap.get(k)! : null),
+      setItem: (k: string, v: string) => storageMap.set(k, String(v)),
+      removeItem: (k: string) => storageMap.delete(k),
+    },
+  };
+  (globalThis as any).document = { referrer: '' };
+  globalThis.fetch = (async () => ({ ok: true, status: 200 })) as any;
+
+  try {
+    __resetAnalyticsTrackerForTests();
+
+    // 1. view_item: suppresses duplicate pushes for same product view, re-arms on switch or leaving product page
+    const v1 = trackViewItem({
+      productId: 'prod-plain-polo',
+      productName: 'Classic Matty Plain Polo T-Shirt',
+      categorySlug: 'custom-polo-t-shirts',
+      priceInr: 450,
+      pagePath: '/product/customized-plain-polo-t-shirt',
+    });
+    const v2Dup = trackViewItem({
+      productId: 'prod-plain-polo',
+      productName: 'Classic Matty Plain Polo T-Shirt',
+      categorySlug: 'custom-polo-t-shirts',
+      priceInr: 450,
+      pagePath: '/product/customized-plain-polo-t-shirt',
+    });
+    assert.equal(v1, true);
+    assert.equal(v2Dup, false);
+
+    resetActiveProductView();
+    const v3GenuineRevisit = trackViewItem({
+      productId: 'prod-plain-polo',
+      productName: 'Classic Matty Plain Polo T-Shirt',
+      categorySlug: 'custom-polo-t-shirts',
+      priceInr: 450,
+      pagePath: '/product/customized-plain-polo-t-shirt',
+    });
+    assert.equal(v3GenuineRevisit, true);
+
+    const viewItemEvents = dataLayer.filter((e) => e.event === 'view_item');
+    assert.equal(viewItemEvents.length, 2);
+
+    // 2. add_to_cart: single quantity increase & multi-item reorder
+    trackAddToCart({
+      productId: 'prod-plain-polo',
+      productName: 'Classic Matty Plain Polo T-Shirt',
+      categorySlug: 'apparel',
+      unitPriceInr: 450,
+      quantity: 3,
+      totalPriceInr: 1350,
+    });
+    const reorderOk = trackAddToCartItems({
+      valueInr: 3198,
+      items: [
+        { item_id: 'prod-plain-polo', item_name: 'Plain Polo', item_category: 'apparel', price: 450, quantity: 4 },
+        { item_id: 'prod-ceramic-mug', item_name: 'Ceramic Mug', item_category: 'drinkware', price: 149, quantity: 10 },
+      ],
+    });
+    assert.equal(reorderOk, true);
+    const addEvents = dataLayer.filter((e) => e.event === 'add_to_cart');
+    assert.equal(addEvents.length, 2);
+    assert.equal((addEvents[1].ecommerce as any).items.length, 2);
+    assert.equal((addEvents[1].ecommerce as any).currency, 'INR');
+
+    // 3. begin_checkout: rejects empty cart, emits once for direct /checkout or CartDrawer, suppresses duplicate reload, re-arms after cart change or purchase
+    assert.equal(trackBeginCheckout({ valueInr: 0, items: [] }), false);
+    const checkoutItems = [
+      { item_id: 'prod-plain-polo', item_name: 'Plain Polo', item_category: 'apparel', price: 450, quantity: 10 },
+    ];
+    assert.equal(trackBeginCheckout({ valueInr: 4500, items: checkoutItems }), true);
+    assert.equal(trackBeginCheckout({ valueInr: 4500, items: checkoutItems }), false);
+    // Changing cart quantity creates a new checkout signature
+    assert.equal(
+      trackBeginCheckout({
+        valueInr: 5400,
+        items: [{ ...checkoutItems[0], quantity: 12 }],
+      }),
+      true
+    );
+
+    // 4. purchase: carries applied coupon, deduplicates by transaction_id, never includes PII, and re-arms checkout tracking
+    const p1 = trackPurchaseOnce({
+      transactionId: 'TQ-COUPON99',
+      valueInr: 4779,
+      taxInr: 729,
+      shippingInr: 0,
+      couponCode: 'save10',
+      items: checkoutItems,
+    });
+    const p2Dup = trackPurchaseOnce({
+      transactionId: 'TQ-COUPON99',
+      valueInr: 4779,
+      taxInr: 729,
+      shippingInr: 0,
+      couponCode: 'save10',
+      items: checkoutItems,
+    });
+    assert.equal(p1, true);
+    assert.equal(p2Dup, false);
+
+    const purchaseEvents = dataLayer.filter((e) => e.event === 'purchase');
+    assert.equal(purchaseEvents.length, 1);
+    const purchaseEcom = purchaseEvents[0].ecommerce as Record<string, unknown>;
+    assert.equal(purchaseEcom.transaction_id, 'TQ-COUPON99');
+    assert.equal(purchaseEcom.currency, 'INR');
+    assert.equal(purchaseEcom.value, 4779);
+    assert.equal(purchaseEcom.coupon, 'SAVE10');
+
+    // After purchase completes, a new checkout with identical items is allowed again
+    assert.equal(trackBeginCheckout({ valueInr: 4500, items: checkoutItems }), true);
+
+    // 5. generate_lead: pairs currency:'INR' with real calculated business value; omits currency if no valid value
+    const realQuotePrice = calculateProductPrice('prod-plain-polo', 50).totalPrice;
+    assert.ok(realQuotePrice > 0);
+    trackQuoteRequest({
+      leadId: 'lead-1001',
+      formName: 'request_quote_modal',
+      productId: 'prod-plain-polo',
+      productName: 'Classic Matty Plain Polo T-Shirt',
+      quantity: 50,
+      valueInr: realQuotePrice,
+    });
+    trackQuoteRequest({
+      leadId: 'lead-1002',
+      formName: 'generic_lead_no_price',
+      quantity: 10,
+    });
+
+    const leadEvents = dataLayer.filter((e) => e.event === 'generate_lead');
+    assert.equal(leadEvents.length, 2);
+    assert.equal(leadEvents[0].currency, 'INR');
+    assert.equal(leadEvents[0].value, realQuotePrice);
+    assert.equal('currency' in leadEvents[1], false);
+    assert.equal('value' in leadEvents[1], false);
+
+    // 6. Strict zero-PII verification across every dataLayer push
+    const serialized = JSON.stringify(dataLayer).toLowerCase();
+    for (const forbidden of ['email', 'phone', 'mobile', 'gstin', 'street', 'pincode', 'customer_name']) {
+      assert.equal(serialized.includes(`"${forbidden}"`), false, `PII key "${forbidden}" must never appear in dataLayer`);
+    }
+
+    // 7. Source-level invariants: purchase only fires after backend order confirmation & view_item is decoupled from reviewSummaries SEO effect
+    const checkoutSrc = fs.readFileSync(path.join(process.cwd(), 'src/components/CheckoutView.tsx'), 'utf8');
+    const confirmIdx = checkoutSrc.indexOf('if (!placeRes.success || !placeRes.primaryOrderId)');
+    const onOrderPlacedIdx = checkoutSrc.indexOf('onOrderPlaced(newOrder);');
+    assert.ok(confirmIdx > 0 && onOrderPlacedIdx > confirmIdx, 'onOrderPlaced must only run after backend order confirmation');
+    assert.ok(checkoutSrc.includes('couponCode: resolvedCouponCode || undefined'), 'CheckoutView must attach resolvedCouponCode to confirmed order');
+
+    const appSrc = fs.readFileSync(path.join(process.cwd(), 'src/App.tsx'), 'utf8');
+    assert.ok(appSrc.includes('couponCode: newOrder.couponCode'), 'App.tsx must forward newOrder.couponCode into trackPurchaseOnce');
+    assert.ok(appSrc.includes('}, [currentTab, selectedProduct?.id]);'), 'view_item effect must be isolated from reviewSummaries');
+    assert.ok(appSrc.includes('trackAddToCartItems({'), 'handleReorder must emit add_to_cart');
+    assert.ok(appSrc.includes("if (currentTab !== 'checkout' || cartItems.length === 0) return;"), 'Direct /checkout visits with valid items must trigger deduplicated begin_checkout');
+  } finally {
+    __resetAnalyticsTrackerForTests();
+    (globalThis as any).window = prevWindow;
+    (globalThis as any).document = prevDocument;
+    globalThis.fetch = prevFetch;
+  }
 });

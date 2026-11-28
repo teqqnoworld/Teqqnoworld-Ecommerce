@@ -1163,6 +1163,7 @@ export const CheckoutView: React.FC<CheckoutViewProps> = ({
         balanceDue: resolvedBalance,
         razorpayOrderId,
         razorpayPaymentId,
+        couponCode: resolvedCouponCode || undefined,
         orderVoiceNoteUrl: orderVoiceNoteUrl || undefined,
         orderNotes: orderVoiceNotes.trim() || undefined,
       };
